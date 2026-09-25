@@ -5,6 +5,8 @@ extends Node3D
 
 signal trick_landed(trick: Dictionary)   # {name, points, beat}
 signal wiped_out(reason: String)
+## A glancing hit (rock while swimming): you lose speed and flow but keep control.
+signal bumped(reason: String)
 signal ring_collected(count: int)
 signal jumped
 signal landed(impact: float)
@@ -21,7 +23,7 @@ const STEER := 15.0
 const SPIN_RATE := 620.0
 const FLIP_RATE := 480.0
 const ROLL_RATE := 540.0
-const WIPE_TIME := 1.4
+const WIPE_TIME := 1.0
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -61,6 +63,7 @@ var _wag_phase := 0.0
 var _curl := 0.0
 var _bend := 0.0
 var _t := 0.0
+var _stumble := 0.0
 var _fish: MeshInstance3D
 var _mat: ShaderMaterial
 var _wake: CPUParticles3D
@@ -154,7 +157,8 @@ func in_air() -> bool:
 func _process(delta: float) -> void:
 	if track == null:
 		return
-	delta = minf(delta, 0.05)
+	# Slow phones: only drop into slow motion below 15 fps
+	delta = minf(delta, 1.0 / 15.0)
 	_t += delta
 	var inp := _read_input(delta)
 	var jump_held: bool = inp.jump
@@ -452,6 +456,17 @@ func _wipe(reason: String) -> void:
 	wiped_out.emit(reason)
 
 
+## Glancing off a rock: knocked sideways and slowed, but still steerable.
+func _bump(rock_x: float) -> void:
+	speed *= 0.6
+	vx = (8.0 if x >= rock_x else -8.0)
+	charge = 0.0
+	invuln = 0.8
+	_stumble = 0.5
+	_splash.restart()
+	bumped.emit("ROCKED!")
+
+
 func _wipeout(dt: float) -> void:
 	wipe_time += dt
 	speed = move_toward(speed, 9.0, 25.0 * dt)
@@ -468,6 +483,7 @@ func _wipeout(dt: float) -> void:
 		vy = 0.0
 		if wipe_time > WIPE_TIME:
 			state = State.SWIM
+			speed = maxf(speed, 18.0)
 			invuln = 1.5
 			yaw = 0.0
 			pitch = 0.0
@@ -484,7 +500,10 @@ func _check_hazards() -> void:
 		for r: Dictionary in track.rocks:
 			var ds: float = s - float(r.s)
 			if absf(ds) < 3.5 and Vector2(ds, x - float(r.x)).length() < float(r.r) + 0.6:
-				_wipe("ROCKED!")
+				if state == State.SWIM:
+					_bump(float(r.x))
+				else:
+					_wipe("ROCKED!")
 				return
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)
@@ -520,6 +539,9 @@ func _update_visual(dt: float) -> void:
 		State.IDLE, State.SWIM:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
 			_land_twist = lerpf(_land_twist, 0.0, 1.0 - exp(-8.0 * dt))
+			if _stumble > 0.0:
+				_stumble = maxf(_stumble - dt, 0.0)
+				_land_twist += sin(_t * 30.0) * 40.0 * _stumble
 			b = base * Basis(Vector3.UP, deg_to_rad(_land_twist)) \
 					* Basis(Vector3.RIGHT, slope_ang + sin(_t * 5.0) * 0.05) \
 					* Basis(Vector3.BACK, -vx * 0.035)

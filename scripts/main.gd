@@ -88,6 +88,7 @@ func _ready() -> void:
 	var p := world.player
 	p.trick_landed.connect(_on_trick)
 	p.wiped_out.connect(_on_wipe)
+	p.bumped.connect(_on_bump)
 	p.ring_collected.connect(_on_ring)
 	p.jumped.connect(_on_jump)
 	p.landed.connect(_on_land)
@@ -285,6 +286,20 @@ func _on_wipe(reason: String) -> void:
 	hud.popup(reason + ("\nFLOW LOST" if lost_flow > 1 else ""), UI.RED, 1.4)
 	Music.set_filter(500.0)
 	_filter_timer = 1.3
+
+
+func _on_bump(reason: String) -> void:
+	if _autotest_dir != "":
+		print("  BUMP: %s (s=%.0f)" % [reason, world.player.s])
+	world.camera.shake = maxf(world.camera.shake, 0.5)
+	_sfx("bank")
+	_sfx("splash", 1.2, -4.0)
+	if phase != Phase.RACE:
+		return
+	var lost_flow := score.drop()
+	hud.popup(reason + ("\nFLOW LOST" if lost_flow > 1 else ""), UI.RED, 1.0)
+	Music.set_filter(900.0)
+	_filter_timer = 0.4
 
 
 func _on_ring(count: int) -> void:
