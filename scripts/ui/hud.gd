@@ -14,6 +14,9 @@ var _combo_bar: ProgressBar
 var _popup: Label
 var _count: Label
 var _speed: Label
+var _boost_label: Label
+var _boost_box: Control
+var _touch_mode := false
 var _boost: ProgressBar
 var _progress: ProgressBar
 var _beat_dots: Array[ColorRect] = []
@@ -87,7 +90,9 @@ func _ready() -> void:
 	bl.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	bl.position = Vector2(30, -86)
 	root.add_child(bl)
-	bl.add_child(UI.label("BOOST  [SHIFT]", 20, UI.CYAN, 6))
+	_boost_box = bl
+	_boost_label = UI.label("BOOST  [SHIFT]", 20, UI.CYAN, 6)
+	bl.add_child(_boost_label)
 	_boost = UI.bar(UI.CYAN, Vector2(300, 22))
 	bl.add_child(_boost)
 
@@ -109,6 +114,22 @@ func _ready() -> void:
 		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		beats.add_child(d)
 		_beat_dots.append(d)
+
+
+## On touch screens the thumbs cover the bottom corners, so the boost meter moves up under
+## the score and the speed readout is hidden.
+func set_touch_mode(on: bool) -> void:
+	if on == _touch_mode:
+		return
+	_touch_mode = on
+	_boost_label.text = "BOOST" if on else "BOOST  [SHIFT]"
+	_speed.visible = not on
+	if on:
+		_boost_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE, 30)
+		_boost_box.offset_top += 110.0
+		_boost_box.offset_bottom += 110.0
+	else:
+		_boost_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 30)
 
 
 func _centered(l: Label) -> Label:

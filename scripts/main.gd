@@ -12,6 +12,7 @@ const UI := preload("res://scripts/ui/ui_kit.gd")
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
+const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 
 enum Phase { TITLE, COUNTDOWN, RACE, FINISHED }
 
@@ -34,6 +35,8 @@ var _title_best: Label
 var _results_labels := {}
 var _finish_timer := -1.0
 var _filter_timer := 0.0
+var _touch: TouchControls
+var _use_touch := false
 
 var _autotest_dir := ""
 var _autotest_t := 0.0
@@ -47,6 +50,9 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)
+		elif arg == "--touch-ui":
+			_use_touch = true
+	_use_touch = _use_touch or DisplayServer.is_touchscreen_available()
 
 	_container = SubViewportContainer.new()
 	_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -65,6 +71,15 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.visible = false
+	var touch_layer := CanvasLayer.new()
+	touch_layer.layer = 3
+	add_child(touch_layer)
+	_touch = TouchControls.new()
+	_touch.visible = false
+	_touch.pause_pressed.connect(func() -> void:
+		if phase == Phase.RACE and not get_tree().paused:
+			_pause_game())
+	touch_layer.add_child(_touch)
 	_menus = CanvasLayer.new()
 	_menus.layer = 5
 	add_child(_menus)
@@ -189,8 +204,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		_close_sub_panel()
 
 
+func _input(event: InputEvent) -> void:
+	# Show the on-screen controls for whichever the player is actually using
+	if event is InputEventScreenTouch:
+		_use_touch = true
+	elif (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
+		_use_touch = false
+
+
 func _process(delta: float) -> void:
 	var p := world.player
+	_touch.visible = _use_touch and phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused
+	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	match phase:
 		Phase.TITLE:
@@ -328,7 +353,8 @@ func _build_menus() -> void:
 	var tips := UI.label("Land upright, and let go of grabs before you hit the water.\n" +
 			"Land ON THE BEAT for x1.5, PERFECT for x2. Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
-			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.", 21, UI.ORANGE, 6)
+			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
+			"Touch: drag the left side to steer and flip, hold + release JUMP, and GRAB, TWEAK, ROLL, BOOST.", 21, UI.ORANGE, 6)
 	tips.autowrap_mode = TextServer.AUTOWRAP_WORD
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)

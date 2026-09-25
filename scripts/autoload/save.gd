@@ -7,7 +7,8 @@ var best_score := 0
 var best_rank := "-"
 var music_volume := 0.8
 var sfx_volume := 0.9
-var pixel_scale := 3
+## Phones render at a lower resolution by default (bigger pixels, much cheaper)
+var pixel_scale := 4 if is_mobile() else 3
 
 
 func _ready() -> void:
@@ -18,7 +19,7 @@ func _ready() -> void:
 	best_rank = cfg.get_value("score", "rank", "-")
 	music_volume = cfg.get_value("settings", "music", 0.8)
 	sfx_volume = cfg.get_value("settings", "sfx", 0.9)
-	pixel_scale = cfg.get_value("settings", "pixel_scale", 3)
+	pixel_scale = cfg.get_value("settings", "pixel_scale", pixel_scale)
 
 
 func store() -> void:
@@ -39,3 +40,7 @@ func submit_score(score: int, rank: String) -> bool:
 	best_rank = rank
 	store()
 	return true
+
+
+static func is_mobile() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")

@@ -23,7 +23,7 @@ func _ready() -> void:
 	player.setup(track)
 	camera = ChaseCam.new()
 	camera.near = 0.2
-	camera.far = 900.0
+	camera.far = 450.0 if Save.is_mobile() else 900.0
 	camera.player = player
 	camera.track = track
 	add_child(camera)
@@ -60,7 +60,7 @@ func _make_environment() -> void:
 	sun = DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.86, 0.7)
 	sun.light_energy = 1.15
-	sun.shadow_enabled = true
+	sun.shadow_enabled = not Save.is_mobile()
 	sun.directional_shadow_max_distance = 120.0
 	sun.rotation_degrees = Vector3(-38.0, 150.0, 0.0)
 	add_child(sun)
@@ -68,7 +68,7 @@ func _make_environment() -> void:
 
 func _make_fireflies() -> void:
 	_fireflies = CPUParticles3D.new()
-	_fireflies.amount = 120
+	_fireflies.amount = 40 if Save.is_mobile() else 120
 	_fireflies.lifetime = 5.0
 	_fireflies.local_coords = false
 	_fireflies.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX

@@ -73,4 +73,11 @@ func _process(delta: float) -> void:
 	if not global_position.is_equal_approx(_look):
 		look_at(_look, Vector3.UP)
 	var target_fov := clampf(68.0 + (p.speed - 30.0) * 0.7 + (8.0 if p.boosting else 0.0), 62.0, 92.0)
+	# Portrait phones: widen the view (but not all the way to 16:9, or the salmon gets tiny)
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x < vp.y * 1.2:
+		keep_aspect = Camera3D.KEEP_WIDTH
+		target_fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(target_fov) * 0.5) * 1.35))
+	else:
+		keep_aspect = Camera3D.KEEP_HEIGHT
 	fov = lerpf(fov, target_fov, 1.0 - exp(-dt * 3.0))

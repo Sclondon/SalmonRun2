@@ -7,15 +7,15 @@ Godot **4.7**, Forward+. Open `project.godot` and press F5.
 
 ## Controls
 
-| Keyboard | Gamepad | On the water | In the air |
-|---|---|---|---|
-| A/D, ←/→ | left stick / d-pad | steer | spin |
-| W/S, ↑/↓ | left stick / d-pad | swim harder / brake | front / back flip |
-| Space (hold → release) | A | charge + leap | — |
-| Shift | LT | boost | — |
-| Q / E | LB / RB | — | corkscrew |
-| J K L I | X Y B RT | — | grabs (release before landing!) |
-| Esc / P | Start | pause | |
+| Keyboard | Gamepad | Touch | On the water | In the air |
+|---|---|---|---|---|
+| A/D, ←/→ | left stick / d-pad | drag left half | steer | spin |
+| W/S, ↑/↓ | left stick / d-pad | drag left half | swim harder / brake | front / back flip |
+| Space (hold → release) | A | JUMP | charge + leap | — |
+| Shift | LT | BOOST | boost | — |
+| Q / E | LB / RB | ROLL | — | corkscrew |
+| J K L I | X Y B RT | GRAB, TWEAK | — | grabs (release before landing!) |
+| Esc / P | Start | ⏸ | pause | |
 
 ## Scoring
 
