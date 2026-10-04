@@ -2,12 +2,14 @@ extends Node
 ## Persistent settings + high scores (user://salmonrun2.cfg).
 
 const PATH := "user://salmonrun2.cfg"
-const LEVELS := 6
+const LEVELS := 15
 
-## Best run of each level: level index -> [score, rank]
+## Best run of each stage: stage index (+100 for the downstream leg) -> [score, rank]
 var bests := {}
 ## The level played last (the title screen picks up from here)
 var level := 0
+## ...and whether that was on the way back downstream
+var down := false
 var music_volume := 0.8
 var sfx_volume := 0.9
 ## Phones render at a lower resolution by default (bigger pixels, much cheaper)
@@ -24,6 +26,7 @@ func _ready() -> void:
 	if old > 0 and not bests.has(3):
 		bests[3] = [old, cfg.get_value("score", "rank", "-")]
 	level = clampi(cfg.get_value("score", "level", 0), 0, LEVELS - 1)
+	down = cfg.get_value("score", "down", false)
 	music_volume = cfg.get_value("settings", "music", 0.8)
 	sfx_volume = cfg.get_value("settings", "sfx", 0.9)
 	pixel_scale = cfg.get_value("settings", "pixel_scale", pixel_scale)
@@ -33,6 +36,7 @@ func store() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("score", "bests", bests)
 	cfg.set_value("score", "level", level)
+	cfg.set_value("score", "down", down)
 	cfg.set_value("settings", "music", music_volume)
 	cfg.set_value("settings", "sfx", sfx_volume)
 	cfg.set_value("settings", "pixel_scale", pixel_scale)

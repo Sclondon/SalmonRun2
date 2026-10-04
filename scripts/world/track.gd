@@ -21,6 +21,8 @@ const GRAVITY := 24.0
 var length := 3400.0
 ## The practice level: a short, almost straight river with one of everything, for trying out the controls.
 var test := false
+## Swum back downstream by the next generation (spring, and the falls drop away again).
+var down := false
 var course_seed := 1987
 ## Which stage of the journey this is (index into Levels.LIST) and its settings.
 var level := Levels.JUNGLE
@@ -50,12 +52,15 @@ var _noise := FastNoiseLite.new()
 var _ring_root: Node3D
 
 
-func build(level_index := Levels.JUNGLE, test_level := false) -> void:
+func build(level_index := Levels.JUNGLE, test_level := false, downstream := false) -> void:
+	down = downstream
 	level = level_index
-	cfg = Levels.LIST[level]
+	cfg = Levels.LIST[level].duplicate()
+	if down and cfg.has("spring"):
+		cfg.merge(cfg.spring, true)
 	length = cfg.length
 	test = test_level
-	course_seed = cfg.seed
+	course_seed = int(cfg.seed) + (500 if down else 0)
 	_rng.seed = course_seed
 	_noise.seed = course_seed
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -317,9 +322,18 @@ func _fall_rings(lip: float, side: float) -> void:
 		rings.append({"s": lip + 34.0 * t, "x": side, "h": 1.5 + 11.0 * t - 12.0 * t * t, "ref": lip - 1.0})
 
 
+## What the arch at the end says: where this leg of the journey is heading.
+func _finish_text() -> String:
+	if test:
+		return "ONE MORE LAP"
+	if down:
+		return "THE OPEN OCEAN" if int(cfg.tier) == 0 else "DOWNSTREAM"
+	return "SPAWNING GROUNDS" if int(cfg.tier) == Levels.LAST_TIER else "UPSTREAM"
+
+
 ## True when this level is swum upstream: the water climbs and waterfalls are leapt up.
 func uphill() -> bool:
-	return cfg.get("uphill", false)
+	return cfg.get("uphill", false) and not down
 
 
 ## Where the face of a waterfall starts (it is one STEP long).
@@ -571,6 +585,8 @@ func _build_features() -> void:
 
 	var rock_meshes := [Props.rock(frng, cfg.rock, cfg.rock_cap), Props.rock(frng, cfg.rock, cfg.rock_cap),
 			Props.rock(frng, Props.shade(cfg.rock, 0.82), cfg.rock_cap)]
+	if cfg.get("rock_mesh", "") == "crate":
+		rock_meshes = [Props.crate(frng, cfg.rock), Props.crate(frng, Props.shade(cfg.rock, 0.8)), Props.crate(frng, cfg.rock)]
 	for r: Dictionary in rocks:
 		var mi := _add_mesh(rock_meshes[frng.randi() % 3], mat_world)
 		var b := Basis(Vector3.UP, frng.randf() * TAU).scaled(Vector3(r.r, r.r * 1.1, r.r) * 1.15)
@@ -616,7 +632,7 @@ func _build_features() -> void:
 	_place_facing_river(speaker, START_S + 40.0, -1.0, width(START_S + 40.0) * 0.5 + 6.0, 1.0)
 
 	_build_arch(START_S + 22.0, "PRACTICE" if test else str(cfg.name), Color(0.2, 1.0, 0.85))
-	_build_arch(finish_s, "ONE MORE LAP" if test else str(cfg.finish), Color(1.0, 0.35, 0.7))
+	_build_arch(finish_s, _finish_text(), Color(1.0, 0.35, 0.7))
 
 
 func _place_facing_river(mesh: Mesh, s: float, side: float, dist: float, sc: float) -> void:
@@ -701,8 +717,8 @@ func _foam(pos: Vector3, b: Basis, w: float) -> CPUParticles3D:
 
 # ================================================================== jungle scatter
 
-const FOLIAGE := ["tree", "palm", "fern", "reeds", "pine", "grass"]
-const NO_SHADOW := ["fern", "flower", "reeds", "lily", "shroom", "grass", "floe", "coral"]
+const FOLIAGE := ["tree", "palm", "fern", "reeds", "pine", "larch", "grass", "mangrove"]
+const NO_SHADOW := ["fern", "flower", "reeds", "lily", "shroom", "grass", "floe", "coral", "jelly"]
 
 
 ## The variants of one kind of dressing (see the scatter rules in levels.gd).
@@ -729,9 +745,48 @@ func _scatter_meshes(kind: String, rng: RandomNumberGenerator) -> Array:
 		"hill":
 			return [Props.hill(rng, cfg.hill), Props.hill(rng, cfg.hill)]
 		"mountain":
-			return [Props.mountain(rng, cfg.hill), Props.mountain(rng, cfg.hill), Props.mountain(rng, cfg.hill)]
+			var peak: Color = cfg.get("peak", Color(0.94, 0.96, 1.0))
+			return [Props.mountain(rng, cfg.hill, peak), Props.mountain(rng, cfg.hill, peak), Props.mountain(rng, cfg.hill, peak)]
 		"pine":
-			return [Props.pine(rng), Props.pine(rng), Props.pine(rng), Props.pine(rng)]
+			var snow: float = cfg.get("snow", 0.0)
+			return [Props.pine(rng, snow), Props.pine(rng, snow), Props.pine(rng, snow), Props.pine(rng, snow)]
+		"larch":
+			return [Props.pine(rng, 0.0, true), Props.pine(rng, 0.0, true), Props.pine(rng, 0.0, true)]
+		"crate":
+			return [Props.crate(rng, Props.CONTAINER_COLORS[0]), Props.crate(rng, Props.CONTAINER_COLORS[1]),
+					Props.crate(rng, Props.CONTAINER_COLORS[2]), Props.crate(rng, Props.CONTAINER_COLORS[3])]
+		"ship":
+			return [Props.ship(rng), Props.ship(rng)]
+		"piling":
+			return [Props.piling(rng), Props.piling(rng), Props.piling(rng)]
+		"crane":
+			return [Props.crane(rng), Props.crane(rng)]
+		"shed":
+			return [Props.shed(rng), Props.shed(rng), Props.shed(rng)]
+		"lamp":
+			return [Props.lamp(rng), Props.lamp(rng)]
+		"jelly":
+			return [Props.jelly(rng), Props.jelly(rng), Props.jelly(rng)]
+		"spire":
+			return [Props.spire(rng), Props.spire(rng)]
+		"mangrove":
+			return [Props.mangrove(rng), Props.mangrove(rng), Props.mangrove(rng), Props.mangrove(rng)]
+		"hut":
+			return [Props.hut(rng), Props.hut(rng)]
+		"karst":
+			return [Props.karst(rng, cfg.hill), Props.karst(rng, cfg.hill), Props.karst(rng, cfg.hill)]
+		"bale":
+			return [Props.bale(rng), Props.bale(rng)]
+		"barn":
+			return [Props.barn(rng), Props.barn(rng)]
+		"windmill":
+			return [Props.windmill(rng), Props.windmill(rng)]
+		"cactus":
+			return [Props.cactus(rng), Props.cactus(rng), Props.cactus(rng)]
+		"mesa":
+			return [Props.mesa(rng, cfg.hill), Props.mesa(rng, cfg.hill), Props.mesa(rng, cfg.hill)]
+		"pen":
+			return [Props.pen(rng), Props.pen(rng)]
 		"grass":
 			return [Props.grass(rng), Props.grass(rng)]
 		"coral":
@@ -780,7 +835,7 @@ func _scatter() -> void:
 					"far":
 						if int(s) % 40 == 0 and srng.randf() < float(rule[1]):
 							var d := srng.randf_range(hw + float(rule[2]), hw + float(rule[3]))
-							var sink := srng.randf_range(-12.0, 4.0) if kind in ["hill", "mountain"] else float(rule[6])
+							var sink := srng.randf_range(-12.0, 4.0) if kind in ["hill", "mountain", "mesa", "karst"] else float(rule[6])
 							_put(bucket, kind, srng.randi() % variants, s, point(s, side * d, water_y(s) + sink), srng.randf_range(rule[4], rule[5]), srng)
 			# lane markers where there are no banks to show the way
 			if cfg.has("markers") and int(s) % 16 == 0:

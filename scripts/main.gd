@@ -16,6 +16,7 @@ const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 const TitleLogo := preload("res://scripts/ui/title_logo.gd")
 const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
+const Globe := preload("res://scripts/ui/globe.gd")
 
 const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      LITTLE CIRCLES: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP THAT WAY      JUMP UP THE WATERFALL"
 
@@ -46,6 +47,23 @@ var _use_touch := false
 var _test_mode := false
 ## Which stage of the journey is being played (index into Levels.LIST)
 var _level := 0
+## On the way back down as the next generation (the seaward migration)
+var _down := false
+## The stages swum on the way up, in order, so the way down can retrace them
+var _route: Array[int] = []
+## Score banked over the run so far
+var _journey := 0
+var _next := -1
+var _next_down := false
+var _alt := -1
+var _map_down := false
+var _map_title: Label
+var _map_start: Button
+var _map_flip: Button
+var _map_globe: Globe
+var _travel_globe: Globe
+## The stage the run has just come from (-1 at the start of one), for the line on the globe
+var _from := -1
 var _levels: Control
 var _level_buttons: Array[Button] = []
 var _travel: Control
@@ -67,6 +85,9 @@ func _ready() -> void:
 			_autotest_dir = arg.get_slice("=", 1)
 		elif arg.begins_with("--level="):
 			Save.level = clampi(int(arg.get_slice("=", 1)) - 1, 0, Levels.LIST.size() - 1)
+			Save.down = false
+		elif arg == "--down":
+			Save.down = true
 		elif arg == "--practice":
 			_test_mode = true
 		elif arg == "--touch-ui":
@@ -108,6 +129,7 @@ func _ready() -> void:
 	_build_menus()
 	_build_levels()
 	_level = Save.level
+	_down = Save.down
 
 	var p := world.player
 	p.trick_landed.connect(_on_trick)
@@ -139,44 +161,107 @@ func _enter_title() -> void:
 	world.camera.snap()
 	_title_sub.text = _track_text()
 	var total := 0
-	for i in Levels.LIST.size():
-		total += Save.best(i)
-	_title_best.text = "JOURNEY BEST  %s" % Hud.fmt(total) if total > 0 else ""
+	for key: int in Save.bests:
+		total += Save.best(key)
+	_title_best.text = "BEST OF EVERY STAGE  %s" % Hud.fmt(total) if total > 0 else ""
 
 
-## The tune of the level you're on.
+## The tune of the stage you're on (stages on the same tier of the map share one).
 func _track_text() -> String:
-	var t: Dictionary = Songs.TRACKS[_level]
+	var t: Dictionary = Songs.TRACKS[Levels.LIST[_level].tier]
 	return "%s   //   %d BPM" % [t.name, int(t.bpm)]
 
 
-func _start_level(index: int) -> void:
+## Bests are kept per stage and per direction.
+func _key() -> int:
+	return _level + (100 if _down else 0)
+
+
+func _leg_name(down: bool) -> String:
+	return "SEAWARD MIGRATION" if down else "SPAWNING MIGRATION"
+
+
+## `from` is the stage the run has just left (for the line across the globe), -1 for none.
+func _start_level(index: int, down: bool, from := -99) -> void:
+	_from = _level if from == -99 else from
 	_level = index
+	_down = down
 	Save.level = index
+	Save.down = down
 	Save.store()
 	_start_race()
+
+
+## A fresh run from one stage of the map.
+func _start_journey(index: int, down: bool) -> void:
+	_route.clear()
+	_journey = 0
+	_start_level(index, down, -1)
+
+
+func _objective_value() -> int:
+	match Levels.LIST[_level].objective.type:
+		"rings":
+			return score.rings
+		"on_beat":
+			return score.on_beats
+		"flow":
+			return score.best_flow
+		"score":
+			return score.score
+	return score.wipeouts
+
+
+## Stages where the way on forks have a goal: meet it to stay on the wild route.
+func _has_objective() -> bool:
+	return not _test_mode and not _down and Levels.forks(_level) and Levels.LIST[_level].has("objective")
+
+
+func _objective_met() -> bool:
+	if not _has_objective():
+		return false
+	var o: Dictionary = Levels.LIST[_level].objective
+	return _objective_value() <= int(o.n) if o.type == "clean" else _objective_value() >= int(o.n)
 
 
 func _start_race(test := false) -> void:
 	if _busy:
 		return
-	if not world.has_course(_level, test):
+	if not world.has_course(_level, test, _down):
 		# building a level takes a moment: say where we're going, then let that frame draw first
 		_busy = true
-		_travel_label.text = "PRACTICE" if test else "%d / %d\n%s" % [_level + 1, Levels.LIST.size(), Levels.LIST[_level].name]
+		_travel_label.text = "PRACTICE" if test else "%s\n%s" % [_leg_name(_down), Levels.LIST[_level].name]
+		if test:
+			_travel_tag.text = ""
+		elif _down:
+			_travel_tag.text = "SPRING. THE NEXT GENERATION HEADS FOR THE SEA"
+		else:
+			_travel_tag.text = str(Levels.LIST[_level].tagline)
+		hud.visible = false
+		_travel_globe.visible = not test
+		if not test:
+			var done: Array[int] = []
+			if not _down:
+				done = _route.duplicate()
+			if _from == -1 or _from == _level:
+				_travel_globe.look_at_stage(_level)
+			_travel_globe.show_path(done, _from, _level, 1.3)
 		_show(_travel)
 		Music.set_filter(700.0)
+		if not test and _from != -1 and _from != _level:
+			# let the line reach the next stage before the screen freezes to build it
+			await get_tree().create_timer(1.6).timeout
 		await get_tree().process_frame
 		await get_tree().process_frame
 		_busy = false
 	_test_mode = test
-	world.set_course(_level, test)
+	world.set_course(_level, test, _down)
 	_touch.hint = PRACTICE_HINT if test else ""
 	GameInput.clear_touch()
 	get_tree().paused = false
 	_show(null)
 	hud.visible = true
-	hud.set_best(0 if test else Save.best(_level))
+	hud.set_best(0 if test else Save.best(_key()))
 	score.reset()
 	race_time = 0.0
 	_finish_timer = -1.0
@@ -188,10 +273,10 @@ func _start_race(test := false) -> void:
 	world.camera.mode = ChaseCam.Mode.FOLLOW
 	world.camera.snap()
 	Music.set_filter(20000.0)
-	Music.play_race(Levels.JUNGLE if test else _level)
+	Music.play_race(Levels.LIST[Levels.JUNGLE if test else _level].tier)
 	phase = Phase.COUNTDOWN
 	if not test:
-		hud.popup("%s\n%s" % [Levels.LIST[_level].name, Levels.LIST[_level].tagline], UI.CYAN, 2.6)
+		hud.popup(Levels.LIST[_level].name, UI.CYAN, 2.6)
 	if test:
 		# no countdown, no finish line: just swim
 		phase = Phase.RACE
@@ -235,18 +320,57 @@ func _finish() -> void:
 func _show_results() -> void:
 	# shorter levels have less to score on, so rank against a full-length course
 	var rank := Score.rank_for(int(score.score * 3400.0 / world.track.length))
-	var last := _level == Levels.LIST.size() - 1
-	var new_best := _autotest_dir == "" and Save.submit_score(_level, score.score, rank)
+	var new_best := _autotest_dir == "" and Save.submit_score(_key(), score.score, rank)
 	# Hand the score to the hosting page (the Scareathon arcade cabinet) for its leaderboard
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.parent.postMessage({ type: 'PLAYER_DIED', score: %d }, '*')" % score.score, true)
+	_journey += score.score
 	var l: Dictionary = _results_labels
-	(l.title as Label).text = "HOME AT LAST. SPAWNED!" if last else "%s CLEARED" % Levels.LIST[_level].name
-	(l.next as Button).visible = not last
+	var stage: Dictionary = Levels.LIST[_level]
+	var title := "%s CLEARED" % stage.name
+	var route := ""
+	_next = -1
+	_alt = -1
+	_next_down = _down
+	var next_text := ""
+	if _down:
+		_next = Levels.prev_down(_level, _route)
+		if _next == -1:
+			title = "THE OPEN OCEAN. THE CYCLE BEGINS AGAIN"
+			route = "TWO YEARS AT SEA, THEN THE LONG SWIM HOME"
+	else:
+		if _route.is_empty() or _route[-1] != _level:
+			_route.append(_level)
+		var met := _objective_met()
+		var options := Levels.next_up(_level, met)
+		if options.is_empty():
+			# the end of the run up: spawn, and the young take it from here
+			title = "HOME AT LAST. SPAWNED!" if int(stage.lane) == 0 else "SPAWNED... IN A FISH FARM"
+			route = "THE ADULTS DIE HERE AND FEED THE RIVER. THEIR YOUNG HEAD FOR THE SEA"
+			_next = _level
+			_next_down = true
+			next_text = "THE NEXT GENERATION"
+		else:
+			_next = options[0]
+			if options.size() > 1:
+				_alt = options[1]
+			if _has_objective():
+				route = "GOAL MET: THE WILD ROUTE IS OPEN" if met else "GOAL MISSED (%s): SWEPT OFF COURSE" % Levels.objective_text(_level)
+	if next_text == "" and _next != -1:
+		next_text = "NEXT: %s" % Levels.LIST[_next].name
+	(l.title as Label).text = title
+	(l.route as Label).text = route
+	(l.route as Label).visible = route != ""
+	(l.next as Button).visible = _next != -1
+	(l.next as Button).text = next_text
+	(l.alt as Button).visible = _alt != -1
+	if _alt != -1:
+		(l.alt as Button).text = "OR: %s" % Levels.LIST[_alt].name
 	(l.rank as Label).text = rank
 	(l.score as Label).text = Hud.fmt(score.score)
-	(l.best as Label).text = "NEW BEST!" if new_best else "BEST  %s" % Hud.fmt(Save.best(_level))
+	(l.best as Label).text = "NEW BEST!" if new_best else "BEST  %s" % Hud.fmt(Save.best(_key()))
 	(l.stats as Label).text = "\n".join([
+		"JOURNEY SO FAR   %s" % Hud.fmt(_journey),
 		"TIME   %s" % Hud.fmt_time(race_time),
 		"TRICKS   %d      ON BEAT   %d" % [score.tricks, score.on_beats],
 		"BEST TRICK   %s  (%s)" % [score.best_trick.to_upper() if score.best_trick != "" else "-", Hud.fmt(score.best_trick_pts)],
@@ -257,6 +381,7 @@ func _show_results() -> void:
 	if _autotest_dir != "":
 		print("AUTOTEST RESULT score=%d rank=%s time=%.1f tricks=%d on_beat=%d rings=%d wipeouts=%d best='%s'" % [
 			score.score, rank, race_time, score.tricks, score.on_beats, score.rings, score.wipeouts, score.best_trick])
+		print("AUTOTEST ROUTE title='%s' next=%s alt=%s down=%s note='%s'" % [title, Levels.LIST[_next].name if _next != -1 else "-", Levels.LIST[_alt].name if _alt != -1 else "-", _next_down, route])
 
 
 func _pause_game() -> void:
@@ -292,7 +417,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var p := world.player
-	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused
+	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused and not _travel.visible
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	match phase:
@@ -311,6 +436,10 @@ func _process(delta: float) -> void:
 			var prog := clampf((p.s - Track.START_S) / (world.track.finish_s - Track.START_S), 0.0, 1.0)
 			hud.set_stats(score.score, race_time, prog, p.boost, p.speed * 3.6)
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
+			if _has_objective():
+				hud.set_objective("%s   [%s]" % [Levels.objective_text(_level), Hud.fmt(_objective_value())], _objective_met())
+			else:
+				hud.set_objective("", false)
 			if phase == Phase.RACE and p.s >= world.track.finish_s:
 				if _test_mode:
 					_test_lap()
@@ -506,48 +635,140 @@ func _build_menus() -> void:
 	rs.add_child(_results_labels.best)
 	_results_labels.stats = UI.label("", 24, Color.WHITE, 6)
 	rv.add_child(_results_labels.stats)
-	var bh := HBoxContainer.new()
-	bh.add_theme_constant_override("separation", 20)
+	_results_labels.route = UI.label("", 22, UI.ORANGE, 6)
+	_results_labels.route.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_results_labels.route.custom_minimum_size.x = 700
+	rv.add_child(_results_labels.route)
+	var bh := GridContainer.new()
+	bh.columns = 2
+	bh.add_theme_constant_override("h_separation", 20)
+	bh.add_theme_constant_override("v_separation", 8)
 	rv.add_child(bh)
-	_results_labels.next = UI.button("NEXT LEVEL", func() -> void: _start_level(_level + 1))
+	_results_labels.next = UI.button("NEXT", func() -> void: _start_level(_next, _next_down))
 	bh.add_child(_results_labels.next)
-	bh.add_child(UI.button("SWIM AGAIN", _start_race))
+	_results_labels.alt = UI.button("OR", func() -> void: _start_level(_alt, false))
+	bh.add_child(_results_labels.alt)
+	bh.add_child(UI.button("SWIM AGAIN", func() -> void:
+		_journey -= score.score
+		_start_race()))
 	bh.add_child(UI.button("TITLE", _enter_title))
 
 
-## The level list: the journey home, one button per stage, with your best on each.
+const MAP_NODE := Vector2(206, 60)
+## columns by lane: the northern wild route, the southern one, then the man-made one
+const MAP_COLUMNS := [0, 2, 1]
+
+
+## The map: a globe with every stage pinned on it, and the stages listed beside it tier by
+## tier (one column per route). Point at a stage and the globe turns to it, drawing the way
+## there; pick it to start a run from that stage.
 func _build_levels() -> void:
 	_levels = _panel_root()
-	var lp := _centered_panel(_levels, Vector2(760, 0))
+	var lp := _centered_panel(_levels, Vector2(1200, 0))
 	var lv := VBoxContainer.new()
 	lv.add_theme_constant_override("separation", 8)
 	lp.add_child(lv)
-	lv.add_child(UI.label("THE JOURNEY HOME", 48, UI.LIME, 12))
-	for i in Levels.LIST.size():
-		var b := UI.button("", _start_level.bind(i))
-		b.custom_minimum_size = Vector2(700, 52)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		lv.add_child(b)
-		_level_buttons.append(b)
-	lv.add_child(UI.button("BACK", _close_sub_panel))
-	# shown while a level is being built
+	_map_title = UI.label("", 40, UI.LIME, 12)
+	lv.add_child(_map_title)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 16)
+	lv.add_child(body)
+	_map_globe = Globe.new()
+	_map_globe.custom_minimum_size = Vector2(470, 470)
+	body.add_child(_map_globe)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	body.add_child(list)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	list.add_child(head)
+	var titles := ["NORTHERN (WILD)", "SOUTHERN (WILD)", "MAN-MADE"]
+	for k in 3:
+		var l := UI.label(titles[k], 18, Globe.LANE_COLORS[MAP_COLUMNS[k]], 6)
+		l.custom_minimum_size.x = MAP_NODE.x
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		head.add_child(l)
+	_level_buttons.resize(Levels.LIST.size())
+	for tier in Levels.LAST_TIER + 1:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		list.add_child(row)
+		for lane: int in MAP_COLUMNS:
+			var id := Levels.at(tier, lane)
+			if id == -1:
+				var gap := Control.new()
+				gap.custom_minimum_size = MAP_NODE
+				row.add_child(gap)
+				continue
+			var b := UI.button("", func() -> void: _start_journey(id, _map_down))
+			b.custom_minimum_size = MAP_NODE
+			b.add_theme_font_size_override("font_size", 18)
+			b.focus_entered.connect(_map_point.bind(id))
+			b.mouse_entered.connect(_map_point.bind(id))
+			row.add_child(b)
+			_level_buttons[id] = b
+	var legend := UI.label("MEET A STAGE'S GOAL TO STAY WILD. MISS IT AND YOU ARE SWEPT ONTO THE MAN-MADE ROUTE", 17, UI.ORANGE, 6)
+	list.add_child(legend)
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 20)
+	lv.add_child(row2)
+	_map_start = UI.button("", func() -> void: _start_journey(_map_first(), _map_down))
+	row2.add_child(_map_start)
+	_map_flip = UI.button("", func() -> void:
+		_map_down = not _map_down
+		_refresh_map())
+	_map_flip.custom_minimum_size.x = 420
+	row2.add_child(_map_flip)
+	row2.add_child(UI.button("BACK", _close_sub_panel))
+	# the travel screen, shown between stages: the red line crosses the globe to the next one
 	_travel = _panel_root()
-	var tp := _centered_panel(_travel, Vector2(760, 240))
+	var tp := _centered_panel(_travel, Vector2(860, 0))
 	var tv := VBoxContainer.new()
 	tv.alignment = BoxContainer.ALIGNMENT_CENTER
 	tp.add_child(tv)
-	_travel_label = UI.label("", 52, UI.CYAN, 12)
+	_travel_label = UI.label("", 40, UI.CYAN, 12)
 	_travel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tv.add_child(_travel_label)
+	var holder := CenterContainer.new()
+	tv.add_child(holder)
+	_travel_globe = Globe.new()
+	_travel_globe.custom_minimum_size = Vector2(400, 400)
+	holder.add_child(_travel_globe)
 	_travel_tag = UI.label("", 26, UI.ORANGE, 8)
 	_travel_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tv.add_child(_travel_tag)
 
 
-func _open_levels() -> void:
+## Where a whole leg starts: the ocean going up, the lake coming down.
+func _map_first() -> int:
+	return Levels.at(Levels.LAST_TIER, 0) if _map_down else Levels.at(0, 0)
+
+
+## Turns the map's globe to a stage and draws the last hop of the way there.
+func _map_point(id: int) -> void:
+	var path := Levels.path_to(id)
+	if _map_down:
+		# coming down, the way to a stage is from the spawning grounds above it
+		path = Levels.path_from_top(id)
+	var from := path[path.size() - 2] if path.size() > 1 else -1
+	path.resize(path.size() - 1)
+	_map_globe.show_path(path, from, id, 0.7)
+
+
+func _refresh_map() -> void:
+	_map_title.text = "%s  //  %s" % [_leg_name(_map_down), "SPRING, DOWNSTREAM" if _map_down else "AUTUMN, UPSTREAM"]
+	_map_start.text = "START FROM THE LAKE" if _map_down else "START FROM THE OCEAN"
+	_map_flip.text = "SHOW THE WAY UP" if _map_down else "SHOW THE WAY BACK DOWN"
 	for i in _level_buttons.size():
-		var best := "%s  (%s)" % [Hud.fmt(Save.best(i)), Save.rank(i)] if Save.best(i) > 0 else "-"
-		_level_buttons[i].text = "  %d   %s      %s" % [i + 1, Levels.LIST[i].name, best]
+		var key := i + (100 if _map_down else 0)
+		var best := "%s (%s)" % [Hud.fmt(Save.best(key)), Save.rank(key)] if Save.best(key) > 0 else "-"
+		_level_buttons[i].text = "%s\n%s" % [Levels.LIST[i].name, best]
+
+
+func _open_levels() -> void:
+	_map_down = _down
+	_refresh_map()
+	_map_globe.look_at_stage(_level)
 	_show(_levels)
 	_level_buttons[_level].grab_focus()
 

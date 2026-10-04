@@ -5,10 +5,12 @@ const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const Levels := preload("res://scripts/world/levels.gd")
+const School := preload("res://scripts/world/school.gd")
 
 var track: Track
 var player: Salmon
 var camera: ChaseCam
+var school: School
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -21,42 +23,52 @@ func _ready() -> void:
 	_make_environment()
 	track = Track.new()
 	add_child(track)
-	track.build(Save.level)
+	track.build(Save.level, false, Save.down)
 	player = Salmon.new()
 	add_child(player)
 	player.setup(track)
+	school = School.new()
+	add_child(school)
+	school.setup(track, player, 5 if Save.is_mobile() else 8)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
 	camera.player = player
 	camera.track = track
+	school.track = track
+	school.scatter()
 	add_child(camera)
 	camera.current = true
 	_make_fireflies()
 	_apply_level()
+	_dress_player(track.level, track.down)
 
 
 ## Swaps in another level (or the practice course, which borrows the jungle). Rebuilding takes a moment.
-func has_course(level: int, test: bool) -> bool:
-	return track.test == test and track.level == (Levels.JUNGLE if test else level)
+func has_course(level: int, test: bool, down := false) -> bool:
+	return track.test == test and track.level == (Levels.JUNGLE if test else level) and track.down == (down and not test)
 
 
-func set_course(level: int, test: bool) -> void:
+func set_course(level: int, test: bool, down := false) -> void:
 	if test:
+		down = false
 		level = Levels.JUNGLE
-	if has_course(level, test):
+	_dress_player(level, down)
+	if has_course(level, test, down):
 		return
 	remove_child(track)
 	track.queue_free()
 	track = Track.new()
 	add_child(track)
 	move_child(track, 0)
-	track.build(level, test)
+	track.build(level, test, down)
 	_apply_level()
 	player.track = track
 	player.rail = {}
 	player.reset(Track.START_S)
 	camera.track = track
+	school.track = track
+	school.scatter()
 	camera.snap()
 
 
@@ -94,6 +106,20 @@ func _make_environment() -> void:
 	sun.directional_shadow_max_distance = 120.0
 	sun.rotation_degrees = Vector3(-38.0, 150.0, 0.0)
 	add_child(sun)
+
+
+## The salmon changes with its life: silver at sea, red and green once it reaches fresh water
+## to spawn, and a small silver smolt on the way back down.
+func _dress_player(level: int, down: bool) -> void:
+	if down:
+		player.set_look("smolt")
+		school.set_look("smolt")
+	elif not Levels.LIST[level].salt:
+		player.set_look("spawner")
+		school.set_look("spawner")
+	else:
+		player.set_look("ocean")
+		school.set_look("ocean")
 
 
 ## Sky, fog and light for the level that was just built.

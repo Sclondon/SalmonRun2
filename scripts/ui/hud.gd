@@ -19,6 +19,7 @@ var _boost_box: Control
 var _touch_mode := false
 var _boost: ProgressBar
 var _progress: ProgressBar
+var _objective: Label
 var _beat_dots: Array[ColorRect] = []
 var _trick_t := 0.0
 var _popup_t := 0.0
@@ -56,6 +57,12 @@ func _ready() -> void:
 	_progress.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_progress.position = Vector2(-210, 26)
 	root.add_child(_progress)
+
+	_objective = _centered(UI.label("", 22, Color.WHITE, 6))
+	_objective.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_objective.position = Vector2(-400, 44)
+	_objective.custom_minimum_size = Vector2(800, 0)
+	root.add_child(_objective)
 
 	var mid := VBoxContainer.new()
 	mid.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -135,6 +142,12 @@ func set_touch_mode(on: bool) -> void:
 func _centered(l: Label) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
+
+
+## The stage's goal, shown under the progress bar; it turns green once it is met.
+func set_objective(text: String, done: bool) -> void:
+	_objective.text = text
+	_objective.add_theme_color_override("font_color", UI.LIME if done else Color.WHITE)
 
 
 func set_best(best: int) -> void:

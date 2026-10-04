@@ -83,6 +83,7 @@ var _prev_yaw := 0.0
 var _prev_pitch := 0.0
 var _prev_vx := 0.0
 var _fish: MeshInstance3D
+var _look := "spawner"
 var _mat: ShaderMaterial
 var _wake: CPUParticles3D
 var _splash: CPUParticles3D
@@ -139,6 +140,15 @@ func _particles(amount: int, life: float, col: Color, size: float, one_shot: boo
 	p.mesh = m
 	add_child(p)
 	return p
+
+
+## Which stage of its life the salmon is in: "ocean", "spawner" or "smolt" (see Props.salmon).
+func set_look(look: String) -> void:
+	if look == _look:
+		return
+	_look = look
+	_fish.mesh = Props.salmon(look)
+	_fish.scale = Vector3.ONE * (0.95 if look == "smolt" else 1.35)
 
 
 func reset(at_s: float) -> void:

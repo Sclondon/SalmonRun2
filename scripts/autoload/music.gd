@@ -80,7 +80,7 @@ func play_title() -> void:
 
 ## Starts a level's race tune from the top (the beat clock restarts at 0).
 func play_race(level: int) -> void:
-	var i := clampi(level, 0, Songs.TRACKS.size() - 1)
+	var i := clampi(level, 0, Songs.TRACKS.size() - 1)  # one tune per tier of the map
 	if not _races.has(i):
 		_races[i] = _load_song(Songs.TRACKS[i].file, Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
 	_play(_races[i], Songs.RACE_SONG, Songs.RACE_LOOP_SECTION, Songs.TRACKS[i].bpm)
