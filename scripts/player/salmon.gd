@@ -30,6 +30,8 @@ const FOLLOW_GAIN := 0.4
 const SWIPE_JUMP := 1.0
 ## Spins and flips swing the salmon around a circle of this radius instead of turning on the spot.
 const ARC_RADIUS := 0.9
+## How far downstream you are swept when you fail to clear a waterfall (room for a run-up).
+const WASH_BACK := 40.0
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -181,6 +183,7 @@ func _process(delta: float) -> void:
 	var released := _jump_prev and not jump_held
 	_jump_prev = jump_held
 	invuln = maxf(invuln - delta, 0.0)
+	var s_before := s
 	match state:
 		State.IDLE:
 			y = track.water_y(s)
@@ -192,6 +195,8 @@ func _process(delta: float) -> void:
 			_grind(delta, inp, released)
 		State.WIPEOUT:
 			_wipeout(delta)
+	if state != State.IDLE and state != State.GRIND:
+		_check_falls(s_before)
 	if state != State.IDLE:
 		_check_hazards()
 		var got := track.collect_rings(track.point(s, x, y + 0.2))
@@ -510,6 +515,38 @@ func _wipe(reason: String) -> void:
 	wiped_out.emit(reason)
 
 
+## Swimming upstream, a waterfall is a wall of water: clear the top in the air or be swept
+## back down for another run at it.
+func _check_falls(prev_s: float) -> void:
+	if not track.uphill():
+		return
+	for wf: Dictionary in track.waterfalls:
+		var base := track.fall_base(wf)
+		var top := base + Track.STEP
+		if s >= base and prev_s <= top and y < track.water_y(top + 0.01) - 0.6:
+			_wash_back(base)
+			return
+
+
+func _wash_back(base: float) -> void:
+	s = base - WASH_BACK
+	y = track.water_y(s)
+	vy = 0.0
+	speed = 12.0
+	state = State.SWIM
+	charge = 0.0
+	grab = -1
+	yaw = 0.0
+	pitch = 0.0
+	roll = 0.0
+	_land_twist = 0.0
+	_prev_surface = y
+	_ramp_vy = 0.0
+	_stumble = 0.5
+	_splash.restart()
+	bumped.emit("WASHED BACK!")
+
+
 ## Glancing off a rock: knocked sideways and slowed, but still steerable.
 func _bump(rock_x: float) -> void:
 	speed *= 0.6
@@ -562,7 +599,7 @@ func _check_hazards() -> void:
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)
 		if absf(ds) < 2.8 and absf(x - float(b.x)) < 3.0 and above < 3.6 and b.node.is_swiping():
-			_wipe("BEAR'D!")
+			_wipe(track.cfg.predator_word)
 			Sfx.play("bear")
 			return
 
@@ -709,7 +746,8 @@ func _ai_input(dt: float) -> Dictionary:
 				hold = true
 			for wf: Dictionary in track.waterfalls:
 				var d: float = float(wf.s) - s
-				if d > 1.0 and d < 14.0:
+				# going down, leap off the lip; going up, a full charge released in time to clear it
+				if (d > 17.0 and d < 36.0) if track.uphill() else (d > 1.0 and d < 14.0):
 					hold = true
 			for bb: Dictionary in track.bears:
 				var d: float = float(bb.s) - s

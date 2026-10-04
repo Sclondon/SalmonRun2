@@ -9,8 +9,10 @@ signal beat(index: int)
 
 const Songs := preload("res://scripts/audio/songs.gd")
 
-const BPM := 174.0
-const SEC_PER_BEAT := 60.0 / BPM
+const TITLE_BPM := 174.0
+## Tempo of the song that is playing; every track has its own.
+var bpm := TITLE_BPM
+var sec_per_beat := 60.0 / TITLE_BPM
 const SECTION_BEATS := 16.0
 
 var is_ready := true
@@ -73,21 +75,23 @@ func apply_volumes() -> void:
 
 
 func play_title() -> void:
-	_play(_title, Songs.TITLE_SONG, 0)
+	_play(_title, Songs.TITLE_SONG, 0, TITLE_BPM)
 
 
-## Starts the chosen race track (Save.track) from the top (the beat clock restarts at 0).
-func play_race() -> void:
-	var i := clampi(Save.track, 0, Songs.TRACKS.size() - 1)
+## Starts a level's race tune from the top (the beat clock restarts at 0).
+func play_race(level: int) -> void:
+	var i := clampi(level, 0, Songs.TRACKS.size() - 1)
 	if not _races.has(i):
 		_races[i] = _load_song(Songs.TRACKS[i].file, Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
-	_play(_races[i], Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
+	_play(_races[i], Songs.RACE_SONG, Songs.RACE_LOOP_SECTION, Songs.TRACKS[i].bpm)
 
 
-func _play(stream: AudioStreamWAV, song: Array[String], loop_section: int) -> void:
+func _play(stream: AudioStreamWAV, song: Array[String], loop_section: int, tempo: float) -> void:
+	bpm = tempo
+	sec_per_beat = 60.0 / tempo
 	_song = song
 	_loop_section = loop_section
-	_loop_seconds = SECTION_BEATS * SEC_PER_BEAT * (song.size() - loop_section)
+	_loop_seconds = SECTION_BEATS * sec_per_beat * (song.size() - loop_section)
 	_last_raw = 0.0
 	_wrap = 0.0
 	_stuck = 0.0
@@ -104,13 +108,13 @@ func set_filter(hz: float) -> void:
 
 
 func beat_float() -> float:
-	return song_time / SEC_PER_BEAT
+	return song_time / sec_per_beat
 
 
 ## Signed seconds from the nearest beat (0 = exactly on the beat).
 func beat_offset() -> float:
 	var b := beat_float()
-	return (b - roundf(b)) * SEC_PER_BEAT
+	return (b - roundf(b)) * sec_per_beat
 
 
 ## 1.0 right on the beat, decaying to 0 before the next one; scaled by section energy.
@@ -142,7 +146,7 @@ func _update_clock(delta: float) -> void:
 		_clock_started = false
 	else:
 		_sync_clock(raw, delta)
-	var section := int(floorf(maxf(song_time, 0.0) / (SECTION_BEATS * SEC_PER_BEAT)))
+	var section := int(floorf(maxf(song_time, 0.0) / (SECTION_BEATS * sec_per_beat)))
 	if section >= _song.size():
 		section = _loop_section + (section - _loop_section) % (_song.size() - _loop_section)
 	energy = lerpf(energy, float(Songs.ENERGY.get(_song[section], 0.5)), 0.1)

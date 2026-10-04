@@ -1,7 +1,8 @@
-# Salmon Run 2 — Jungle Falls
+# Salmon Run 2
 
-Low-poly retro trick racer: you're a sockeye salmon running a jungle river to a procedural
-jungle / drum & bass soundtrack (174 BPM). SSX-style tricks, waterfalls, bamboo rails, bears.
+Low-poly retro trick racer: you're a sockeye salmon heading home, from the deep ocean to the
+mountain lake you hatched in, to a procedural
+jungle / drum & bass soundtrack. SSX-style tricks, waterfalls, rails, sharks and bears.
 
 Godot **4.7**, Forward+. Open `project.godot` and press F5.
 
@@ -22,6 +23,27 @@ Touch is gestures only for now (no corkscrew or grabs), and the mouse counts as 
 **PRACTICE** on the title screen is a short, straight river with one of everything (ring slalom,
 jump rings, ramps, rails, rocks, a waterfall) that loops forever, for trying the controls.
 
+## Levels
+
+The journey home, in order (all six are open from the start for now; SWIM! lists them):
+
+| # | Level | What it is |
+|---|---|---|
+| 1 | Deep Ocean | open water at night: ice, buoys marking the current, sharks |
+| 2 | Shallow Sea | bright reef between sandbars, coral heads, sharks |
+| 3 | The Coast | the river mouth at golden hour: beaches, palms, driftwood; the water starts to climb |
+| 4 | Jungle Falls | upstream through the jungle: waterfalls to leap up, bamboo rails, bears |
+| 5 | Alpine Run | upstream again: narrow, steep and rocky, more waterfalls, bears |
+| 6 | The Home Lake | calm, wide, no hazards: ramps, rails and rings to the spawning grounds |
+
+Each level is one entry in `scripts/world/levels.gd` (course shape, what it is made of, bank
+profile, scenery rules, colours, sky and light), so tuning or adding one is editing that table.
+Best scores are kept per level, and ranks are scaled to a full-length course.
+
+From the coast on you swim **upstream**: the river climbs, and a waterfall is a wall of water
+2.6 to 4 m high. Jump (a swipe, or a fully charged Space) roughly 10 to 25 m before it to clear
+the top; come up short and you are WASHED BACK 40 m for another run at it.
+
 ## Scoring
 
 - Tricks bank on landing: flips, spins, corkscrews, grabs, airtime, Big Air, Bamboo Grind.
@@ -31,9 +53,10 @@ jump rings, ramps, rails, rocks, a waterfall) that loops forever, for trying the
 
 ## Music
 
-Options → TRACK picks the race tune: Jungle Falls, Deep Current (mellow, liquid) or Night Rapids
-(darker, heavier). All three are 174 BPM with the same arrangement, so on-beat landings work the
-same on each. They are the `STYLES` in `scripts/audio/dnb_synth.gd`, listed in `Songs.TRACKS`.
+Every level has its own tune, each at its own tempo: Abyssal (150 BPM), Reef Break (160), River
+Mouth (166), Jungle Falls (174), White Water (186) and Homecoming (178). The beat clock follows
+the tune, so on-beat landings, the countdown and the predators all keep time with it. They are
+the `STYLES` in `scripts/audio/dnb_synth.gd`, listed in level order in `Songs.TRACKS`.
 
 ## Project layout
 
@@ -44,8 +67,9 @@ same on each. They are the `STYLES` in `scripts/audio/dnb_synth.gd`, listed in `
 | `scripts/autoload/sfx.gd` | plays the baked sound effects |
 | `scripts/audio/` | the procedural DnB + SFX synthesizers and the song arrangements |
 | `scripts/tools/bake_audio.gd` | renders the synths into `audio/*.wav` |
-| `scripts/world/track.gd` | river generation: centre-line, waterfalls, ramps, rails, rocks, rings, bears, jungle scatter |
-| `scripts/world/props.gd` | procedural low-poly meshes (salmon, trees, bear, speakers, ruins…) |
+| `scripts/world/levels.gd` | the six levels: everything that makes one look and play differently |
+| `scripts/world/track.gd` | course generation from a level: centre-line, waterfalls, ramps, rails, rocks, rings, predators, scenery |
+| `scripts/world/props.gd` | procedural low-poly meshes (salmon, trees, bear, shark, icebergs, coral, speakers…) |
 | `scripts/player/salmon.gd` | movement in track space (s, x, y), tricks, grinds, wipeouts, autopilot |
 | `shaders/` | PS1 vertex snap, water, fish wag, sunset sky, dither post-process |
 
@@ -58,7 +82,7 @@ godot --headless --path . -s scripts/tools/bake_audio.gd
 godot --headless --path . --import
 ```
 
-Tweak the course with `Track.length` / `track.build(seed)` in `world.gd`.
+Tweak a course with its `length`, `seed` and `kinds` in `levels.gd`.
 The UI font is Pixelify Sans (SIL OFL, see `fonts/PixelifySans-OFL.txt`).
 
 ## Web build / Scareathon arcade
@@ -77,5 +101,5 @@ Web builds use the Compatibility renderer and have no threads.
 ```
 godot --path . -- --autotest=C:/some/folder
 ```
-Plays a full race on autopilot (add `--practice` for a minute on the practice level), saves screenshots to that folder, prints the result and quits
+Plays a full race on autopilot (add `--level=N` to pick the level, or `--practice` for a minute on the practice level), saves screenshots to that folder, prints the result and quits
 (autotest runs never touch your high score).

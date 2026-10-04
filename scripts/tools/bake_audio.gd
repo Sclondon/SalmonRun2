@@ -15,7 +15,7 @@ func _init() -> void:
 	for track: Dictionary in Songs.TRACKS:
 		var sections := {}
 		for section_name in DnbSynth.RENDER_ORDER:
-			sections[section_name] = synth.render_section(section_name, track.style)
+			sections[section_name] = synth.render_section(section_name, track.style, track.bpm)
 			print("rendered ", track.style, " ", section_name)
 		_save_song(track.file, Songs.RACE_SONG, sections)
 		if track.style == "jungle":

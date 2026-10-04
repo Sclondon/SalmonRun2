@@ -3,11 +3,11 @@ extends RefCounted
 ## Used offline by tools/bake_audio.gd to render the soundtrack into WAV files, because
 ## per-sample GDScript is far too slow to run live in a web build.
 
-const BPM := 174.0
+## Tempo of the section being rendered (each track has its own, see Songs.TRACKS).
+var bpm := 174.0
 const MIX_RATE := 22050.0
 const STEPS := 16
 const BARS := 4
-const SEC_PER_BEAT := 60.0 / BPM
 
 const ENERGY := {"intro": 0.35, "build": 0.6, "drop": 1.0, "drop2": 1.0, "breakdown": 0.45}
 
@@ -36,9 +36,14 @@ const D_MIN9 := [146.83, 174.61, 220.00, 261.63, 329.63]
 const BB_MAJ7 := [116.54, 146.83, 174.61, 220.00]
 const G_MIN7 := [196.00, 233.08, 293.66, 349.23]
 const A_SEVEN := [220.00, 277.18, 329.63, 392.00]
+# "deep" style (C minor)
+const C_MIN9 := [130.81, 155.56, 196.00, 233.08, 293.66]
+const AB_MAJ7 := [103.83, 130.81, 155.56, 196.00]
+const F_MIN7 := [174.61, 207.65, 261.63, 311.13]
+const G_SEVEN := [196.00, 246.94, 293.66, 349.23]
 
 ## Each style renders the same five sections in its own key and mood.
-const STYLES: Array[String] = ["jungle", "liquid", "dark"]
+const STYLES: Array[String] = ["deep", "liquid", "coast", "jungle", "dark", "home"]
 
 const RENDER_ORDER: Array[String] = ["intro", "build", "drop", "breakdown", "drop2"]
 
@@ -87,7 +92,8 @@ func _init() -> void:
 
 
 ## Renders one 4-bar section as stereo frames.
-func render_section(section_name: String, style := "jungle") -> PackedVector2Array:
+func render_section(section_name: String, style := "jungle", tempo := 174.0) -> PackedVector2Array:
+	bpm = tempo
 	var job := _new_job(section_name)
 	_apply_style(job, style)
 	while not _step(job, 1 << 30):
@@ -128,7 +134,7 @@ func _new_job(section_name: String) -> Job:
 			job.roots = [82.41, 98.0, 65.41, 61.74]
 			job.pad_amp = 0.08
 			job.birds = true
-	job.total = int(roundf(MIX_RATE * SEC_PER_BEAT / 4.0 * STEPS * BARS))
+	job.total = int(roundf(MIX_RATE * 60.0 / bpm / 4.0 * STEPS * BARS))
 	job.left.resize(job.total)
 	job.right.resize(job.total)
 	return job
@@ -151,6 +157,43 @@ func _apply_style(job: Job, style: String) -> void:
 				job.bars = ["B", "A", "B", "FILL"]
 			elif job.name == "drop2":
 				job.bars = ["A", "B", "A", "FILL"]
+		"deep":
+			# the open ocean: slow, sparse and huge, all pad and sub with a glacial filter sweep
+			job.rng.seed = hash("deep" + job.name)
+			job.chords = [C_MIN9, F_MIN7, AB_MAJ7, G_SEVEN] if busy else [C_MIN9, C_MIN9, AB_MAJ7, G_SEVEN]
+			job.roots = [65.41, 87.31, 103.83, 98.0] if busy else [65.41, 65.41, 103.83, 98.0]
+			job.pad_amp *= 1.7
+			job.wobble = 0.125
+			job.stabs = false
+			job.birds = false
+			if job.name == "drop":
+				job.bars = ["B", "B", "B", "FILL"]
+			elif job.name == "drop2":
+				job.bars = ["B", "A", "B", "FILL"]
+			elif job.name == "build":
+				job.bars = ["INTRO", "B", "B", "ROLL"]
+		"coast":
+			# sunny and bouncy: major chords, stabs on every drop, gulls (well, birds)
+			job.rng.seed = hash("coast" + job.name)
+			job.chords = [F_MAJ7, A_MIN9, G_SIX, C_MAJ7] if busy else [F_MAJ7, F_MAJ7, G_SIX, C_MAJ7]
+			job.roots = [87.31, 110.0, 98.0, 65.41] if busy else [87.31, 87.31, 98.0, 65.41]
+			job.pad_amp *= 1.2
+			job.birds = true
+			job.stabs = job.reese
+			if job.name == "drop":
+				job.bars = ["A", "A", "B", "FILL"]
+		"home":
+			# the finale: bright, euphoric, everything playing
+			job.rng.seed = hash("home" + job.name)
+			job.chords = [G_MAJ, D_SIX, E_MIN9, C_MAJ7] if busy else [G_MAJ, G_MAJ, E_MIN9, C_MAJ7]
+			job.roots = [98.0, 73.42, 82.41, 65.41] if busy else [98.0, 98.0, 82.41, 65.41]
+			job.pad_amp *= 1.4
+			job.birds = true
+			job.stabs = job.reese
+			if job.name == "drop":
+				job.bars = ["A", "A2", "A", "ROLL"]
+			elif job.name == "drop2":
+				job.bars = ["A2", "A", "A2", "ROLL"]
 		"dark":
 			# heavier: busy breaks, a fast wobble, stabs on every drop, no birds
 			job.rng.seed = hash("dark" + job.name)
@@ -168,7 +211,7 @@ func _apply_style(job: Job, style: String) -> void:
 
 ## Renders up to `budget` samples of a section; returns true once it's finished.
 func _step(job: Job, budget: int) -> bool:
-	var step_frames := MIX_RATE * SEC_PER_BEAT / 4.0
+	var step_frames := MIX_RATE * 60.0 / bpm / 4.0
 	while budget > 0:
 		if job.finalizing:
 			var stop := mini(job.i + budget * 4, job.total)

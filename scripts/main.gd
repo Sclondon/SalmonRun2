@@ -15,8 +15,9 @@ const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 const TitleLogo := preload("res://scripts/ui/title_logo.gd")
 const Songs := preload("res://scripts/audio/songs.gd")
+const Levels := preload("res://scripts/world/levels.gd")
 
-const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      LITTLE CIRCLES: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP THAT WAY"
+const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      LITTLE CIRCLES: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP THAT WAY      JUMP UP THE WATERFALL"
 
 enum Phase { TITLE, COUNTDOWN, RACE, FINISHED }
 
@@ -43,7 +44,14 @@ var _filter_timer := 0.0
 var _touch: TouchControls
 var _use_touch := false
 var _test_mode := false
-var _previewing := false
+## Which stage of the journey is being played (index into Levels.LIST)
+var _level := 0
+var _levels: Control
+var _level_buttons: Array[Button] = []
+var _travel: Control
+var _travel_label: Label
+var _travel_tag: Label
+var _busy := false
 
 var _autotest_dir := ""
 var _autotest_t := 0.0
@@ -57,6 +65,8 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)
+		elif arg.begins_with("--level="):
+			Save.level = clampi(int(arg.get_slice("=", 1)) - 1, 0, Levels.LIST.size() - 1)
 		elif arg == "--practice":
 			_test_mode = true
 		elif arg == "--touch-ui":
@@ -96,6 +106,8 @@ func _ready() -> void:
 	_menus.layer = 5
 	add_child(_menus)
 	_build_menus()
+	_build_levels()
+	_level = Save.level
 
 	var p := world.player
 	p.trick_landed.connect(_on_trick)
@@ -125,19 +137,46 @@ func _enter_title() -> void:
 	p.go()
 	world.camera.mode = ChaseCam.Mode.CINEMA
 	world.camera.snap()
-	_title_sub.text = "%s   //   174 BPM" % Songs.TRACKS[Save.track].name
-	_title_best.text = "BEST  %s  (%s)" % [Hud.fmt(Save.best_score), Save.best_rank] if Save.best_score > 0 else ""
+	_title_sub.text = _track_text()
+	var total := 0
+	for i in Levels.LIST.size():
+		total += Save.best(i)
+	_title_best.text = "JOURNEY BEST  %s" % Hud.fmt(total) if total > 0 else ""
+
+
+## The tune of the level you're on.
+func _track_text() -> String:
+	var t: Dictionary = Songs.TRACKS[_level]
+	return "%s   //   %d BPM" % [t.name, int(t.bpm)]
+
+
+func _start_level(index: int) -> void:
+	_level = index
+	Save.level = index
+	Save.store()
+	_start_race()
 
 
 func _start_race(test := false) -> void:
+	if _busy:
+		return
+	if not world.has_course(_level, test):
+		# building a level takes a moment: say where we're going, then let that frame draw first
+		_busy = true
+		_travel_label.text = "PRACTICE" if test else "%d / %d\n%s" % [_level + 1, Levels.LIST.size(), Levels.LIST[_level].name]
+		_show(_travel)
+		Music.set_filter(700.0)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_busy = false
 	_test_mode = test
-	world.set_course(test)
+	world.set_course(_level, test)
 	_touch.hint = PRACTICE_HINT if test else ""
 	GameInput.clear_touch()
 	get_tree().paused = false
 	_show(null)
 	hud.visible = true
-	hud.set_best(Save.best_score)
+	hud.set_best(0 if test else Save.best(_level))
 	score.reset()
 	race_time = 0.0
 	_finish_timer = -1.0
@@ -149,8 +188,10 @@ func _start_race(test := false) -> void:
 	world.camera.mode = ChaseCam.Mode.FOLLOW
 	world.camera.snap()
 	Music.set_filter(20000.0)
-	Music.play_race()
+	Music.play_race(Levels.JUNGLE if test else _level)
 	phase = Phase.COUNTDOWN
+	if not test:
+		hud.popup("%s\n%s" % [Levels.LIST[_level].name, Levels.LIST[_level].tagline], UI.CYAN, 2.6)
 	if test:
 		# no countdown, no finish line: just swim
 		phase = Phase.RACE
@@ -192,15 +233,19 @@ func _finish() -> void:
 
 
 func _show_results() -> void:
-	var rank := Score.rank_for(score.score)
-	var new_best := _autotest_dir == "" and Save.submit_score(score.score, rank)
+	# shorter levels have less to score on, so rank against a full-length course
+	var rank := Score.rank_for(int(score.score * 3400.0 / world.track.length))
+	var last := _level == Levels.LIST.size() - 1
+	var new_best := _autotest_dir == "" and Save.submit_score(_level, score.score, rank)
 	# Hand the score to the hosting page (the Scareathon arcade cabinet) for its leaderboard
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.parent.postMessage({ type: 'PLAYER_DIED', score: %d }, '*')" % score.score, true)
 	var l: Dictionary = _results_labels
+	(l.title as Label).text = "HOME AT LAST. SPAWNED!" if last else "%s CLEARED" % Levels.LIST[_level].name
+	(l.next as Button).visible = not last
 	(l.rank as Label).text = rank
 	(l.score as Label).text = Hud.fmt(score.score)
-	(l.best as Label).text = "NEW BEST!" if new_best else "BEST  %s" % Hud.fmt(Save.best_score)
+	(l.best as Label).text = "NEW BEST!" if new_best else "BEST  %s" % Hud.fmt(Save.best(_level))
 	(l.stats as Label).text = "\n".join([
 		"TIME   %s" % Hud.fmt_time(race_time),
 		"TRICKS   %d      ON BEAT   %d" % [score.tricks, score.on_beats],
@@ -233,7 +278,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_resume()
 	elif phase == Phase.RACE:
 		_pause_game()
-	elif _howto.visible or _options.visible:
+	elif _howto.visible or _options.visible or _levels.visible:
 		_close_sub_panel()
 
 
@@ -364,7 +409,7 @@ func _build_menus() -> void:
 	col.add_child(TitleLogo.new())
 	_title_sub = UI.label("", 34, UI.CYAN, 10)
 	col.add_child(_title_sub)
-	col.add_child(UI.button("SWIM!", _start_race))
+	col.add_child(UI.button("SWIM!", _open_levels))
 	col.add_child(UI.button("PRACTICE", func() -> void: _start_race(true)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
@@ -420,7 +465,6 @@ func _build_menus() -> void:
 	ov.add_child(_slider_row("MUSIC", Save.music_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.music_volume = v
 		Music.apply_volumes()))
-	ov.add_child(_track_row())
 	ov.add_child(_slider_row("SFX", Save.sfx_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.sfx_volume = v
 		Music.apply_volumes()))
@@ -446,7 +490,8 @@ func _build_menus() -> void:
 	var rv := VBoxContainer.new()
 	rv.add_theme_constant_override("separation", 8)
 	rp.add_child(rv)
-	rv.add_child(UI.label("SPAWNED!", 56, UI.SALMON, 12))
+	_results_labels.title = UI.label("SPAWNED!", 48, UI.SALMON, 12)
+	rv.add_child(_results_labels.title)
 	var rrow := HBoxContainer.new()
 	rrow.add_theme_constant_override("separation", 30)
 	rv.add_child(rrow)
@@ -464,8 +509,47 @@ func _build_menus() -> void:
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 20)
 	rv.add_child(bh)
+	_results_labels.next = UI.button("NEXT LEVEL", func() -> void: _start_level(_level + 1))
+	bh.add_child(_results_labels.next)
 	bh.add_child(UI.button("SWIM AGAIN", _start_race))
 	bh.add_child(UI.button("TITLE", _enter_title))
+
+
+## The level list: the journey home, one button per stage, with your best on each.
+func _build_levels() -> void:
+	_levels = _panel_root()
+	var lp := _centered_panel(_levels, Vector2(760, 0))
+	var lv := VBoxContainer.new()
+	lv.add_theme_constant_override("separation", 8)
+	lp.add_child(lv)
+	lv.add_child(UI.label("THE JOURNEY HOME", 48, UI.LIME, 12))
+	for i in Levels.LIST.size():
+		var b := UI.button("", _start_level.bind(i))
+		b.custom_minimum_size = Vector2(700, 52)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		lv.add_child(b)
+		_level_buttons.append(b)
+	lv.add_child(UI.button("BACK", _close_sub_panel))
+	# shown while a level is being built
+	_travel = _panel_root()
+	var tp := _centered_panel(_travel, Vector2(760, 240))
+	var tv := VBoxContainer.new()
+	tv.alignment = BoxContainer.ALIGNMENT_CENTER
+	tp.add_child(tv)
+	_travel_label = UI.label("", 52, UI.CYAN, 12)
+	_travel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tv.add_child(_travel_label)
+	_travel_tag = UI.label("", 26, UI.ORANGE, 8)
+	_travel_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tv.add_child(_travel_tag)
+
+
+func _open_levels() -> void:
+	for i in _level_buttons.size():
+		var best := "%s  (%s)" % [Hud.fmt(Save.best(i)), Save.rank(i)] if Save.best(i) > 0 else "-"
+		_level_buttons[i].text = "  %d   %s      %s" % [i + 1, Levels.LIST[i].name, best]
+	_show(_levels)
+	_level_buttons[_level].grab_focus()
 
 
 func _panel_root() -> Control:
@@ -488,24 +572,6 @@ func _centered_panel(parent: Control, size: Vector2) -> PanelContainer:
 	p.custom_minimum_size = size
 	center.add_child(p)
 	return p
-
-
-## Picks the race track; changing it plays the new one so you can hear it.
-func _track_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 20)
-	var l := UI.label("TRACK", 28, UI.CYAN, 6)
-	l.custom_minimum_size.x = 200
-	row.add_child(l)
-	var ref := {}
-	ref.b = UI.button(Songs.TRACKS[Save.track].name, func() -> void:
-		Save.track = (Save.track + 1) % Songs.TRACKS.size()
-		(ref.b as Button).text = Songs.TRACKS[Save.track].name
-		_title_sub.text = "%s   //   174 BPM" % Songs.TRACKS[Save.track].name
-		_previewing = true
-		Music.play_race())
-	row.add_child(ref.b)
-	return row
 
 
 func _slider_row(text: String, value: float, lo: float, hi: float, step: float, on_change: Callable) -> Control:
@@ -547,9 +613,6 @@ func _open_sub_panel(panel: Control) -> void:
 
 
 func _close_sub_panel() -> void:
-	if _previewing:
-		_previewing = false
-		Music.play_title()
 	Save.store()
 	_show(_title)
 

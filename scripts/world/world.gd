@@ -4,6 +4,7 @@ extends Node3D
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
+const Levels := preload("res://scripts/world/levels.gd")
 
 var track: Track
 var player: Salmon
@@ -11,13 +12,16 @@ var camera: ChaseCam
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
+var _sky: ShaderMaterial
+var _mote_mat: StandardMaterial3D
+var _light_energy := 1.15
 
 
 func _ready() -> void:
 	_make_environment()
 	track = Track.new()
 	add_child(track)
-	track.build(1987)
+	track.build(Save.level)
 	player = Salmon.new()
 	add_child(player)
 	player.setup(track)
@@ -29,18 +33,26 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 	_make_fireflies()
+	_apply_level()
 
 
-## Swaps the river for the practice level (or back to the race course). Rebuilding takes a moment.
-func set_course(test: bool) -> void:
-	if track.test == test:
+## Swaps in another level (or the practice course, which borrows the jungle). Rebuilding takes a moment.
+func has_course(level: int, test: bool) -> bool:
+	return track.test == test and track.level == (Levels.JUNGLE if test else level)
+
+
+func set_course(level: int, test: bool) -> void:
+	if test:
+		level = Levels.JUNGLE
+	if has_course(level, test):
 		return
 	remove_child(track)
 	track.queue_free()
 	track = Track.new()
 	add_child(track)
 	move_child(track, 0)
-	track.build(1987, test)
+	track.build(level, test)
+	_apply_level()
 	player.track = track
 	player.rail = {}
 	player.reset(Track.START_S)
@@ -51,6 +63,7 @@ func set_course(test: bool) -> void:
 func _make_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = preload("res://shaders/sky.gdshader")
+	_sky = sky_mat
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_64
@@ -83,6 +96,27 @@ func _make_environment() -> void:
 	add_child(sun)
 
 
+## Sky, fog and light for the level that was just built.
+func _apply_level() -> void:
+	var cfg := track.cfg
+	_sky.set_shader_parameter("top_color", cfg.sky_top)
+	_sky.set_shader_parameter("horizon_color", cfg.sky_horizon)
+	_sky.set_shader_parameter("bottom_color", cfg.sky_bottom)
+	_sky.set_shader_parameter("sun_color", cfg.sun)
+	_sky.set_shader_parameter("sun_dir", cfg.sun_dir)
+	env.fog_light_color = cfg.fog
+	env.fog_density = cfg.fog_density
+	env.ambient_light_color = cfg.ambient
+	env.ambient_light_energy = cfg.ambient_energy
+	sun.light_color = cfg.light
+	_light_energy = cfg.light_energy
+	# light comes from where the sun is drawn in the sky
+	var dir: Vector3 = (cfg.sun_dir as Vector3).normalized()
+	sun.rotation = Vector3(-asin(clampf(dir.y, 0.55, 0.9)), atan2(-dir.x, -dir.z) + PI * 0.83, 0.0)
+	_mote_mat.albedo_color = cfg.motes
+	_mote_mat.emission = cfg.motes
+
+
 func _make_fireflies() -> void:
 	_fireflies = CPUParticles3D.new()
 	_fireflies.amount = 40 if Save.is_mobile() else 120
@@ -105,12 +139,13 @@ func _make_fireflies() -> void:
 	mat.emission_energy_multiplier = 3.0
 	m.material = mat
 	_fireflies.mesh = m
+	_mote_mat = mat
 	add_child(_fireflies)
 
 
 func _process(_delta: float) -> void:
 	var pulse := Music.beat_pulse()
-	sun.light_energy = 1.15 + pulse * 0.12
+	sun.light_energy = _light_energy + pulse * 0.12
 	env.glow_intensity = 0.9 + pulse * 0.5
 	if camera:
 		_fireflies.global_position = camera.global_position + track.forward(player.s) * 25.0

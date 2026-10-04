@@ -10,6 +10,8 @@ uniform vec4 shallow_color : source_color = vec4(0.16, 0.70, 0.64, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.92, 1.0, 0.96, 1.0);
 uniform vec4 beat_color : source_color = vec4(0.25, 1.0, 0.8, 1.0);
 uniform float flow = 0.6;
+// How big the waves are (open sea is rougher than a river).
+uniform float swell = 1.0;
 
 varying float v_steep;
 
@@ -28,17 +30,18 @@ float vnoise(vec2 p) {
 void vertex() {
 	v_steep = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
 	float w = sin(UV.y * 0.45 - TIME * 4.0 + UV.x * 9.0) * 0.08 + sin(UV.y * 0.9 + TIME * 2.3) * 0.05;
-	VERTEX.y += w * (1.0 - v_steep);
+	VERTEX.y += w * swell * (1.0 - v_steep);
 	POSITION = psx_snap(PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0), VIEWPORT_SIZE);
 }
 
 void fragment() {
 	vec2 p = vec2(UV.x * 10.0, UV.y * 0.18 - TIME * flow * 3.0);
 	float n = vnoise(p) * 0.6 + vnoise(p * 2.3 + 7.0) * 0.4;
-	float edge = smoothstep(0.36, 0.5, abs(UV.x - 0.5));
+	// vertex green marks open water, which has no banks to foam against
+	float edge = smoothstep(0.36, 0.5, abs(UV.x - 0.5)) * (1.0 - COLOR.g);
 	float foam = step(0.74 - edge * 0.35 - COLOR.r * 0.14, n);
 	float fall = smoothstep(0.35, 0.6, v_steep);
-	float streak = step(0.45, vnoise(vec2(UV.x * 40.0, UV.y * 0.5 - TIME * 12.0)));
+	float streak = step(0.45, vnoise(vec2(UV.x * 40.0, UV.y * 0.5 - TIME * 12.0 * sign(flow))));
 	vec3 col = mix(deep_color.rgb, shallow_color.rgb, 0.3 + 0.7 * n);
 	col = mix(col, foam_color.rgb, max(foam * 0.85, fall * (0.55 + 0.45 * streak)));
 	float band = step(0.9, fract(UV.y * 0.04 - TIME * 0.6));
