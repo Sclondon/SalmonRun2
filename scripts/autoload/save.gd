@@ -7,6 +7,8 @@ var best_score := 0
 var best_rank := "-"
 var music_volume := 0.8
 var sfx_volume := 0.9
+## Which race track plays (index into Songs.TRACKS)
+var track := 0
 ## Phones render at a lower resolution by default (bigger pixels, much cheaper)
 var pixel_scale := 4 if is_mobile() else 3
 
@@ -19,6 +21,7 @@ func _ready() -> void:
 	best_rank = cfg.get_value("score", "rank", "-")
 	music_volume = cfg.get_value("settings", "music", 0.8)
 	sfx_volume = cfg.get_value("settings", "sfx", 0.9)
+	track = clampi(cfg.get_value("settings", "track", 0), 0, 2)
 	pixel_scale = cfg.get_value("settings", "pixel_scale", pixel_scale)
 
 
@@ -28,6 +31,7 @@ func store() -> void:
 	cfg.set_value("score", "rank", best_rank)
 	cfg.set_value("settings", "music", music_volume)
 	cfg.set_value("settings", "sfx", sfx_volume)
+	cfg.set_value("settings", "track", track)
 	cfg.set_value("settings", "pixel_scale", pixel_scale)
 	cfg.save(PATH)
 

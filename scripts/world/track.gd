@@ -18,6 +18,8 @@ const RAIL_H := 1.2
 const GRAVITY := 24.0
 
 var length := 3400.0
+## The practice level: a short, almost straight river with one of everything, for trying out the controls.
+var test := false
 var course_seed := 1987
 
 var n := 0
@@ -44,7 +46,8 @@ var _noise := FastNoiseLite.new()
 var _ring_root: Node3D
 
 
-func build(seed_value := 1987) -> void:
+func build(seed_value := 1987, test_level := false) -> void:
+	test = test_level
 	course_seed = seed_value
 	_rng.seed = course_seed
 	_noise.seed = course_seed
@@ -52,7 +55,10 @@ func build(seed_value := 1987) -> void:
 	_noise.fractal_type = FastNoiseLite.FRACTAL_NONE
 	_noise.frequency = 1.0
 	_make_materials()
-	_plan_features()
+	if test:
+		_plan_test()
+	else:
+		_plan_features()
 	_build_centreline()
 	_build_chunks()
 	_build_features()
@@ -239,6 +245,40 @@ func _plan_features() -> void:
 	finish_s = length - 150.0
 
 
+## Fixed layout, in the order you'd want to learn things: steer, jump, ramps, a rail,
+## rocks, a waterfall.
+func _plan_test() -> void:
+	length = 1500.0
+	finish_s = length - 150.0
+	# steering: a ring slalom on the water that gets wider
+	for k in 18:
+		var rs := 110.0 + k * 13.0
+		rings.append({"s": rs, "x": (3.0 + k * 0.25) * sin(k * 0.6), "h": 0.7, "ref": rs})
+	# jumping: rings to leap through on open water
+	for k in 4:
+		var rs := 390.0 + k * 38.0
+		rings.append({"s": rs, "x": 0.0, "h": 3.2, "ref": rs})
+	# ramps: one in the middle, then a pair
+	ramps.append({"s": 560.0, "x": 0.0, "w": 7.0, "len": 9.0, "h": 2.8})
+	ramps.append({"s": 640.0, "x": -5.0, "w": 5.0, "len": 9.0, "h": 3.2})
+	ramps.append({"s": 640.0, "x": 5.0, "w": 5.0, "len": 9.0, "h": 3.2})
+	# a ramp onto a bamboo rail, and a second rail you can swim straight onto
+	ramps.append({"s": 730.0, "x": -3.0, "w": 5.0, "len": 9.0, "h": 2.6})
+	rails.append({"s0": 750.0, "s1": 815.0, "x0": -3.0, "x1": 0.0})
+	rails.append({"s0": 765.0, "s1": 810.0, "x0": 5.0, "x1": 5.0})
+	# a few rocks to weave through
+	for k in 7:
+		rocks.append({"s": 880.0 + k * 16.0, "x": (5.0 if k % 2 == 0 else -4.0) + sin(k * 2.1) * 2.0, "r": 1.3})
+	# a small waterfall with rings along the arc
+	waterfalls.append({"s": 1060.0, "drop": 9.0})
+	pools.append({"s0": 1062.0, "s1": 1130.0})
+	for k in 3:
+		var t := 0.3 + 0.28 * k
+		rings.append({"s": 1060.0 + 34.0 * t, "x": 0.0, "h": 1.5 + 11.0 * t - 12.0 * t * t, "ref": 1059.0})
+	# and a big ramp to finish
+	ramps.append({"s": 1220.0, "x": 0.0, "w": 8.0, "len": 10.0, "h": 3.6})
+
+
 func _plan_falls(s: float, with_bear: bool) -> float:
 	var lip := s + 40.0
 	var drop := _rng.randf_range(9.0, 20.0)
@@ -371,7 +411,7 @@ func _build_centreline() -> void:
 		widths[i] = _width_rule(s)
 		var curv := _noise.get_noise_1d(s * 0.0035 + 10.0) * 0.012 + _noise.get_noise_1d(s * 0.013 + 50.0) * 0.004
 		curv -= h * 0.0025
-		h += curv * STEP * _calm(s)
+		h += curv * STEP * _calm(s) * (0.3 if test else 1.0)
 		pos += Vector3(sin(h), 0.0, -cos(h)) * STEP
 		pos.y -= _slope(s) * STEP
 		if fall_at.has(i):
@@ -508,8 +548,8 @@ func _build_features() -> void:
 	_place_facing_river(speaker, START_S + 40.0, 1.0, width(START_S + 40.0) * 0.5 + 6.0, 1.0)
 	_place_facing_river(speaker, START_S + 40.0, -1.0, width(START_S + 40.0) * 0.5 + 6.0, 1.0)
 
-	_build_arch(START_S + 22.0, "SALMON RUN", Color(0.2, 1.0, 0.85))
-	_build_arch(finish_s, "SPAWNING GROUNDS", Color(1.0, 0.35, 0.7))
+	_build_arch(START_S + 22.0, "PRACTICE" if test else "SALMON RUN", Color(0.2, 1.0, 0.85))
+	_build_arch(finish_s, "ONE MORE LAP" if test else "SPAWNING GROUNDS", Color(1.0, 0.35, 0.7))
 
 
 func _place_facing_river(mesh: Mesh, s: float, side: float, dist: float, sc: float) -> void:

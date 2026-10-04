@@ -19,7 +19,7 @@ var song_time := -1.0
 
 var _player: AudioStreamPlayer
 var _title: AudioStreamWAV
-var _race: AudioStreamWAV
+var _races := {}  # track index -> AudioStreamWAV
 var _song: Array[String] = []
 var _loop_section := 0
 var _loop_seconds := 0.0
@@ -42,7 +42,6 @@ func _ready() -> void:
 	_player.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	add_child(_player)
 	_title = _load_song("res://audio/title.wav", Songs.TITLE_SONG, 0)
-	_race = _load_song("res://audio/race.wav", Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
 	play_title()
 
 
@@ -77,9 +76,12 @@ func play_title() -> void:
 	_play(_title, Songs.TITLE_SONG, 0)
 
 
-## Starts the race song from the top (the beat clock restarts at 0).
+## Starts the chosen race track (Save.track) from the top (the beat clock restarts at 0).
 func play_race() -> void:
-	_play(_race, Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
+	var i := clampi(Save.track, 0, Songs.TRACKS.size() - 1)
+	if not _races.has(i):
+		_races[i] = _load_song(Songs.TRACKS[i].file, Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
+	_play(_races[i], Songs.RACE_SONG, Songs.RACE_LOOP_SECTION)
 
 
 func _play(stream: AudioStreamWAV, song: Array[String], loop_section: int) -> void:

@@ -67,3 +67,35 @@ func _ready() -> void:
 func _ensure(action: String) -> void:
 	if not InputMap.has_action(action):
 		InputMap.add_action(action, 0.25)
+
+
+# ------------------------------------------------------------------ touch gestures
+# Written by the touch controls, read by the salmon.
+
+## A finger is held down: the salmon swims towards it.
+var follow := false
+## How far the finger is from the salmon, in metres across the river (+ is river-right).
+var follow_dx := 0.0
+## The finger is drawing little circles: boost.
+var circling := false
+
+var _swipes: Array[Vector2] = []
+
+
+## Queues a swipe. `dir` is 8-way in screen space: x is -1/0/1 (right is +), y is -1/0/1 (down is +).
+func swipe(dir: Vector2) -> void:
+	_swipes.append(dir)
+
+
+## Returns the swipes made since the last call.
+func take_swipes() -> Array[Vector2]:
+	var out := _swipes
+	_swipes = []
+	return out
+
+
+func clear_touch() -> void:
+	follow = false
+	follow_dx = 0.0
+	circling = false
+	_swipes = []

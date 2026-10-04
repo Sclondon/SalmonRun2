@@ -3,7 +3,7 @@ extends Node
 ## the HUD and all menus.
 ##
 ## Run with `-- --autotest=<dir>` to play a race on autopilot, save screenshots to <dir>
-## and print a summary (used for automated smoke tests).
+## and print a summary (used for automated smoke tests). Add `--practice` to run the practice level.
 
 const World := preload("res://scripts/world/world.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
@@ -13,6 +13,10 @@ const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const TouchControls := preload("res://scripts/ui/touch_controls.gd")
+const TitleLogo := preload("res://scripts/ui/title_logo.gd")
+const Songs := preload("res://scripts/audio/songs.gd")
+
+const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      LITTLE CIRCLES: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP THAT WAY"
 
 enum Phase { TITLE, COUNTDOWN, RACE, FINISHED }
 
@@ -26,6 +30,7 @@ var _container: SubViewportContainer
 var _menus: CanvasLayer
 var _panels: Array[Control] = []
 var _title: Control
+var _title_sub: Label
 var _howto: Control
 var _options: Control
 var _pause: Control
@@ -37,6 +42,8 @@ var _finish_timer := -1.0
 var _filter_timer := 0.0
 var _touch: TouchControls
 var _use_touch := false
+var _test_mode := false
+var _previewing := false
 
 var _autotest_dir := ""
 var _autotest_t := 0.0
@@ -50,6 +57,8 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)
+		elif arg == "--practice":
+			_test_mode = true
 		elif arg == "--touch-ui":
 			_use_touch = true
 	_use_touch = _use_touch or DisplayServer.is_touchscreen_available()
@@ -80,6 +89,9 @@ func _ready() -> void:
 		if phase == Phase.RACE and not get_tree().paused:
 			_pause_game())
 	touch_layer.add_child(_touch)
+	_touch.player = world.player
+	_touch.camera = world.camera
+	_touch.view = _container
 	_menus = CanvasLayer.new()
 	_menus.layer = 5
 	add_child(_menus)
@@ -113,10 +125,15 @@ func _enter_title() -> void:
 	p.go()
 	world.camera.mode = ChaseCam.Mode.CINEMA
 	world.camera.snap()
+	_title_sub.text = "%s   //   174 BPM" % Songs.TRACKS[Save.track].name
 	_title_best.text = "BEST  %s  (%s)" % [Hud.fmt(Save.best_score), Save.best_rank] if Save.best_score > 0 else ""
 
 
-func _start_race() -> void:
+func _start_race(test := false) -> void:
+	_test_mode = test
+	world.set_course(test)
+	_touch.hint = PRACTICE_HINT if test else ""
+	GameInput.clear_touch()
 	get_tree().paused = false
 	_show(null)
 	hud.visible = true
@@ -134,6 +151,11 @@ func _start_race() -> void:
 	Music.set_filter(20000.0)
 	Music.play_race()
 	phase = Phase.COUNTDOWN
+	if test:
+		# no countdown, no finish line: just swim
+		phase = Phase.RACE
+		p.control = not p.autopilot
+		p.go()
 
 
 func _on_beat(b: int) -> void:
@@ -149,6 +171,16 @@ func _on_beat(b: int) -> void:
 			phase = Phase.RACE
 			world.player.control = not world.player.autopilot
 			world.player.go()
+
+
+## Practice has no finish: swim through the arch and you're back at the start.
+func _test_lap() -> void:
+	var p := world.player
+	p.reset(Track.START_S)
+	p.go()
+	world.track.reset_rings()
+	world.camera.snap()
+	hud.popup("ONE MORE LAP", UI.LIME, 1.0)
 
 
 func _finish() -> void:
@@ -215,7 +247,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var p := world.player
-	_touch.visible = _use_touch and phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused
+	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	match phase:
@@ -235,7 +267,10 @@ func _process(delta: float) -> void:
 			hud.set_stats(score.score, race_time, prog, p.boost, p.speed * 3.6)
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
 			if phase == Phase.RACE and p.s >= world.track.finish_s:
-				_finish()
+				if _test_mode:
+					_test_lap()
+				else:
+					_finish()
 			if not get_tree().paused:
 				_filter_timer -= delta
 				if p.state == Salmon.State.AIR and p.air_time > 0.9:
@@ -323,26 +358,26 @@ func _build_menus() -> void:
 	# --- title
 	_title = _panel_root()
 	var col := VBoxContainer.new()
-	col.position = Vector2(70, 70)
+	col.position = Vector2(70, 40)
 	col.add_theme_constant_override("separation", 14)
 	_title.add_child(col)
-	var t1 := UI.label("SALMON RUN 2", 118, UI.SALMON, 22)
-	col.add_child(t1)
-	col.add_child(UI.label("JUNGLE FALLS   //   174 BPM", 34, UI.CYAN, 10))
-	var spacer := Control.new()
-	spacer.custom_minimum_size.y = 30
-	col.add_child(spacer)
+	col.add_child(TitleLogo.new())
+	_title_sub = UI.label("", 34, UI.CYAN, 10)
+	col.add_child(_title_sub)
 	col.add_child(UI.button("SWIM!", _start_race))
-	col.add_child(UI.button("HOW TO PLAY", func() -> void: _open_sub_panel(_howto)))
+	col.add_child(UI.button("PRACTICE", func() -> void: _start_race(true)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))
 	_title_best = UI.label("", 28, UI.LIME, 8)
 	col.add_child(_title_best)
+	for c in col.get_children():
+		if c is Button:
+			(c as Button).size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_loading = UI.label("TUNING THE JUNGLE...", 26, UI.PINK, 8)
 	col.add_child(_loading)
 
-	# --- how to play
+	# --- how to play (built, but not on the title menu until the controls settle down)
 	_howto = _panel_root()
 	var hp := _centered_panel(_howto, Vector2(900, 600))
 	var hv := VBoxContainer.new()
@@ -369,7 +404,7 @@ func _build_menus() -> void:
 			"Land ON THE BEAT for x1.5, PERFECT for x2. Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
-			"Touch: drag the left side to steer and flip, hold + release JUMP, and GRAB, TWEAK, ROLL, BOOST.", 21, UI.ORANGE, 6)
+			"Touch: hold a finger down and the salmon swims to it. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.ORANGE, 6)
 	tips.autowrap_mode = TextServer.AUTOWRAP_WORD
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)
@@ -385,6 +420,7 @@ func _build_menus() -> void:
 	ov.add_child(_slider_row("MUSIC", Save.music_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.music_volume = v
 		Music.apply_volumes()))
+	ov.add_child(_track_row())
 	ov.add_child(_slider_row("SFX", Save.sfx_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.sfx_volume = v
 		Music.apply_volumes()))
@@ -401,7 +437,7 @@ func _build_menus() -> void:
 	pp.add_child(pv)
 	pv.add_child(UI.label("PAUSED", 56, UI.LIME, 12))
 	pv.add_child(UI.button("RESUME", _resume))
-	pv.add_child(UI.button("RESTART", _start_race))
+	pv.add_child(UI.button("RESTART", func() -> void: _start_race(_test_mode)))
 	pv.add_child(UI.button("QUIT TO TITLE", _enter_title))
 
 	# --- results
@@ -454,6 +490,24 @@ func _centered_panel(parent: Control, size: Vector2) -> PanelContainer:
 	return p
 
 
+## Picks the race track; changing it plays the new one so you can hear it.
+func _track_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	var l := UI.label("TRACK", 28, UI.CYAN, 6)
+	l.custom_minimum_size.x = 200
+	row.add_child(l)
+	var ref := {}
+	ref.b = UI.button(Songs.TRACKS[Save.track].name, func() -> void:
+		Save.track = (Save.track + 1) % Songs.TRACKS.size()
+		(ref.b as Button).text = Songs.TRACKS[Save.track].name
+		_title_sub.text = "%s   //   174 BPM" % Songs.TRACKS[Save.track].name
+		_previewing = true
+		Music.play_race())
+	row.add_child(ref.b)
+	return row
+
+
 func _slider_row(text: String, value: float, lo: float, hi: float, step: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
@@ -493,6 +547,9 @@ func _open_sub_panel(panel: Control) -> void:
 
 
 func _close_sub_panel() -> void:
+	if _previewing:
+		_previewing = false
+		Music.play_title()
 	Save.store()
 	_show(_title)
 
@@ -508,14 +565,14 @@ func _autotest(delta: float) -> void:
 			_next_shot = -1.0
 			await _shot()
 			print("AUTOTEST fps=%d" % Engine.get_frames_per_second())
-			_start_race()
+			_start_race(_test_mode)
 			_next_shot = _autotest_t + 3.0
 		return
 	if _autotest_t > _next_shot and not _results.visible:
 		_next_shot = _autotest_t + 3.5
 		print("AUTOTEST t=%.1f s=%.0f state=%d speed=%.1f score=%d fps=%d" % [race_time, world.player.s, world.player.state, world.player.speed, score.score, Engine.get_frames_per_second()])
 		_shot()
-	if _results.visible or _autotest_t > 200.0:
+	if _results.visible or _autotest_t > (70.0 if _test_mode else 200.0):
 		_autotest_done = true
 		await _shot()
 		print("AUTOTEST DONE")

@@ -9,13 +9,18 @@ Godot **4.7**, Forward+. Open `project.godot` and press F5.
 
 | Keyboard | Gamepad | Touch | On the water | In the air |
 |---|---|---|---|---|
-| A/D, ←/→ | left stick / d-pad | drag left half | steer | spin |
-| W/S, ↑/↓ | left stick / d-pad | drag left half | swim harder / brake | front / back flip |
-| Space (hold → release) | A | JUMP | charge + leap | — |
-| Shift | LT | BOOST | boost | — |
-| Q / E | LB / RB | ROLL | — | corkscrew |
-| J K L I | X Y B RT | GRAB, TWEAK | — | grabs (release before landing!) |
+| A/D, ←/→ | left stick / d-pad | hold: swims to your finger | steer | spin |
+| W/S, ↑/↓ | left stick / d-pad | — | swim harder / brake | front / back flip |
+| Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap) | — |
+| — | — | swipe any of 8 directions | — | one full turn that way: left / right spin, up backflip, down frontflip |
+| Shift | LT | draw little circles | boost | — |
+| Q / E | LB / RB | — | — | corkscrew |
+| J K L I | X Y B RT | — | — | grabs (release before landing!) |
 | Esc / P | Start | ⏸ | pause | |
+
+Touch is gestures only for now (no corkscrew or grabs), and the mouse counts as a finger.
+**PRACTICE** on the title screen is a short, straight river with one of everything (ring slalom,
+jump rings, ramps, rails, rocks, a waterfall) that loops forever, for trying the controls.
 
 ## Scoring
 
@@ -23,6 +28,12 @@ Godot **4.7**, Forward+. Open `project.godot` and press F5.
 - **Flow** multiplier: +1 per clean trick (max x5); resets on wipeout or 4 s on the water without a trick.
 - **On the beat**: landing within ~95 ms of a beat is x1.5, within ~45 ms is x2 (PERFECT).
 - Rings: +250 and boost. Ranks D → S at 35k / 70k / 110k / 160k.
+
+## Music
+
+Options → TRACK picks the race tune: Jungle Falls, Deep Current (mellow, liquid) or Night Rapids
+(darker, heavier). All three are 174 BPM with the same arrangement, so on-beat landings work the
+same on each. They are the `STYLES` in `scripts/audio/dnb_synth.gd`, listed in `Songs.TRACKS`.
 
 ## Project layout
 
@@ -66,5 +77,5 @@ Web builds use the Compatibility renderer and have no threads.
 ```
 godot --path . -- --autotest=C:/some/folder
 ```
-Plays a full race on autopilot, saves screenshots to that folder, prints the result and quits
+Plays a full race on autopilot (add `--practice` for a minute on the practice level), saves screenshots to that folder, prints the result and quits
 (autotest runs never touch your high score).

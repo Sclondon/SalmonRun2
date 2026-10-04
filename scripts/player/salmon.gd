@@ -24,6 +24,12 @@ const SPIN_RATE := 620.0
 const FLIP_RATE := 480.0
 const ROLL_RATE := 540.0
 const WIPE_TIME := 1.0
+## Touch: steering strength per metre between the salmon and the finger it is following.
+const FOLLOW_GAIN := 0.4
+## Touch: how hard a swipe-up jumps (as a fraction of a fully charged jump).
+const SWIPE_JUMP := 1.0
+## Spins and flips swing the salmon around a circle of this radius instead of turning on the spot.
+const ARC_RADIUS := 0.9
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -55,6 +61,9 @@ var autopilot := false
 var _yaw_v := 0.0
 var _pitch_v := 0.0
 var _roll_v := 0.0
+# degrees still to turn from swipes
+var _yaw_q := 0.0
+var _pitch_q := 0.0
 var _ramp_vy := 0.0
 var _prev_surface := 0.0
 var _jump_prev := false
@@ -64,6 +73,13 @@ var _curl := 0.0
 var _bend := 0.0
 var _t := 0.0
 var _stumble := 0.0
+# how hard the salmon is turning, -1..1, smoothed: drives the body arc
+var _yaw_rate := 0.0
+var _pitch_rate := 0.0
+var _turn := 0.0
+var _prev_yaw := 0.0
+var _prev_pitch := 0.0
+var _prev_vx := 0.0
 var _fish: MeshInstance3D
 var _mat: ShaderMaterial
 var _wake: CPUParticles3D
@@ -188,18 +204,23 @@ func _process(delta: float) -> void:
 func _read_input(delta: float) -> Dictionary:
 	if autopilot:
 		return _ai_input(delta)
+	var swipes := GameInput.take_swipes()
 	if not control:
-		return {"steer": 0.0, "pitch": 0.0, "roll": 0.0, "jump": false, "boost": false, "grab": -1}
+		return {"steer": 0.0, "pitch": 0.0, "roll": 0.0, "jump": false, "boost": false, "grab": -1, "swipes": []}
 	var g := -1
 	for i in 4:
 		if Input.is_action_pressed("grab_%d" % (i + 1)):
 			g = i
+	var steer := Input.get_axis("steer_left", "steer_right")
+	if GameInput.follow:
+		steer = clampf(GameInput.follow_dx * FOLLOW_GAIN, -1.0, 1.0)
 	return {
-		"steer": Input.get_axis("steer_left", "steer_right"),
+		"swipes": swipes,
+		"steer": steer,
 		"pitch": Input.get_axis("swim_down", "swim_up"),
 		"roll": Input.get_axis("roll_left", "roll_right"),
 		"jump": Input.is_action_pressed("jump"),
-		"boost": Input.is_action_pressed("boost"),
+		"boost": Input.is_action_pressed("boost") or GameInput.circling,
 		"grab": g,
 	}
 
@@ -237,6 +258,8 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		vy = maxf(_ramp_vy, 2.5)
 		if released or inp.jump:
 			vy += 6.0 + 7.0 * charge
+		elif _swiped_up(inp):
+			vy += 6.0 + 7.0 * SWIPE_JUMP
 		_take_off()
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
@@ -246,6 +269,13 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	if released:
 		vy = 7.0 + 8.0 * charge + _ramp_vy
 		_take_off()
+	elif _swiped_up(inp):
+		vy = 7.0 + 8.0 * SWIPE_JUMP + _ramp_vy
+		_take_off()
+
+
+func _swiped_up(inp: Dictionary) -> bool:
+	return (inp.swipes as Array).has(Vector2.UP)
 
 
 func _take_off() -> void:
@@ -257,6 +287,8 @@ func _take_off() -> void:
 	_yaw_v = 0.0
 	_pitch_v = 0.0
 	_roll_v = 0.0
+	_yaw_q = 0.0
+	_pitch_q = 0.0
 	grabs.clear()
 	grab = -1
 	charge = 0.0
@@ -273,12 +305,31 @@ func _air(dt: float, inp: Dictionary) -> void:
 	vx *= exp(-0.8 * dt)
 	x += vx * dt
 	_clamp_banks()
-	var r := _spin(yaw, _yaw_v, -float(inp.steer), SPIN_RATE, 180.0, dt)
-	yaw = r.x
-	_yaw_v = r.y
-	r = _spin(pitch, _pitch_v, -float(inp.pitch), FLIP_RATE, 360.0, dt)
-	pitch = r.x
-	_pitch_v = r.y
+	# each swipe is one full turn that way: sideways spins, up is a backflip, down a frontflip
+	for sw: Vector2 in inp.swipes:
+		_yaw_q -= 360.0 * sw.x
+		_pitch_q -= 360.0 * sw.y
+	# a held finger only steers on the water, so it doesn't spin the salmon up here
+	var spin_in := 0.0 if GameInput.follow and not autopilot else -float(inp.steer)
+	var r: Vector2
+	if _yaw_q != 0.0:
+		var step := minf(SPIN_RATE * dt, absf(_yaw_q)) * signf(_yaw_q)
+		yaw += step
+		_yaw_q -= step
+		_yaw_v = 0.0
+	else:
+		r = _spin(yaw, _yaw_v, spin_in, SPIN_RATE, 180.0, dt)
+		yaw = r.x
+		_yaw_v = r.y
+	if _pitch_q != 0.0:
+		var step := minf(FLIP_RATE * dt, absf(_pitch_q)) * signf(_pitch_q)
+		pitch += step
+		_pitch_q -= step
+		_pitch_v = 0.0
+	else:
+		r = _spin(pitch, _pitch_v, -float(inp.pitch), FLIP_RATE, 360.0, dt)
+		pitch = r.x
+		_pitch_v = r.y
 	r = _spin(roll, _roll_v, -float(inp.roll), ROLL_RATE, 360.0, dt)
 	roll = r.x
 	_roll_v = r.y
@@ -435,6 +486,9 @@ func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 	y = track.water_y(s) + Track.RAIL_H
 	if inp.jump:
 		charge = minf(charge + dt / 0.5, 1.0)
+	if _swiped_up(inp):
+		released = true
+		charge = SWIPE_JUMP
 	if released or s >= float(rail.s1):
 		Sfx.set_loop("grind", false)
 		var pts := 150 + int(rail_time * 450.0)
@@ -535,6 +589,15 @@ func _update_visual(dt: float) -> void:
 	var wag_amp := 0.12
 	var target_curl := 0.0
 	var target_bend := 0.0
+	var ease := 1.0 - exp(-10.0 * dt)
+	var inv_dt := 1.0 / maxf(dt, 0.001)
+	var spinning := state == State.AIR
+	_yaw_rate = lerpf(_yaw_rate, clampf((yaw - _prev_yaw) * inv_dt / SPIN_RATE, -1.0, 1.0) if spinning else 0.0, ease)
+	_pitch_rate = lerpf(_pitch_rate, clampf((pitch - _prev_pitch) * inv_dt / FLIP_RATE, -1.0, 1.0) if spinning else 0.0, ease)
+	_turn = lerpf(_turn, clampf((vx - _prev_vx) * inv_dt / 60.0, -1.0, 1.0) if state == State.SWIM else 0.0, ease)
+	_prev_yaw = yaw
+	_prev_pitch = pitch
+	_prev_vx = vx
 	match state:
 		State.IDLE, State.SWIM:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
@@ -542,7 +605,10 @@ func _update_visual(dt: float) -> void:
 			if _stumble > 0.0:
 				_stumble = maxf(_stumble - dt, 0.0)
 				_land_twist += sin(_t * 30.0) * 40.0 * _stumble
-			b = base * Basis(Vector3.UP, deg_to_rad(_land_twist)) \
+			# nose leads into the turn and the body bends through it
+			var lead := -atan2(vx, maxf(speed, 10.0)) * 1.3
+			target_bend = _turn * 0.9
+			b = base * Basis(Vector3.UP, deg_to_rad(_land_twist) + lead) \
 					* Basis(Vector3.RIGHT, slope_ang + sin(_t * 5.0) * 0.05) \
 					* Basis(Vector3.BACK, -vx * 0.035)
 			wag_speed = 8.0 + speed * 0.35
@@ -551,6 +617,14 @@ func _update_visual(dt: float) -> void:
 			target_curl = charge * 0.7
 		State.AIR:
 			var traj := atan2(vy, maxf(speed, 1.0)) * 0.6
+			# Swing through spins and flips: the salmon travels round a small circle whose centre
+			# is on the inside of the turn, with its body curved along it.
+			var yaw_b := Basis(Vector3.UP, deg_to_rad(yaw))
+			var side := Vector3(-ARC_RADIUS * _yaw_rate, 0.0, 0.0)
+			var up := Vector3(0.0, ARC_RADIUS * _pitch_rate, 0.0)
+			pos += base * (side - yaw_b * side + yaw_b * (up - Basis(Vector3.RIGHT, deg_to_rad(pitch)) * up))
+			target_bend = -_yaw_rate
+			target_curl = _pitch_rate
 			b = base * Basis(Vector3.UP, deg_to_rad(yaw)) \
 					* Basis(Vector3.RIGHT, deg_to_rad(pitch) + traj) \
 					* Basis(Vector3.BACK, deg_to_rad(roll))
@@ -609,7 +683,7 @@ func _ai_plan_trick() -> void:
 
 
 func _ai_input(dt: float) -> Dictionary:
-	var inp := {"steer": 0.0, "pitch": 0.3, "roll": 0.0, "jump": false, "boost": false, "grab": -1}
+	var inp := {"steer": 0.0, "pitch": 0.3, "roll": 0.0, "jump": false, "boost": false, "grab": -1, "swipes": []}
 	match state:
 		State.SWIM:
 			var tx := 0.0

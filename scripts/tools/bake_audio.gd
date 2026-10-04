@@ -12,12 +12,14 @@ const Songs := preload("res://scripts/audio/songs.gd")
 func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://audio/sfx"))
 	var synth := DnbSynth.new()
-	var sections := {}
-	for section_name in DnbSynth.RENDER_ORDER:
-		sections[section_name] = synth.render_section(section_name)
-		print("rendered ", section_name)
-	_save_song("res://audio/title.wav", Songs.TITLE_SONG, sections)
-	_save_song("res://audio/race.wav", Songs.RACE_SONG, sections)
+	for track: Dictionary in Songs.TRACKS:
+		var sections := {}
+		for section_name in DnbSynth.RENDER_ORDER:
+			sections[section_name] = synth.render_section(section_name, track.style)
+			print("rendered ", track.style, " ", section_name)
+		_save_song(track.file, Songs.RACE_SONG, sections)
+		if track.style == "jungle":
+			_save_song("res://audio/title.wav", Songs.TITLE_SONG, sections)
 	var sfx := SfxSynth.new().build_all()
 	for sound: String in sfx:
 		_save_mono("res://audio/sfx/%s.wav" % sound, sfx[sound])

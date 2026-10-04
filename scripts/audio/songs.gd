@@ -8,3 +8,10 @@ const RACE_SONG: Array[String] = ["build", "drop", "drop", "drop2", "drop2", "br
 ## The race song loops back to its first drop.
 const RACE_LOOP_SECTION := 1
 const ENERGY := {"intro": 0.35, "build": 0.6, "drop": 1.0, "drop2": 1.0, "breakdown": 0.45}
+
+## The race tracks you can pick in the options: the same arrangement in three synth styles.
+const TRACKS := [
+	{"name": "JUNGLE FALLS", "style": "jungle", "file": "res://audio/race.wav"},
+	{"name": "DEEP CURRENT", "style": "liquid", "file": "res://audio/race_liquid.wav"},
+	{"name": "NIGHT RAPIDS", "style": "dark", "file": "res://audio/race_dark.wav"},
+]

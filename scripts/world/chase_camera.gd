@@ -53,10 +53,12 @@ func _process(delta: float) -> void:
 		look = target
 	else:
 		cam_s = p.s - (6.0 + p.speed * 0.05)
-		var cx := p.x * 0.7
+		# The camera only drifts a little with the salmon and looks down the river rather than
+		# at the fish, so the salmon really crosses the screen (and can swim to a finger).
+		var cx := p.x * 0.2
 		var ground := maxf(track.surface_y(cam_s, cx), maxf(track.surface_y(cam_s, cx - 3.0), track.surface_y(cam_s, cx + 3.0)))
 		desired = track.point(cam_s, cx, maxf(ground + 2.2, p.y + 1.9))
-		look = target + fwd * 5.0 + Vector3.UP * 0.4
+		look = track.point(p.s, lerpf(cx, p.x, 0.2), p.y) + fwd * 5.0 + Vector3.UP * 0.4
 	if not _has_pos:
 		_pos = desired
 		_look = look

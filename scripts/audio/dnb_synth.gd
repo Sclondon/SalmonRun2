@@ -27,6 +27,18 @@ const C_MAJ7 := [130.81, 164.81, 196.00, 246.94]
 const D_SIX := [146.83, 185.00, 220.00, 329.63]
 const B_MIN7 := [123.47, 146.83, 185.00, 220.00]
 const G_MAJ := [196.00, 246.94, 293.66, 392.00]
+# "liquid" style (A minor)
+const A_MIN9 := [220.00, 246.94, 261.63, 329.63, 392.00]
+const F_MAJ7 := [174.61, 220.00, 261.63, 329.63]
+const G_SIX := [196.00, 246.94, 293.66, 329.63]
+# "dark" style (D minor)
+const D_MIN9 := [146.83, 174.61, 220.00, 261.63, 329.63]
+const BB_MAJ7 := [116.54, 146.83, 174.61, 220.00]
+const G_MIN7 := [196.00, 233.08, 293.66, 349.23]
+const A_SEVEN := [220.00, 277.18, 329.63, 392.00]
+
+## Each style renders the same five sections in its own key and mood.
+const STYLES: Array[String] = ["jungle", "liquid", "dark"]
 
 const RENDER_ORDER: Array[String] = ["intro", "build", "drop", "breakdown", "drop2"]
 
@@ -40,6 +52,8 @@ class Job:
 	var pad_amp := 0.05
 	var stabs := false
 	var birds := false
+	## How fast the reese bass filter sweeps (cycles per beat).
+	var wobble := 0.5
 	var rng := RandomNumberGenerator.new()
 	var left := PackedFloat32Array()
 	var right := PackedFloat32Array()
@@ -73,8 +87,9 @@ func _init() -> void:
 
 
 ## Renders one 4-bar section as stereo frames.
-func render_section(section_name: String) -> PackedVector2Array:
+func render_section(section_name: String, style := "jungle") -> PackedVector2Array:
 	var job := _new_job(section_name)
+	_apply_style(job, style)
 	while not _step(job, 1 << 30):
 		pass
 	return job.out
@@ -117,6 +132,38 @@ func _new_job(section_name: String) -> Job:
 	job.left.resize(job.total)
 	job.right.resize(job.total)
 	return job
+
+
+## Re-voices a section for one of the other STYLES ("jungle" is the section as written).
+func _apply_style(job: Job, style: String) -> void:
+	var busy: bool = job.chords[1] == G_MAJ
+	match style:
+		"liquid":
+			# rolling and mellow: lush pads, a slow filter sweep, birds everywhere, no stabs
+			job.rng.seed = hash("liquid" + job.name)
+			job.chords = [A_MIN9, C_MAJ7, F_MAJ7, G_SIX] if busy else [A_MIN9, A_MIN9, F_MAJ7, G_SIX]
+			job.roots = [110.0, 65.41, 87.31, 98.0] if busy else [110.0, 110.0, 87.31, 98.0]
+			job.pad_amp *= 1.5
+			job.wobble = 0.25
+			job.stabs = false
+			job.birds = true
+			if job.name == "drop":
+				job.bars = ["B", "A", "B", "FILL"]
+			elif job.name == "drop2":
+				job.bars = ["A", "B", "A", "FILL"]
+		"dark":
+			# heavier: busy breaks, a fast wobble, stabs on every drop, no birds
+			job.rng.seed = hash("dark" + job.name)
+			job.chords = [D_MIN9, G_MIN7, BB_MAJ7, A_SEVEN] if busy else [D_MIN9, D_MIN9, BB_MAJ7, A_SEVEN]
+			job.roots = [73.42, 98.0, 58.27, 110.0] if busy else [73.42, 73.42, 58.27, 110.0]
+			job.pad_amp *= 0.7
+			job.wobble = 1.0
+			job.birds = false
+			job.stabs = job.reese
+			if job.name == "drop":
+				job.bars = ["A2", "A2", "A", "ROLL"]
+			elif job.name == "drop2":
+				job.bars = ["A2", "A", "A2", "ROLL"]
 
 
 ## Renders up to `budget` samples of a section; returns true once it's finished.
@@ -226,7 +273,7 @@ func _synth(job: Job, from: int, to: int, step_frames: float) -> void:
 			ph2 -= floorf(ph2)
 			var saw := (ph1 * 2.0 - 1.0) + (ph2 * 2.0 - 1.0)
 			var song_beat := (bar * STEPS + step_in_bar) / 4.0
-			var cutoff := 160.0 + 900.0 * (0.5 + 0.5 * sin(TAU * song_beat * 0.5))
+			var cutoff := 160.0 + 900.0 * (0.5 + 0.5 * sin(TAU * song_beat * job.wobble))
 			lp += (1.0 - exp(-TAU * cutoff / MIX_RATE)) * (saw - lp)
 			ph_sub += TAU * root * 0.5 / MIX_RATE
 			var bass := (lp * 0.28 + sin(ph_sub) * 0.42) * gate

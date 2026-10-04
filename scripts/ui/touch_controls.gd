@@ -1,28 +1,50 @@
 extends Control
-## On-screen controls for phones and tablets: a floating stick anywhere on the left half and
-## action buttons on the right. They press the same input actions as the keyboard/gamepad
-## (via Input.action_press), so the salmon code doesn't know the difference.
+## Gesture controls for phones and tablets (the mouse works too, as an emulated finger):
+## hold a finger down and the salmon swims towards it, draw little circles to boost, swipe up
+## to jump, and swipe in any
+## direction in the air to spin or flip that way. Gestures are handed to the salmon through
+## the GameInput autoload.
 
 signal pause_pressed
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
+const Salmon := preload("res://scripts/player/salmon.gd")
 
-const STICK_RADIUS := 110.0
-const DEAD_ZONE := 0.15
-# offsets are from the bottom-right corner; "portrait" overrides the offset on tall screens
-const BUTTONS := [
-	{"action": "jump", "label": "JUMP", "offset": Vector2(-170, -170), "radius": 95.0, "color": UI.LIME},
-	{"action": "grab_1", "label": "GRAB", "offset": Vector2(-365, -120), "radius": 64.0, "color": UI.PINK},
-	{"action": "grab_2", "label": "TWEAK", "offset": Vector2(-340, -305), "radius": 60.0, "color": UI.ORANGE},
-	{"action": "roll_right", "label": "ROLL", "offset": Vector2(-150, -385), "radius": 60.0, "color": UI.CYAN},
-	{"action": "boost", "label": "BOOST", "offset": Vector2(-545, -110), "portrait": Vector2(-170, -580), "radius": 60.0, "color": UI.CYAN},
-]
+## A touch has to be held this long before the salmon starts following it, so a quick
+## swipe at the edge of the screen doesn't also yank the fish sideways.
+const HOLD_TIME := 0.1
+## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
+const SWIPE_DIST := 70.0
+const SWIPE_WINDOW := 0.16
+## Little circles boost: the finger's direction has to turn CIRCLE_ON radians (about three
+## quarters of a loop) within CIRCLE_WINDOW seconds to start, and keep turning to keep going.
+const CIRCLE_WINDOW := 0.7
+const CIRCLE_ON := 4.7
+const CIRCLE_KEEP := 2.2
 const PAUSE_RADIUS := 36.0
 
-var _stick_touch := -1
-var _stick_origin := Vector2.ZERO
-var _stick_pos := Vector2.ZERO
-var _held := {}  # touch index -> button index
+var player: Salmon
+var camera: Camera3D
+## The SubViewportContainer the game is rendered in (its viewport is smaller than the screen).
+var view: SubViewportContainer
+## Shown along the bottom of the screen (practice uses it to explain the controls).
+var hint := "":
+	set(v):
+		hint = v
+		queue_redraw()
+
+var _touch := -1
+var _pos := Vector2.ZERO
+var _held_for := 0.0
+var _trail: Array = []  # [time, position] samples from the last SWIPE_WINDOW seconds
+var _armed := true
+var _turns: Array = []  # [time, radians the finger's direction turned] samples
+var _head_pos := Vector2.ZERO
+var _head := 0.0
+var _has_head := false
+var _flash := 0.0
+var _flash_dir := Vector2.ZERO
+var _flash_pos := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -32,17 +54,11 @@ func _ready() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
-		_release_all()
-
-
-func _button_center(i: int) -> Vector2:
-	var k := _k()
-	var offset: Vector2 = BUTTONS[i].get("portrait", BUTTONS[i].offset) if k > 1.0 else BUTTONS[i].offset
-	return size + offset * k
+		_release()
 
 
 func _pause_center() -> Vector2:
-	return Vector2(size.x * 0.5 + 290.0, 44.0 * _k())
+	return Vector2(size.x - 60.0 * _k(), 150.0 * _k())
 
 
 func _input(event: InputEvent) -> void:
@@ -52,95 +68,143 @@ func _input(event: InputEvent) -> void:
 		var p := (make_input_local(event) as InputEventScreenTouch).position
 		if event.pressed:
 			_touch_down(event.index, p)
-		else:
-			_touch_up(event.index)
-	elif event is InputEventScreenDrag and event.index == _stick_touch:
-		_stick_pos = (make_input_local(event) as InputEventScreenDrag).position
-		_apply_stick()
+		elif event.index == _touch:
+			_release()
+	elif event is InputEventScreenDrag and event.index == _touch:
+		_pos = (make_input_local(event) as InputEventScreenDrag).position
+		_track_circle()
+		_track_swipe()
 		queue_redraw()
 
 
 func _touch_down(index: int, p: Vector2) -> void:
-	for i in BUTTONS.size():
-		if p.distance_to(_button_center(i)) < float(BUTTONS[i].radius) * _k() * 1.15:
-			_held[index] = i
-			Input.action_press(BUTTONS[i].action)
-			queue_redraw()
-			return
 	if p.distance_to(_pause_center()) < PAUSE_RADIUS * _k() * 1.4:
 		pause_pressed.emit()
 		return
-	if p.x < size.x * 0.5 and _stick_touch == -1:
-		_stick_touch = index
-		_stick_origin = p
-		_stick_pos = p
+	if _touch != -1:
+		return
+	_touch = index
+	_pos = p
+	_held_for = 0.0
+	_armed = true
+	_trail = [[_now(), p]]
+	_turns.clear()
+	_head_pos = p
+	_has_head = false
+	queue_redraw()
+
+
+func _release() -> void:
+	_touch = -1
+	_trail.clear()
+	_turns.clear()
+	GameInput.circling = false
+	GameInput.follow = false
+	GameInput.follow_dx = 0.0
+	queue_redraw()
+
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+## Records how much the finger's direction of travel turns, one sample every few units moved.
+func _track_circle() -> void:
+	var d := _pos - _head_pos
+	if d.length() < 8.0 * _k():
+		return
+	var a := d.angle()
+	if _has_head:
+		var turn := wrapf(a - _head, -PI, PI)
+		# scrubbing back and forth is a reversal, not a turn
+		if absf(turn) < 2.4:
+			_turns.append([_now(), turn])
+	_head = a
+	_has_head = true
+	_head_pos = _pos
+
+
+## How far (radians, signed) the finger's direction has turned in the last CIRCLE_WINDOW seconds.
+func _turned() -> float:
+	var now := _now()
+	while not _turns.is_empty() and now - float(_turns[0][0]) > CIRCLE_WINDOW:
+		_turns.pop_front()
+	var sum := 0.0
+	for s: Array in _turns:
+		sum += float(s[1])
+	return sum
+
+
+## Looks at how far the finger has moved in the last SWIPE_WINDOW seconds. One fast stroke
+## is one swipe: it has to slow down again before the next one counts.
+func _track_swipe() -> void:
+	var now := _now()
+	_trail.append([now, _pos])
+	while _trail.size() > 1 and now - float(_trail[0][0]) > SWIPE_WINDOW:
+		_trail.pop_front()
+	var d: Vector2 = _pos - (_trail[0][1] as Vector2)
+	var need := SWIPE_DIST * _k()
+	if not _armed:
+		_armed = d.length() < need * 0.4
+		return
+	# a curving stroke is part of a circle, not a swipe
+	if d.length() < need or GameInput.circling or absf(_turned()) > 1.5:
+		return
+	# 8-way: each axis counts if it carries a fair share of the stroke
+	var n := d.normalized()
+	var dir := Vector2(signf(n.x) if absf(n.x) > 0.38 else 0.0, signf(n.y) if absf(n.y) > 0.38 else 0.0)
+	if player and not player.in_air() and dir != Vector2.UP:
+		# on the water only a straight swipe up means anything; sideways is just steering
+		return
+	_armed = false
+	_flash = 0.35
+	_flash_dir = dir.normalized()
+	_flash_pos = _pos
+	GameInput.swipe(dir)
+
+
+func _process(delta: float) -> void:
+	if _flash > 0.0:
+		_flash -= delta
 		queue_redraw()
-
-
-func _touch_up(index: int) -> void:
-	if _held.has(index):
-		Input.action_release(BUTTONS[_held[index]].action)
-		_held.erase(index)
+	if _touch == -1:
+		return
+	var circling := absf(_turned()) > (CIRCLE_KEEP if GameInput.circling else CIRCLE_ON)
+	if circling != GameInput.circling:
+		GameInput.circling = circling
 		queue_redraw()
-	if index == _stick_touch:
-		_stick_touch = -1
-		_axis(0.0, "steer_left", "steer_right")
-		_axis(0.0, "swim_down", "swim_up")
-		queue_redraw()
-
-
-func _apply_stick() -> void:
-	var v := (_stick_pos - _stick_origin) / (STICK_RADIUS * _k())
-	if v.length() > 1.0:
-		v = v.normalized()
-	_axis(v.x, "steer_left", "steer_right")
-	_axis(-v.y, "swim_down", "swim_up")
-
-
-func _axis(value: float, negative: String, positive: String) -> void:
-	if value > DEAD_ZONE:
-		Input.action_press(positive, value)
-		Input.action_release(negative)
-	elif value < -DEAD_ZONE:
-		Input.action_press(negative, -value)
-		Input.action_release(positive)
-	else:
-		Input.action_release(positive)
-		Input.action_release(negative)
-
-
-func _release_all() -> void:
-	for index: int in _held:
-		Input.action_release(BUTTONS[_held[index]].action)
-	_held.clear()
-	_stick_touch = -1
-	for action: String in ["steer_left", "steer_right", "swim_up", "swim_down"]:
-		Input.action_release(action)
+	_held_for += delta
+	if _held_for < HOLD_TIME or player == null or camera == null or view == null:
+		return
+	# Where the salmon is on screen, and how many screen units one metre across the river is
+	var k := float(view.stretch_shrink)
+	var here := player.global_position
+	var fish_x := camera.unproject_position(here).x * k
+	var metre := (camera.unproject_position(here + player.track.right(player.s)).x * k) - fish_x
+	if metre < 1.0:
+		return
+	GameInput.follow = true
+	GameInput.follow_dx = (_pos.x - fish_x) / metre
 
 
 func _draw() -> void:
 	var font := UI.font()
 	var k := _k()
-	var stick_r := STICK_RADIUS * k
-	# stick: where the thumb landed, or a hint where it usually goes
-	var base := _stick_origin if _stick_touch != -1 else Vector2(size.x * 0.17 * (1.2 if k > 1.0 else 1.0), size.y - 200.0 * k)
-	var knob := base
-	if _stick_touch != -1:
-		knob = base + (_stick_pos - base).limit_length(stick_r)
-	draw_circle(base, stick_r, Color(0, 0, 0, 0.3))
-	draw_arc(base, stick_r, 0.0, TAU, 40, Color(UI.CYAN, 0.6), 4.0 * k)
-	draw_circle(knob, 46.0 * k, Color(UI.CYAN, 0.55 if _stick_touch != -1 else 0.3))
-	if _stick_touch == -1:
-		_label(font, base + Vector2(0, stick_r + 34.0 * k), "STEER / FLIP", int(22 * k), Color(1, 1, 1, 0.6))
-	for i in BUTTONS.size():
-		var b: Dictionary = BUTTONS[i]
-		var c := _button_center(i)
-		var r := float(b.radius) * k
-		var held := _held.values().has(i)
-		var col: Color = b.color
-		draw_circle(c, r, Color(col, 0.55 if held else 0.22))
-		draw_arc(c, r, 0.0, TAU, 40, Color(col, 0.9), 4.0 * k)
-		_label(font, c, b.label, int((30 if float(b.radius) > 80.0 else 22) * k), Color.WHITE)
+	if _touch != -1:
+		var ring: Color = UI.LIME if GameInput.circling else UI.CYAN
+		draw_circle(_pos, 46.0 * k, Color(ring, 0.18))
+		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.circling else 4.0) * k)
+	if _flash > 0.0:
+		var a := clampf(_flash / 0.35, 0.0, 1.0)
+		var tip := _flash_pos + _flash_dir * 90.0 * k
+		var side := _flash_dir.orthogonal() * 22.0 * k
+		draw_line(_flash_pos - _flash_dir * 40.0 * k, tip, Color(UI.LIME, a), 8.0 * k)
+		draw_colored_polygon(PackedVector2Array([tip + _flash_dir * 30.0 * k, tip + side, tip - side]), Color(UI.LIME, a))
+	if hint != "":
+		var lines := hint.split("\n")
+		var fs := int(24 * k)
+		for i in lines.size():
+			_label(font, Vector2(size.x * 0.5, size.y - (90.0 + (lines.size() - 1 - i) * 34.0) * k), lines[i], fs, Color(1, 1, 1, 0.85))
 	var pc := _pause_center()
 	draw_circle(pc, PAUSE_RADIUS * k, Color(0, 0, 0, 0.35))
 	draw_arc(pc, PAUSE_RADIUS * k, 0.0, TAU, 32, Color(1, 1, 1, 0.7), 3.0 * k)
@@ -149,7 +213,7 @@ func _draw() -> void:
 
 
 func _label(font: Font, center: Vector2, text: String, font_size: int, col: Color) -> void:
-	var w := 400.0
+	var w := size.x
 	draw_string_outline(font, center + Vector2(-w * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, w, font_size, 6, UI.INK)
 	draw_string(font, center + Vector2(-w * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, w, font_size, col)
 

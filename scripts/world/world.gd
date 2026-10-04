@@ -31,6 +31,23 @@ func _ready() -> void:
 	_make_fireflies()
 
 
+## Swaps the river for the practice level (or back to the race course). Rebuilding takes a moment.
+func set_course(test: bool) -> void:
+	if track.test == test:
+		return
+	remove_child(track)
+	track.queue_free()
+	track = Track.new()
+	add_child(track)
+	move_child(track, 0)
+	track.build(1987, test)
+	player.track = track
+	player.rail = {}
+	player.reset(Track.START_S)
+	camera.track = track
+	camera.snap()
+
+
 func _make_environment() -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = preload("res://shaders/sky.gdshader")
