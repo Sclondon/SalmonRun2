@@ -167,7 +167,7 @@ three, 3.6 m apart.
 - A ramp is solid all the way down: coming up to one brings you back to the surface.
 - **Under water the camera goes under too**, and the picture changes: it sways, takes the
   colour of the water, shafts of light slant down from the surface, the distance goes murky
-  and the music is muffled.
+  and the music is muffled. Bubbles come up from the deep and specks hang in the water.
 
 What is under the Open Ocean is laid out on its own, whatever is on the surface above it
 (`deep` in `levels.gd`):

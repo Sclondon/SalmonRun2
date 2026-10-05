@@ -14,6 +14,8 @@ var school: School
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
+var _rising: CPUParticles3D
+var _specks: CPUParticles3D
 var _sky: ShaderMaterial
 var _mote_mat: StandardMaterial3D
 var _light_energy := 1.15
@@ -40,6 +42,7 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 	_make_fireflies()
+	_make_sea_life()
 	_apply_level()
 	_dress_player(track.level, track.down)
 
@@ -145,6 +148,64 @@ func _apply_level() -> void:
 	_mote_mat.emission = cfg.motes
 
 
+## What hangs in the water when you are under it: bubbles coming up from the deep, and specks
+## adrift. Both are let go in the water ahead of the salmon, since it leaves them behind at
+## once.
+func _make_sea_life() -> void:
+	var white := StandardMaterial3D.new()
+	white.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	white.albedo_color = Color(0.85, 0.96, 1.0)
+	var bubble := SphereMesh.new()
+	bubble.radius = 0.5
+	bubble.height = 1.0
+	bubble.radial_segments = 6
+	bubble.rings = 3
+	bubble.material = white
+	_rising = CPUParticles3D.new()
+	_rising.amount = 70 if Save.is_mobile() else 170
+	_rising.lifetime = 2.0
+	_rising.local_coords = false
+	_rising.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_rising.emission_box_extents = Vector3(22, 3, 34)
+	_rising.direction = Vector3.UP
+	_rising.spread = 12.0
+	_rising.initial_velocity_min = 0.8
+	_rising.initial_velocity_max = 1.8
+	_rising.gravity = Vector3.ZERO
+	_rising.scale_amount_min = 0.06
+	_rising.scale_amount_max = 0.3
+	# (each swells a little as it comes up)
+	var swell := Curve.new()
+	swell.add_point(Vector2(0.0, 0.5))
+	swell.add_point(Vector2(1.0, 1.0))
+	_rising.scale_amount_curve = swell
+	_rising.mesh = bubble
+	_rising.emitting = false
+	add_child(_rising)
+	var speck := BoxMesh.new()
+	speck.size = Vector3.ONE
+	var dim := StandardMaterial3D.new()
+	dim.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dim.albedo_color = Color(0.75, 0.88, 0.92)
+	speck.material = dim
+	_specks = CPUParticles3D.new()
+	_specks.amount = 80 if Save.is_mobile() else 220
+	_specks.lifetime = 2.4
+	_specks.local_coords = false
+	_specks.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_specks.emission_box_extents = Vector3(22, 7, 38)
+	_specks.direction = Vector3(1, 0, 0)
+	_specks.spread = 180.0
+	_specks.initial_velocity_min = 0.05
+	_specks.initial_velocity_max = 0.4
+	_specks.gravity = Vector3(0, -0.08, 0)
+	_specks.scale_amount_min = 0.03
+	_specks.scale_amount_max = 0.08
+	_specks.mesh = speck
+	_specks.emitting = false
+	add_child(_specks)
+
+
 func _make_fireflies() -> void:
 	_fireflies = CPUParticles3D.new()
 	_fireflies.amount = 40 if Save.is_mobile() else 120
@@ -177,6 +238,19 @@ func _process(_delta: float) -> void:
 	env.glow_intensity = 0.9 + pulse * 0.5
 	if camera:
 		_fireflies.global_position = camera.global_position + track.forward(player.s) * 25.0
+		# dived: bubbles and specks in the water ahead, kept under the surface
+		var dived: bool = player.dive > 0.3
+		_rising.emitting = dived
+		_specks.emitting = dived
+		var ahead := minf(player.s + 36.0, track.length - 2.0)
+		var surface := track.water_y(ahead)
+		# (in as much water as there is to dive in: a river has far less of it than the sea)
+		var room := track.layers() * track.layer_depth()
+		var tall := clampf(room * 0.5 + 1.0, 1.5, 7.0)
+		_specks.emission_box_extents.y = tall
+		_rising.emission_box_extents.y = minf(tall, 3.0)
+		_specks.global_transform = Transform3D(track.basis_at(ahead), track.point(ahead, player.x, minf(player.y, surface - tall - 0.5)))
+		_rising.global_transform = Transform3D(track.basis_at(ahead), track.point(ahead, player.x, minf(player.y - 2.0, surface - 3.8 - minf(tall, 3.0))))
 		# under the water it is murky, and everything fades into the colour of the water
 		var under: float = camera.submerged
 		var murk: Color = (track.cfg.get("water_shallow", Color(0.16, 0.7, 0.64)) as Color).lerp(track.cfg.get("water_deep", Color(0.03, 0.3, 0.36)), 0.5)
