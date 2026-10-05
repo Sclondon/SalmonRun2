@@ -1,16 +1,21 @@
-// The Earth on the map: a real satellite picture wrapped on a sphere and drawn in big pixels,
-// under a drifting layer of cloud and a soft glow of atmosphere.
+// The globe scene: the Earth (a real satellite picture wrapped on a sphere) hanging in space,
+// under a drifting layer of cloud and a soft glow of atmosphere, all drawn in big pixels.
+// It fills whatever it is given: zooming is the camera closing in, so the globe just gets
+// bigger than the picture and nothing is cut off round its edge.
 shader_type canvas_item;
 
 uniform sampler2D earth : filter_nearest, repeat_enable;
 // Turns the Earth so the place of interest faces the viewer (camera-from-world).
 uniform mat3 view = mat3(1.0);
-// How many pixels across the picture is drawn with.
-uniform float pixels = 136.0;
-// The globe's radius as a fraction of the picture; the rest is room for the atmosphere.
-uniform float radius = 0.88;
-// Above 1 the view closes in on the middle of the globe, like a map being zoomed.
+// Size of the picture, where the middle of the globe is in it and how big it is, in pixels.
+uniform vec2 rect_size = vec2(400.0);
+uniform vec2 center = vec2(200.0);
+uniform float globe_radius = 170.0;
+// How big the picture's pixels are drawn.
+uniform float pixel = 3.0;
+// How close the camera is (1 is the whole globe in view): thins the clouds out up close.
 uniform float zoom = 1.0;
+uniform vec3 space : source_color = vec3(0.012, 0.016, 0.045);
 uniform vec3 air : source_color = vec3(0.4, 0.75, 1.0);
 uniform float cloud_cover = 0.42;
 uniform float cloud_speed = 0.045;
@@ -94,19 +99,20 @@ float cloud_at(vec3 world) {
 }
 
 void fragment() {
-	vec2 uv = (floor(UV * pixels) + 0.5) / pixels;
-	// zoomed in, the Earth is bigger than the picture: keep it to the same round window
-	float window = length((uv - 0.5) * 2.0);
-	vec2 p = (uv - 0.5) * 2.0 / (radius * zoom);
+	vec2 cell = floor(UV * rect_size / pixel);
+	vec2 px = (cell + 0.5) * pixel;
+	vec2 p = (px - center) / globe_radius;
 	p.y = -p.y;
 	float r2 = dot(p, p);
 	mat3 to_world = transpose(view);
 	vec3 sun = normalize(SUN);
-	vec4 col;
+	// space, with a scatter of stars that stay put as the globe turns
+	float star = hash(vec3(cell, 7.0));
+	vec3 col = space + vec3(0.9, 0.95, 1.0) * step(0.9965, star) * (0.4 + 0.6 * hash(vec3(cell, 3.0)));
 	if (r2 > 1.0) {
 		// outside the globe: the atmosphere fading out into space
-		float d = (sqrt(r2) - 1.0) * zoom / (1.0 / radius - 1.0);
-		col = vec4(air, pow(clamp(1.0 - d, 0.0, 1.0), 2.5) * 0.55);
+		float d = (sqrt(r2) - 1.0) * zoom / 0.14;
+		col = mix(col, air, pow(clamp(1.0 - d, 0.0, 1.0), 2.5) * 0.55);
 	} else {
 		vec3 cam = vec3(p, sqrt(1.0 - r2));
 		vec3 world = to_world * cam;
@@ -117,7 +123,7 @@ void fragment() {
 		ground *= 1.0 - 0.45 * cloud_at(to_world * normalize(cam * cloud_height + sun * (cloud_height - 1.0) * 2.0));
 		// day side towards the top left, and the air thickening towards the edge
 		ground *= 0.45 + 0.75 * clamp(dot(cam, sun), 0.0, 1.0);
-		col = vec4(mix(ground, air, pow(1.0 - cam.z, 2.5) * 0.5), 1.0);
+		col = mix(ground, air, pow(1.0 - cam.z, 2.5) * 0.5);
 	}
 	// the cloud layer: a bigger sphere than the Earth, so it stands clear of the ground and
 	// carries on past the edge of the globe
@@ -127,8 +133,7 @@ void fragment() {
 		// up close the clouds thin out so the map underneath stays readable
 		float cloud = cloud_at(to_world * cam) * mix(0.85, 0.3, smoothstep(1.0, 5.0, zoom));
 		vec3 white = vec3(1.0) * (0.55 + 0.6 * clamp(dot(cam, sun), 0.0, 1.0));
-		col = vec4(mix(col.rgb, white, cloud), max(col.a, cloud));
+		col = mix(col, white, cloud);
 	}
-	col.a *= 1.0 - smoothstep(0.985, 1.0, window);
-	COLOR = col;
+	COLOR = vec4(col, 1.0);
 }

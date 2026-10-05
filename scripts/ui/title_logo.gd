@@ -1,20 +1,17 @@
 extends Control
-## The title-screen logo: chunky extruded letters that bob and hop on the beat, a giant "2"
-## on a spinning burst, and a wave running underneath.
+## The title: set like the cover of a 1990s school science book. A bookish serif name, the
+## numeral on a gold disc with a couple of plain geometric shapes behind it, the species'
+## Latin name in italics and a fine rule.
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
 
-const SIZE := 118
-const BIG := 270
-const DEPTH := 9
-const SLANT := 0.2
-const EXTRUDE := Color(0.36, 0.05, 0.42)
+const SIZE := 104
 
 var _t := 0.0
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(860, 262)
+	custom_minimum_size = Vector2(900, 214)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
@@ -26,67 +23,39 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var pulse := Music.beat_pulse()
-	var font := UI.font()
-	var w := _word(font, "SALMON", Vector2(8, 104), 0, UI.SALMON, UI.ORANGE, pulse)
-	_word(font, "RUN", Vector2(64, 204), 6, UI.CYAN, UI.LIME, pulse)
-	_two(font, Vector2(w + 120.0, 118.0), pulse)
-	_wave(Vector2(0, 238), w + 250.0)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
+	var sans := UI.font()
+	var serif := UI.serif()
+	# a strapline over a fine rule, the way a textbook series is credited
+	_text(sans, Vector2(4, 22), "AN INTERACTIVE JOURNEY   ·   THE LIFE CYCLE OF THE PACIFIC SALMON", 19, UI.PAPER, 6)
+	draw_rect(Rect2(4, 34, 640, 3), UI.INK)
+	draw_rect(Rect2(4, 34, 640, 2), UI.GOLD)
+	# the name
+	var name_at := Vector2(0, 138)
+	var w := serif.get_string_size("Salmon Run", HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x
+	draw_string_outline(serif, name_at + Vector2(5, 6), "Salmon Run", HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE, 14, Color(UI.INK, 0.55))
+	_text(serif, name_at, "Salmon Run", SIZE, UI.PAPER, 14)
+	# the numeral, on a gold disc with a triangle and a square tucked behind it
+	var c := Vector2(w + 96.0, 96.0 + sin(_t * 1.4) * 3.0)
+	var r := 62.0 * (1.0 + pulse * 0.03)
+	_shape(PackedVector2Array([c + Vector2(-78, 54), c + Vector2(-6, -86), c + Vector2(50, 54)]), UI.CORAL)
+	_shape(PackedVector2Array([c + Vector2(22, -6), c + Vector2(92, -6), c + Vector2(92, 64), c + Vector2(22, 64)]), UI.TEAL)
+	draw_circle(c, r + 4.0, UI.INK)
+	draw_circle(c, r, UI.GOLD)
+	var two := serif.get_string_size("2", HORIZONTAL_ALIGNMENT_LEFT, -1, 108)
+	draw_string(serif, c + Vector2(-two.x * 0.5, 38.0), "2", HORIZONTAL_ALIGNMENT_LEFT, -1, 108, UI.INK)
+	# the species, as a caption
+	_text(UI.italic(), Vector2(6, 184), "Oncorhynchus nerka", 30, UI.TEAL, 8)
+	_text(sans, Vector2(310, 182), "THE SOCKEYE, HEADING HOME", 19, UI.PAPER, 6)
 
 
-## Draws a word one letter at a time and returns where it ended (x).
-func _word(font: Font, text: String, at: Vector2, first: int, c0: Color, c1: Color, pulse: float) -> float:
-	var x := at.x
-	for i in text.length():
-		var ch := text[i]
-		var k := first + i
-		var hop := sin(_t * 2.6 - k * 0.6) * 5.0 - pulse * (9.0 if k % 2 == 0 else 3.0)
-		var col := c0.lerp(c1, float(i) / maxf(text.length() - 1, 1.0)).lerp(Color.WHITE, pulse * 0.35)
-		# sheared so the letters lean forward
-		draw_set_transform_matrix(Transform2D(Vector2(1, 0), Vector2(-SLANT, 1), Vector2(x, at.y + hop)))
-		_block(font, ch, SIZE, col)
-		x += font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x + 4.0
-	return x
+func _text(font: Font, at: Vector2, text: String, font_size: int, col: Color, outline: int) -> void:
+	draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline, UI.INK)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, col)
 
 
-## One glyph with a dark outline and a solid extrusion down and to the right.
-func _block(font: Font, text: String, font_size: int, col: Color) -> void:
-	for d in range(DEPTH, 0, -1):
-		draw_string_outline(font, Vector2(d, d), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 12, UI.INK)
-	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 12, UI.INK)
-	for d in range(DEPTH, 0, -1):
-		draw_string(font, Vector2(d, d), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, EXTRUDE)
-	draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, col)
-
-
-func _two(font: Font, center: Vector2, pulse: float) -> void:
-	# spinning burst behind it
-	var pts := PackedVector2Array()
-	var ink := PackedVector2Array()
-	var spikes := 14
-	for i in spikes * 2:
-		var a := _t * 0.5 + i * PI / spikes
-		var r := (132.0 if i % 2 == 0 else 98.0) * (1.0 + pulse * 0.12)
-		pts.append(Vector2(cos(a), sin(a)) * r)
-		ink.append(Vector2(cos(a), sin(a)) * (r + 9.0))
-	draw_set_transform_matrix(Transform2D(0.0, center))
-	draw_colored_polygon(ink, UI.INK)
-	draw_colored_polygon(pts, UI.PINK)
-	# the 2 itself, tilted and thumping on the beat
-	var sc := 1.0 + pulse * 0.1
-	var sz := font.get_string_size("2", HORIZONTAL_ALIGNMENT_LEFT, -1, BIG)
-	var tf := Transform2D(-0.14 + sin(_t * 1.3) * 0.04, Vector2(sc, sc), 0.0, center)
-	draw_set_transform_matrix(tf * Transform2D(0.0, Vector2(-sz.x * 0.5 - 4.0, BIG * 0.34)))
-	_block(font, "2", BIG, UI.LIME.lerp(Color.WHITE, pulse * 0.4))
-
-
-func _wave(at: Vector2, width: float) -> void:
-	draw_set_transform_matrix(Transform2D(0.0, at))
-	for layer in 2:
-		var pts := PackedVector2Array()
-		var x := 0.0
-		while x <= width:
-			pts.append(Vector2(x, sin(x * 0.045 - _t * (4.0 - layer * 1.5) + layer * 1.7) * 6.0 + layer * 11.0))
-			x += 8.0
-		draw_polyline(pts, UI.INK, 12.0)
-		draw_polyline(pts, UI.CYAN if layer == 0 else Color.WHITE, 6.0)
+## A flat shape with a navy edge.
+func _shape(points: PackedVector2Array, col: Color) -> void:
+	draw_colored_polygon(points, col)
+	var edge := points.duplicate()
+	edge.append(points[0])
+	draw_polyline(edge, UI.INK, 4.0)

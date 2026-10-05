@@ -78,7 +78,17 @@ var _levels: Control
 var _level_buttons: Array[Button] = []
 var _travel: Control
 var _travel_label: Label
-var _travel_tag: Label
+var _travel_back: Button
+## NEW RUN is waiting on its START button (rather than a way on being chosen)
+var _starting := false
+## The little window on the stage in hand
+var _pv_card: PanelContainer
+var _pv_image: TextureRect
+var _pv_name: Label
+var _pv_line: Label
+var _pv_where: Label
+## The half of the practice map the stage list sits in
+var _map_side: Control
 var _busy := false
 
 var _autotest_dir := ""
@@ -176,7 +186,7 @@ func _enter_title() -> void:
 	p.go()
 	world.camera.mode = ChaseCam.Mode.CINEMA
 	world.camera.snap()
-	_title_sub.text = _track_text()
+	_title_sub.visible = false
 	var total := 0
 	for key: int in Save.bests:
 		total += Save.best(key)
@@ -249,25 +259,22 @@ func _start_race(test := false) -> void:
 	if not world.has_course(_level, drill, _down):
 		# building a level takes a moment: say where we're going, then let that frame draw first
 		_busy = true
-		if drill:
+		if test:
 			_travel_label.text = "PRACTICE"
 		else:
-			_travel_label.text = "%s\n%s" % ["PRACTICE" if test else _leg_name(_down), Levels.LIST[_level].name]
-		if drill:
-			_travel_tag.text = ""
-		elif _down:
-			_travel_tag.text = "SPRING. THE NEXT GENERATION HEADS FOR THE SEA"
-		else:
-			_travel_tag.text = str(Levels.LIST[_level].tagline)
+			_travel_label.text = _leg_name(_down)
 		hud.visible = false
-		_travel_globe.visible = not drill
-		if not drill:
-			var done: Array[int] = []
-			if not _down:
-				done = _route.duplicate()
-			if _from == -1 or _from == _level:
-				_travel_globe.look_at_stage(_level)
-			_travel_globe.show_path(done, _from, _level, 1.3)
+		_travel_go.visible = false
+		_travel_back.visible = false
+		_travel_globe.stop_choosing()
+		var stage := Levels.RAINFOREST if drill else _level
+		var done: Array[int] = []
+		if not _down and not test:
+			done = _route.duplicate()
+		if _from == -1 or _from == stage or not _travel.visible:
+			_travel_globe.look_at_stage(stage)
+		_travel_globe.show_path(done, -1 if test else _from, stage, 1.3)
+		_preview(stage, "ONE OF EVERYTHING, FOR TRYING THE CONTROLS" if drill else "")
 		_show(_travel)
 		Music.set_filter(700.0)
 		if not test and _from != -1 and _from != _level:
@@ -298,7 +305,7 @@ func _start_race(test := false) -> void:
 	Music.play_race(Levels.LIST[Levels.RAINFOREST if drill else _level].tier)
 	phase = Phase.COUNTDOWN
 	if not test:
-		hud.popup(Levels.LIST[_level].name, UI.CYAN, 2.6)
+		hud.popup(Levels.LIST[_level].name, UI.TEAL, 2.6)
 	if test:
 		# no countdown, no finish line: just swim
 		phase = Phase.RACE
@@ -328,12 +335,12 @@ func _test_lap() -> void:
 	p.go()
 	world.track.reset_rings()
 	world.camera.snap()
-	hud.popup("ONE MORE LAP", UI.LIME, 1.0)
+	hud.popup("ONE MORE LAP", UI.GOLD, 1.0)
 
 
 func _finish() -> void:
 	phase = Phase.FINISHED
-	hud.popup("FINISH!", UI.LIME, 2.5)
+	hud.popup("FINISH!", UI.GOLD, 2.5)
 	Sfx.play("combo")
 	world.player.control = false
 	_finish_timer = 2.5
@@ -422,27 +429,61 @@ func _continue() -> void:
 	if _ways.is_empty():
 		_start_level(_next, _next_down)
 		return
-	_travel_label.text = "CHOOSE YOUR WAY" if _ways.size() > 1 else "THE WAY ON"
-	if not _shut.is_empty():
-		_travel_tag.text = "LOCKED: %s NEXT TIME" % Levels.objective_text(_level)
-	elif _ways.size() > 1:
-		_travel_tag.text = "LEFT / RIGHT OR TAP A PIN TO LOOK, THEN SWIM"
-	else:
-		_travel_tag.text = ""
-	_travel_globe.visible = true
+	_travel_label.text = "WHICH WAY?" if _ways.size() > 1 else "ONWARD"
 	_travel_globe.look_at_stage(_level)
 	_travel_globe.choose(_route, _level, _ways, _shut)
-	_travel_go.text = "SWIM TO %s" % Levels.LIST[_ways[0]].name
+	_preview(_ways[0])
+	_starting = false
+	_travel_go.text = "SWIM"
 	_travel_go.visible = true
+	_travel_back.visible = false
 	hud.visible = false
 	_show(_travel)
 	_travel_go.grab_focus()
 
 
-func _take_way(id: int) -> void:
+## NEW RUN: the globe, looking at the open ocean where every run begins. Nothing starts
+## until you say so.
+func _open_run() -> void:
+	_route.clear()
+	_journey = 0
+	_level = Levels.START
+	_down = false
+	_from = -1
+	_travel_label.text = "THE RUN HOME"
 	_travel_globe.stop_choosing()
-	_travel_go.visible = false
+	_travel_globe.look_at_stage(Levels.START)
+	_travel_globe.show_path([], -1, Levels.START)
+	_preview(Levels.START)
+	_starting = true
+	_travel_go.text = "START"
+	_travel_go.visible = true
+	_travel_back.visible = true
+	_show(_travel)
+	_travel_go.grab_focus()
+
+
+## The big button on the globe: begin the run, or swim the way that is highlighted.
+func _go() -> void:
+	if _starting:
+		_start_journey(Levels.START, false)
+	else:
+		_take_way(_travel_globe.choices[_travel_globe.choice])
+
+
+func _take_way(id: int) -> void:
 	_start_level(id, false)
+
+
+## The little window beside the globe: what a stage looks like, and a line about it.
+func _preview(id: int, line := "") -> void:
+	var stage: Dictionary = Levels.LIST[id]
+	_pv_name.text = stage.name
+	var at: Vector2 = stage.at
+	_pv_where.text = "STEP %d   ·   %.1f°%s  %.1f°%s" % [int(stage.tier) + 1, absf(at.x), "N" if at.x >= 0.0 else "S", absf(at.y), "E" if at.y >= 0.0 else "W"]
+	_pv_line.text = line if line != "" else str(stage.tagline)
+	var path := "res://textures/previews/%s.png" % str(stage.name).to_lower().replace(" ", "_")
+	_pv_image.texture = load(path) if ResourceLoader.exists(path) else null
 
 
 func _pause_game() -> void:
@@ -465,7 +506,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_resume()
 	elif phase == Phase.RACE:
 		_pause_game()
-	elif _howto.visible or _options.visible or _levels.visible:
+	elif _howto.visible or _options.visible or _levels.visible or (_travel.visible and _travel_back.visible):
 		_close_sub_panel()
 
 
@@ -480,6 +521,7 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	var p := world.player
 	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused and not _travel.visible
+	_layout_globes()
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	match phase:
@@ -494,7 +536,7 @@ func _process(delta: float) -> void:
 			var had_flow := score.flow
 			score.tick(delta, p.in_air())
 			if had_flow > 1 and score.flow == 1 and phase == Phase.RACE:
-				hud.popup("FLOW ENDED", UI.ORANGE, 0.8)
+				hud.popup("FLOW ENDED", UI.OCHRE, 0.8)
 			var prog := clampf((p.s - Track.START_S) / (world.track.finish_s - Track.START_S), 0.0, 1.0)
 			hud.set_stats(score.score, race_time, prog, p.boost, p.speed * 3.6)
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
@@ -538,10 +580,10 @@ func _on_trick(trick: Dictionary) -> void:
 	hud.show_trick(trick.name, gained, flow, trick.beat)
 	Sfx.play("trick", 1.0 + 0.06 * (flow - 1))
 	if int(trick.beat) == 2:
-		hud.popup("PERFECT BEAT!", UI.PINK, 0.9)
+		hud.popup("PERFECT BEAT!", UI.CORAL, 0.9)
 		Sfx.play("ding")
 	elif int(trick.beat) == 1:
-		hud.popup("ON BEAT!", UI.CYAN, 0.9)
+		hud.popup("ON BEAT!", UI.TEAL, 0.9)
 		Sfx.play("ding", 0.8)
 
 
@@ -598,19 +640,19 @@ func _build_menus() -> void:
 	col.add_theme_constant_override("separation", 14)
 	_title.add_child(col)
 	col.add_child(TitleLogo.new())
-	_title_sub = UI.label("", 34, UI.CYAN, 10)
+	_title_sub = UI.label("", 34, UI.TEAL, 10)
 	col.add_child(_title_sub)
-	col.add_child(UI.button("SWIM!", func() -> void: _start_journey(Levels.START, false)))
+	col.add_child(UI.button("NEW RUN", _open_run))
 	col.add_child(UI.button("PRACTICE", func() -> void: _open_levels()))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))
-	_title_best = UI.label("", 28, UI.LIME, 8)
+	_title_best = UI.label("", 28, UI.GOLD, 8)
 	col.add_child(_title_best)
 	for c in col.get_children():
 		if c is Button:
 			(c as Button).size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_loading = UI.label("TUNING THE JUNGLE...", 26, UI.PINK, 8)
+	_loading = UI.label("TUNING THE JUNGLE...", 26, UI.CORAL, 8)
 	col.add_child(_loading)
 
 	# --- how to play (built, but not on the title menu until the controls settle down)
@@ -619,7 +661,7 @@ func _build_menus() -> void:
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 6)
 	hp.add_child(hv)
-	hv.add_child(UI.label("HOW TO PLAY", 48, UI.LIME, 12))
+	hv.add_child(UI.label("HOW TO PLAY", 48, UI.GOLD, 12))
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 30)
@@ -634,13 +676,13 @@ func _build_menus() -> void:
 		["ESC", "Pause"],
 	]
 	for r: Array in rows:
-		grid.add_child(UI.label(r[0], 24, UI.CYAN, 6))
+		grid.add_child(UI.label(r[0], 24, UI.TEAL, 6))
 		grid.add_child(UI.label(r[1], 24, Color.WHITE, 6))
 	var tips := UI.label("Land upright, and let go of grabs before you hit the water.\n" +
 			"Land ON THE BEAT for x1.5, PERFECT for x2. Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
-			"Touch: hold a finger down and the salmon swims to it. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.ORANGE, 6)
+			"Touch: hold a finger down and the salmon swims to it. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)
 	tips.autowrap_mode = TextServer.AUTOWRAP_WORD
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)
@@ -652,7 +694,7 @@ func _build_menus() -> void:
 	var ov := VBoxContainer.new()
 	ov.add_theme_constant_override("separation", 12)
 	op.add_child(ov)
-	ov.add_child(UI.label("OPTIONS", 48, UI.LIME, 12))
+	ov.add_child(UI.label("OPTIONS", 48, UI.GOLD, 12))
 	ov.add_child(_slider_row("MUSIC", Save.music_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.music_volume = v
 		Music.apply_volumes()))
@@ -670,7 +712,7 @@ func _build_menus() -> void:
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 12)
 	pp.add_child(pv)
-	pv.add_child(UI.label("PAUSED", 56, UI.LIME, 12))
+	pv.add_child(UI.label("PAUSED", 56, UI.GOLD, 12))
 	pv.add_child(UI.button("RESUME", _resume))
 	pv.add_child(UI.button("RESTART", func() -> void: _start_race(_test_mode)))
 	_pause_quit = UI.button("QUIT TO TITLE", _quit_from_pause)
@@ -687,18 +729,18 @@ func _build_menus() -> void:
 	var rrow := HBoxContainer.new()
 	rrow.add_theme_constant_override("separation", 30)
 	rv.add_child(rrow)
-	_results_labels.rank = UI.label("A", 150, UI.PINK, 18)
+	_results_labels.rank = UI.label("A", 150, UI.CORAL, 18)
 	rrow.add_child(_results_labels.rank)
 	var rs := VBoxContainer.new()
 	rrow.add_child(rs)
-	rs.add_child(UI.label("SCORE", 26, UI.CYAN, 6))
+	rs.add_child(UI.label("SCORE", 26, UI.TEAL, 6))
 	_results_labels.score = UI.label("0", 64, Color.WHITE, 12)
 	rs.add_child(_results_labels.score)
-	_results_labels.best = UI.label("", 28, UI.LIME, 8)
+	_results_labels.best = UI.label("", 28, UI.GOLD, 8)
 	rs.add_child(_results_labels.best)
 	_results_labels.stats = UI.label("", 24, Color.WHITE, 6)
 	rv.add_child(_results_labels.stats)
-	_results_labels.route = UI.label("", 22, UI.ORANGE, 6)
+	_results_labels.route = UI.label("", 22, UI.OCHRE, 6)
 	_results_labels.route.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_results_labels.route.custom_minimum_size.x = 700
 	rv.add_child(_results_labels.route)
@@ -715,7 +757,7 @@ func _build_menus() -> void:
 	bh.add_child(UI.button("TITLE", _enter_title))
 
 
-const MAP_NODE := Vector2(120, 56)
+const MAP_NODE := Vector2(110, 54)
 
 
 ## The practice map: a globe with every stage pinned on it, and the stages listed beside it
@@ -724,28 +766,28 @@ const MAP_NODE := Vector2(120, 56)
 ## (A run has no stage list: it starts at the ocean and picks its way on the travel globe.)
 func _build_levels() -> void:
 	_levels = _panel_root()
-	var lp := _centered_panel(_levels, Vector2(1240, 0))
+	# the globe scene fills the screen behind the list, which keeps to the right of it
+	_map_globe = Globe.new()
+	_map_globe.show_all = true
+	_levels.add_child(_map_globe)
+	var lp := _centered_panel(_levels, Vector2(0, 0))
+	_map_side = lp.get_parent()
 	var lv := VBoxContainer.new()
 	lv.add_theme_constant_override("separation", 8)
 	lp.add_child(lv)
-	_map_title = UI.label("", 40, UI.LIME, 12)
+	_map_title = UI.label("", 30, UI.GOLD, 8)
+	_map_title.add_theme_font_override("font", UI.serif())
 	lv.add_child(_map_title)
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 14)
-	lv.add_child(body)
-	_map_globe = Globe.new()
-	_map_globe.custom_minimum_size = Vector2(372, 400)
-	body.add_child(_map_globe)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 8)
-	body.add_child(list)
-	list.add_child(UI.label("WHITE: NORTH AMERICA        PINK: THE JAPAN ROUTE (SPLITS OFF AT STEP 4)", 17, UI.PINK, 6))
+	lv.add_child(list)
+	list.add_child(UI.label("NAVY: NORTH AMERICA        RED: THE JAPAN ROUTE (SPLITS OFF AT STEP 4)", 17, UI.PAPER, 6))
 	_level_buttons.resize(Levels.LIST.size())
 	for tier in Levels.tiers():
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		list.add_child(row)
-		var n := UI.label("%d" % (tier + 1), 30, UI.PINK, 8)
+		var n := UI.label("%d" % (tier + 1), 30, UI.CORAL, 8)
 		n.custom_minimum_size.x = 30
 		row.add_child(n)
 		for id: int in Levels.on_tier(tier):
@@ -758,15 +800,15 @@ func _build_levels() -> void:
 				row.add_child(gap)
 			var b := UI.button("", func() -> void: _map_pick(id))
 			if japan:
-				for colour: String in ["font_color", "font_hover_color", "font_focus_color"]:
-					b.add_theme_color_override(colour, UI.PINK)
+				for colour: String in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+					b.add_theme_color_override(colour, UI.RED)
 			b.custom_minimum_size = MAP_NODE
-			b.add_theme_font_size_override("font_size", 14)
+			b.add_theme_font_size_override("font_size", 13)
 			b.focus_entered.connect(_map_point.bind(id))
 			b.mouse_entered.connect(_map_point.bind(id))
 			row.add_child(b)
 			_level_buttons[id] = b
-	_map_note = UI.label("", 17, UI.ORANGE, 6)
+	_map_note = UI.label("", 17, UI.OCHRE, 6)
 	_map_note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_map_note.custom_minimum_size = Vector2(700, 46)
 	list.add_child(_map_note)
@@ -778,36 +820,79 @@ func _build_levels() -> void:
 	_map_flip = UI.button("", func() -> void:
 		_map_down = not _map_down
 		_refresh_map())
-	_map_flip.custom_minimum_size.x = 420
+	_map_flip.custom_minimum_size.x = 300
 	row2.add_child(_map_flip)
 	row2.add_child(UI.button("BACK", _close_sub_panel))
+	# three across have to fit beside the globe
+	for b: Button in row2.get_children():
+		b.custom_minimum_size.x = 150
+		b.add_theme_font_size_override("font_size", 20)
 	# The travel screen, shown between stages: the red line crosses the globe to the next one.
 	# On the way up it is also where you choose which way to go.
+	# It is the whole screen: the globe in space, a heading, a little window on the stage in
+	# hand, and one button.
 	_travel = _panel_root()
-	var tp := _centered_panel(_travel, Vector2(860, 0))
-	var tv := VBoxContainer.new()
-	tv.alignment = BoxContainer.ALIGNMENT_CENTER
-	tp.add_child(tv)
-	_travel_label = UI.label("", 40, UI.CYAN, 12)
-	_travel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tv.add_child(_travel_label)
-	var holder := CenterContainer.new()
-	tv.add_child(holder)
 	_travel_globe = Globe.new()
-	_travel_globe.custom_minimum_size = Vector2(400, 400)
-	holder.add_child(_travel_globe)
-	_travel_tag = UI.label("", 26, UI.ORANGE, 8)
-	_travel_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tv.add_child(_travel_tag)
-	# only there while choosing the way on
-	var go_row := CenterContainer.new()
-	tv.add_child(go_row)
-	_travel_go = UI.button("", func() -> void: _take_way(_travel_globe.choices[_travel_globe.choice]))
-	_travel_go.custom_minimum_size.x = 520
+	_travel.add_child(_travel_globe)
+	_travel_label = UI.label("", 44, UI.TEAL, 12)
+	_travel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_travel_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_travel_label.offset_top = 22
+	_travel.add_child(_travel_label)
+	_pv_card = PanelContainer.new()
+	_travel.add_child(_pv_card)
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 4)
+	_pv_card.add_child(pv)
+	_pv_image = TextureRect.new()
+	_pv_image.custom_minimum_size = Vector2(384, 216)
+	_pv_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_pv_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_pv_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pv.add_child(_pv_image)
+	_pv_name = UI.label("", 30, UI.GOLD, 8)
+	_pv_name.add_theme_font_override("font", UI.serif())
+	pv.add_child(_pv_name)
+	_pv_where = UI.label("", 17, UI.TEAL, 6)
+	pv.add_child(_pv_where)
+	_pv_line = UI.label("", 18, Color.WHITE, 6)
+	_pv_line.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_pv_line.custom_minimum_size = Vector2(384, 46)
+	pv.add_child(_pv_line)
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	foot.add_theme_constant_override("separation", 20)
+	foot.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	foot.offset_top = -92
+	foot.offset_bottom = -30
+	_travel.add_child(foot)
+	_travel_back = UI.button("BACK", _close_sub_panel)
+	_travel_back.custom_minimum_size.x = 200
+	foot.add_child(_travel_back)
+	_travel_go = UI.button("", _go)
+	_travel_go.custom_minimum_size.x = 360
 	_travel_go.visible = false
-	go_row.add_child(_travel_go)
+	foot.add_child(_travel_go)
 	_travel_globe.chosen.connect(_take_way)
-	_travel_globe.pointed.connect(func(id: int) -> void: _travel_go.text = "SWIM TO %s" % Levels.LIST[id].name)
+	_travel_globe.pointed.connect(_preview)
+
+
+## Where the globe sits in each globe scene: beside the list or the preview window on a wide
+## screen, above them on a tall one.
+func _layout_globes() -> void:
+	var tall := _travel.size.y > _travel.size.x
+	_map_globe.anchor = Vector2(0.5, 0.16) if tall else Vector2(0.155, 0.5)
+	_map_globe.radius = 0.4 if tall else 0.27
+	_map_side.anchor_left = 0.0 if tall else 0.31
+	_map_side.offset_left = 0.0
+	_travel_globe.anchor = Vector2(0.5, 0.56) if tall else Vector2(0.66, 0.5)
+	_travel_globe.radius = 0.4 if tall else 0.34
+	if tall:
+		_pv_card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
+		_pv_card.position.y = 110.0
+	else:
+		_pv_card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE)
+		_pv_card.position.x = 36.0
 
 
 ## Turns the map's globe to a stage, draws the last hop of the way there, and lights up the
@@ -822,7 +907,7 @@ func _map_point(id: int) -> void:
 	_map_globe.onward = onward
 	_map_globe.show_path(path, from, id, 0.7)
 	for i in _level_buttons.size():
-		_level_buttons[i].modulate = Color.WHITE if i == id or onward.has(i) else Color(1, 1, 1, 0.45)
+		_level_buttons[i].modulate = Color.WHITE if i == id or onward.has(i) else Color(1, 1, 1, 0.6)
 	var names := PackedStringArray()
 	for o in onward:
 		names.append(Levels.LIST[o].name)
@@ -894,7 +979,7 @@ func _centered_panel(parent: Control, size: Vector2) -> PanelContainer:
 func _slider_row(text: String, value: float, lo: float, hi: float, step: float, on_change: Callable) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
-	var l := UI.label(text, 28, UI.CYAN, 6)
+	var l := UI.label(text, 28, UI.TEAL, 6)
 	l.custom_minimum_size.x = 200
 	row.add_child(l)
 	var s := HSlider.new()

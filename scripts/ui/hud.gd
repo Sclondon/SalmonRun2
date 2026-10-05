@@ -35,7 +35,7 @@ func _ready() -> void:
 	var tl := VBoxContainer.new()
 	tl.position = Vector2(28, 18)
 	root.add_child(tl)
-	tl.add_child(UI.label("SCORE", 22, UI.CYAN, 6))
+	tl.add_child(UI.label("SCORE", 22, UI.TEAL, 6))
 	_score = UI.label("0", 52, Color.WHITE)
 	tl.add_child(_score)
 
@@ -48,7 +48,7 @@ func _ready() -> void:
 	_time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_time.custom_minimum_size.x = 232
 	tr.add_child(_time)
-	_best = UI.label("", 20, UI.LIME, 6)
+	_best = UI.label("", 20, UI.GOLD, 6)
 	_best.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_best.custom_minimum_size.x = 232
 	tr.add_child(_best)
@@ -70,24 +70,24 @@ func _ready() -> void:
 	mid.custom_minimum_size = Vector2(1000, 0)
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(mid)
-	_trick = _centered(UI.label("", 44, UI.LIME, 12))
+	_trick = _centered(UI.label("", 44, UI.GOLD, 12))
 	mid.add_child(_trick)
 	_trick_pts = _centered(UI.label("", 30, Color.WHITE))
 	mid.add_child(_trick_pts)
-	_combo = _centered(UI.label("", 30, UI.ORANGE))
+	_combo = _centered(UI.label("", 30, UI.OCHRE))
 	mid.add_child(_combo)
 	var cb_row := CenterContainer.new()
 	mid.add_child(cb_row)
-	_combo_bar = UI.bar(UI.ORANGE, Vector2(240, 10))
+	_combo_bar = UI.bar(UI.OCHRE, Vector2(240, 10))
 	cb_row.add_child(_combo_bar)
 
-	_popup = _centered(UI.label("", 64, UI.PINK, 14))
+	_popup = _centered(UI.label("", 64, UI.CORAL, 14))
 	_popup.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_popup.position = Vector2(-500, 30)
 	_popup.custom_minimum_size = Vector2(1000, 80)
 	root.add_child(_popup)
 
-	_count = _centered(UI.label("", 150, UI.LIME, 20))
+	_count = _centered(UI.label("", 150, UI.GOLD, 20))
 	_count.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_count.position = Vector2(-500, -110)
 	_count.custom_minimum_size = Vector2(1000, 180)
@@ -98,9 +98,9 @@ func _ready() -> void:
 	bl.position = Vector2(30, -86)
 	root.add_child(bl)
 	_boost_box = bl
-	_boost_label = UI.label("BOOST  [SHIFT]", 20, UI.CYAN, 6)
+	_boost_label = UI.label("BOOST  [SHIFT]", 20, UI.TEAL, 6)
 	bl.add_child(_boost_label)
-	_boost = UI.bar(UI.CYAN, Vector2(300, 22))
+	_boost = UI.bar(UI.TEAL, Vector2(300, 22))
 	bl.add_child(_boost)
 
 	_speed = UI.label("0 KM/H", 40, Color.WHITE)
@@ -147,7 +147,7 @@ func _centered(l: Label) -> Label:
 ## The stage's goal, shown under the progress bar; it turns green once it is met.
 func set_objective(text: String, done: bool) -> void:
 	_objective.text = text
-	_objective.add_theme_color_override("font_color", UI.LIME if done else Color.WHITE)
+	_objective.add_theme_color_override("font_color", UI.GOLD if done else Color.WHITE)
 
 
 func set_best(best: int) -> void:
@@ -157,7 +157,7 @@ func set_best(best: int) -> void:
 func show_trick(trick_name: String, points: int, flow: int, beat: int) -> void:
 	_trick.text = trick_name.to_upper()
 	_trick_pts.text = "+%s" % fmt(points) + ("   (x%d FLOW)" % flow if flow > 1 else "")
-	_trick.add_theme_color_override("font_color", [UI.LIME, UI.CYAN, UI.PINK][beat])
+	_trick.add_theme_color_override("font_color", [UI.GOLD, UI.TEAL, UI.CORAL][beat])
 	_trick_t = 2.4
 	_trick.modulate.a = 1.0
 	_trick_pts.modulate.a = 1.0
@@ -219,7 +219,7 @@ func _process(delta: float) -> void:
 	var pulse := Music.beat_pulse()
 	for i in 4:
 		var on := i == cur
-		var base := UI.PINK if i == 0 else UI.CYAN
+		var base := UI.CORAL if i == 0 else UI.TEAL
 		_beat_dots[i].color = base.lerp(Color.WHITE, pulse * 0.6) if on else Color(base, 0.25)
 		_beat_dots[i].scale = Vector2.ONE * (1.0 + (pulse * 0.35 if on else 0.0))
 

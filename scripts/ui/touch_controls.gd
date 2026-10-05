@@ -191,15 +191,15 @@ func _draw() -> void:
 	var font := UI.font()
 	var k := _k()
 	if _touch != -1:
-		var ring: Color = UI.LIME if GameInput.circling else UI.CYAN
+		var ring: Color = UI.GOLD if GameInput.circling else UI.TEAL
 		draw_circle(_pos, 46.0 * k, Color(ring, 0.18))
 		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.circling else 4.0) * k)
 	if _flash > 0.0:
 		var a := clampf(_flash / 0.35, 0.0, 1.0)
 		var tip := _flash_pos + _flash_dir * 90.0 * k
 		var side := _flash_dir.orthogonal() * 22.0 * k
-		draw_line(_flash_pos - _flash_dir * 40.0 * k, tip, Color(UI.LIME, a), 8.0 * k)
-		draw_colored_polygon(PackedVector2Array([tip + _flash_dir * 30.0 * k, tip + side, tip - side]), Color(UI.LIME, a))
+		draw_line(_flash_pos - _flash_dir * 40.0 * k, tip, Color(UI.GOLD, a), 8.0 * k)
+		draw_colored_polygon(PackedVector2Array([tip + _flash_dir * 30.0 * k, tip + side, tip - side]), Color(UI.GOLD, a))
 	if hint != "":
 		var lines := hint.split("\n")
 		var fs := int(24 * k)

@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://cooao36kn8v4v"
-path="res://.godot/imported/PixelifySans.ttf-fc5a9a3e822b21581d248cfb12b28920.fontdata"
+uid="uid://bf08ybrctm45s"
+path="res://.godot/imported/Jost.ttf-d8d6ec25fe58dd2033fed68bc2c1c622.fontdata"
 
 [deps]
 
-source_file="res://fonts/PixelifySans.ttf"
-dest_files=["res://.godot/imported/PixelifySans.ttf-fc5a9a3e822b21581d248cfb12b28920.fontdata"]
+source_file="res://fonts/Jost.ttf"
+dest_files=["res://.godot/imported/Jost.ttf-d8d6ec25fe58dd2033fed68bc2c1c622.fontdata"]
 
 [params]
 

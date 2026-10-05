@@ -38,9 +38,11 @@ stage is swum twice:
    down to the ocean as one of their young, a small silver smolt.
 
 All stages are open from the map for now, in either direction.
-SWIM! always starts a run at the Open Ocean. The way up branches like Star Fox 64's map, and
-the map is a little globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
-you finish a stage it shows the way you have come as a red line and the ways on as pins. Look
+NEW RUN opens the globe on the Open Ocean, where every run starts (press START). The way up
+branches like Star Fox 64's map, and
+the map is that globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
+you finish a stage it shows the way you have come as a red line and the ways on as pins joined
+by dashed lines, with a little window showing the stage in hand. Look
 between them with left / right or a tap, then swim; ways you did not earn are shown locked.
 The same globe then draws the line across to the stage you picked.
 
@@ -131,7 +133,17 @@ godot --headless --path . --import
 ```
 
 Tweak a course with its `length`, `seed` and `kinds` in `levels.gd`.
-The UI font is Pixelify Sans (SIL OFL, see `fonts/PixelifySans-OFL.txt`).
+The UI is styled after 1990s educational software and science books: Libre Baskerville for
+headings and Jost for everything else (both SIL OFL, licences in `fonts/`), navy plates, cream
+paper buttons and a few primary colours, all defined in `scripts/ui/ui_kit.gd`.
+
+The stage pictures beside the globe are screenshots in `textures/previews/`. After changing
+how a stage looks, retake them (this one needs a window, not `--headless`):
+
+```
+godot --path . -s scripts/tools/bake_previews.gd
+godot --headless --path . --import
+```
 
 ## Web build / Scareathon arcade
 
