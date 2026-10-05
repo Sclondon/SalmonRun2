@@ -5,6 +5,22 @@ extends RefCounted
 const FLOW_WINDOW := 4.0
 const MAX_FLOW := 5
 const RING_POINTS := 250
+## How well a trick was timed to the beat, worst first: its name, how far from the beat it may
+## be (as a share of the way to half-way between two beats), and what it multiplies the
+## points by.
+const GRADES := [
+	["MISS", 1.0, 1.0],
+	["SLOPPY", 0.92, 1.0],
+	["O.K.", 0.82, 1.1],
+	["ALRIGHT", 0.73, 1.15],
+	["NICE", 0.63, 1.25],
+	["GOOD", 0.52, 1.35],
+	["GREAT", 0.4, 1.5],
+	["EXCELLENT", 0.27, 1.75],
+	["PERFECT!", 0.15, 2.0],
+]
+## From this grade up, a trick counts as landed on the beat (for the goals that ask for it).
+const ON_BEAT := 4
 
 var score := 0
 var flow := 1
@@ -16,6 +32,16 @@ var on_beats := 0
 var best_trick := ""
 var best_trick_pts := 0
 var best_flow := 1
+
+
+## The grade (an index into GRADES) for a trick `off` seconds from the nearest beat.
+static func grade(off: float, sec_per_beat: float) -> int:
+	var share := absf(off) / maxf(sec_per_beat * 0.5, 0.001)
+	var best := 0
+	for i in GRADES.size():
+		if share <= float(GRADES[i][1]):
+			best = i
+	return best
 
 
 func reset() -> void:

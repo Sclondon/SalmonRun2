@@ -109,6 +109,11 @@ func _make_materials() -> void:
 		if key.begins_with("water_"):
 			mat_water.set_shader_parameter(key.trim_prefix("water_"), cfg[key])
 	mat_water.set_shader_parameter("swell", cfg.swell)
+	# the sun glints on the water, and the sky shows in it, as the stage has them
+	mat_water.set_shader_parameter("sun_dir", cfg.sun_dir)
+	mat_water.set_shader_parameter("glint_color", (cfg.sun as Color).lerp(Color.WHITE, 0.5))
+	if not cfg.has("water_sheen_color"):
+		mat_water.set_shader_parameter("sheen_color", cfg.sky_horizon)
 	# upstream, the river runs towards you
 	mat_water.set_shader_parameter("flow", -0.6 if uphill() else 0.6)
 

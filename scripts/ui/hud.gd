@@ -12,6 +12,7 @@ var _trick_pts: Label
 var _combo: Label
 var _combo_bar: ProgressBar
 var _popup: Label
+var _platinum: ShaderMaterial
 var _count: Label
 var _speed: Label
 var _boost_label: Label
@@ -154,10 +155,10 @@ func set_best(best: int) -> void:
 	_best.text = "BEST %s" % fmt(best)
 
 
-func show_trick(trick_name: String, points: int, flow: int, beat: int) -> void:
+func show_trick(trick_name: String, points: int, flow: int, grade: int) -> void:
 	_trick.text = trick_name.to_upper()
 	_trick_pts.text = "+%s" % fmt(points) + ("   (x%d FLOW)" % flow if flow > 1 else "")
-	_trick.add_theme_color_override("font_color", [UI.GOLD, UI.TEAL, UI.CORAL][beat])
+	_trick.add_theme_color_override("font_color", GRADE_COLORS[grade])
 	_trick_t = 2.4
 	_trick.modulate.a = 1.0
 	_trick_pts.modulate.a = 1.0
@@ -166,9 +167,33 @@ func show_trick(trick_name: String, points: int, flow: int, beat: int) -> void:
 	create_tween().tween_property(_trick, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 
 
-func popup(text: String, col: Color, dur := 1.2) -> void:
+## The colour of each grade of timing, worst first (see Score.GRADES): from a dim blue-purple
+## up through blue and green to gold for EXCELLENT. PERFECT! is polished platinum.
+const GRADE_COLORS := [
+	Color(0.44, 0.38, 0.72), Color(0.52, 0.44, 0.88), Color(0.5, 0.54, 0.97), Color(0.42, 0.68, 0.98),
+	Color(0.36, 0.82, 0.86), Color(0.52, 0.88, 0.5), Color(0.98, 0.62, 0.3), Color(0.98, 0.8, 0.25),
+	Color(0.92, 0.94, 0.98),
+]
+
+
+## Calls out how well a trick was timed.
+func show_grade(grade: int, text: String) -> void:
+	popup(text, GRADE_COLORS[grade], 0.9, grade == GRADE_COLORS.size() - 1)
+
+
+func popup(text: String, col: Color, dur := 1.2, platinum := false) -> void:
 	_popup.text = text
 	_popup.add_theme_color_override("font_color", col)
+	# (the best there is gleams like metal)
+	if platinum and _platinum == null:
+		_platinum = ShaderMaterial.new()
+		_platinum.shader = preload("res://shaders/platinum.gdshader")
+	_popup.material = _platinum if platinum else null
+	if platinum:
+		var box := _popup.get_global_rect()
+		var screen := get_viewport().get_visible_rect().size
+		_platinum.set_shader_parameter("middle", (box.position.y + box.size.y * 0.5) / screen.y)
+		_platinum.set_shader_parameter("tall", 70.0 / screen.y)
 	_popup_t = dur
 	_popup.modulate.a = 1.0
 	_popup.pivot_offset = _popup.size * 0.5

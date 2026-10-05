@@ -191,14 +191,21 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
 - **Landing** must be roughly upright with no grab held, or it is a wipeout.
 - **Flow** is the multiplier: +1 for each clean trick up to x5. It resets on a wipeout or a
   bump, or after 4 seconds on the water without a trick.
-- **On the beat:** landing within about 95 ms of a beat is x1.5; within about 45 ms is x2.
+- **Timing:** every trick is graded on how close to a beat it landed, and called out: MISS,
+  SLOPPY, O.K. (x1.1), ALRIGHT (x1.15), NICE (x1.25), GOOD (x1.35), GREAT (x1.5), EXCELLENT
+  (x1.75) and PERFECT! (x2). The windows are shares of the gap between beats, so they keep
+  pace with the tune: at 174 BPM, PERFECT! is within about 25 ms and NICE within about 110.
+  The callouts run from a dim blue-purple up through blue and green to gold for EXCELLENT,
+  and PERFECT! is polished platinum with a gleam running across it. NICE or better counts
+  as "on the beat" for the goals that ask for it.
 - **Rings** are 250 points and some boost each. Tricks also refill boost.
 - **Ranks** D to S at 35K / 70K / 110K / 160K, scaled so shorter stages are judged fairly.
 - **Wipeout:** about one second out of control, then a moment of invulnerability.
 
 ## 6b. Water, wake and splashes
 
-- **Water** is toon water: its colour runs from shallow to deep with how much water is really
+- **Water** sparkles: glints of sunlight wink on and off all over it, thickest on the path
+  towards the sun, and at a low angle it takes the colour of the sky. It is toon water: its colour runs from shallow to deep with how much water is really
   under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
   ramps, the fish), and patches of foam drift with the current. Every stage can set any of
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).

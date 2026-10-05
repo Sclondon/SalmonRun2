@@ -44,7 +44,22 @@ uniform float swell = 1.0;
 // How strongly the water lights up on the beat.
 uniform float sparkle : hint_range(0.0, 2.0) = 1.0;
 
+group_uniforms shine;
+// Glints of sunlight on the water: how many (0 is none), how big each is (metres), and how
+// many more there are along the path of light towards the sun.
+uniform float glint_amount : hint_range(0.0, 1.0) = 0.4;
+uniform float glint_size = 0.22;
+uniform float glint_path : hint_range(0.0, 4.0) = 2.0;
+uniform vec4 glint_color : source_color = vec4(1.0, 0.98, 0.9, 1.0);
+// The sheen of the sky on the water where it is seen at a low angle: how strong, and its colour.
+uniform float sheen : hint_range(0.0, 1.0) = 0.3;
+uniform vec4 sheen_color : source_color = vec4(0.7, 0.85, 0.95, 1.0);
+// Where the sun is (set from the stage).
+uniform vec3 sun_dir = vec3(0.0, 0.3, -1.0);
+
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
+
+varying vec3 v_world;
 
 varying float v_steep;
 
@@ -73,6 +88,7 @@ float view_depth(vec2 screen_uv, float depth, mat4 inv_projection) {
 
 void vertex() {
 	v_steep = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float w = sin(UV.y * 0.45 - TIME * 4.0 + UV.x * 9.0) * 0.08 + sin(UV.y * 0.9 + TIME * 2.3) * 0.05;
 	VERTEX.y += w * swell * (1.0 - v_steep);
 	POSITION = psx_snap(PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0), VIEWPORT_SIZE);
@@ -102,11 +118,31 @@ void fragment() {
 	col = mix(col, shallow.rgb, (n - 0.5) * ripple * (0.4 + 0.6 * depth));
 	col = mix(col, foam_color.rgb, white);
 	float band = step(0.9, fract(UV.y * 0.04 - TIME * 0.6));
+	// the sheen: seen at a low angle, water takes the colour of the sky
+	vec3 to_eye = CAMERA_POSITION_WORLD - v_world;
+	float far = length(to_eye);
+	float graze = 1.0 - clamp(to_eye.y / max(far, 0.001), 0.0, 1.0);
+	col = mix(col, sheen_color.rgb, pow(graze, 8.0) * sheen * (1.0 - white));
+	// glints: the water is cut into patches, each of which catches the sun for a moment now
+	// and then. There are more of them, and they are brighter, on the path towards the sun.
+	// (The patches grow with distance, so that far ones are still a pixel or two across.)
+	float patch_size = glint_size * exp2(floor(log2(1.0 + far * 0.14)));
+	vec2 spot = (v_world.xz + vec2(0.0, TIME * flow * 1.5)) / patch_size;
+	vec2 cell = floor(spot);
+	// (each glint is a small round spark in the middle of its patch)
+	float spark = 1.0 - smoothstep(0.16, 0.34, length(fract(spot) - 0.5));
+	float chance = hash(cell);
+	float wink = sin(TIME * (3.0 + chance * 5.0) + chance * 40.0);
+	vec2 sun_way = normalize(sun_dir.xz + vec2(0.0001));
+	float path = pow(max(dot(normalize(-to_eye.xz + vec2(0.0001)), sun_way), 0.0), 12.0);
+	float lit = glint_amount * (0.1 + glint_path * path * 0.3);
+	float glint = step(1.0 - lit, chance) * smoothstep(0.55, 0.95, wink) * spark * (1.0 - white);
 	ALBEDO = col;
 	ALPHA = mix(mix(alpha_shallow, alpha_deep, depth), 0.97, white);
-	ROUGHNESS = 0.45;
+	ROUGHNESS = 0.42;
 	SPECULAR = 0.2;
-	EMISSION = beat.rgb * beat_pulse * sparkle * (0.12 + 0.5 * band + 0.3 * patches) + foam_color.rgb * fall * 0.15;
+	EMISSION = beat.rgb * beat_pulse * sparkle * (0.12 + 0.5 * band + 0.3 * patches) + foam_color.rgb * fall * 0.15
+			+ glint_color.rgb * glint * (0.55 + 0.5 * path);
 	// seen from underneath, the surface is a bright ceiling that hides the sky
 	if (!FRONT_FACING) {
 		ALBEDO = mix(shallow.rgb, vec3(1.0), 0.2 + 0.4 * white);

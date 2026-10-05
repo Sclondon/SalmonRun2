@@ -102,7 +102,7 @@ Other salmon swim the course with you. They are company, not obstacles.
 
 - Tricks bank on landing: flips, spins, corkscrews, grabs, airtime, Big Air, Bamboo Grind.
 - **Flow** multiplier: +1 per clean trick (max x5); resets on wipeout or 4 s on the water without a trick.
-- **On the beat**: landing within ~95 ms of a beat is x1.5, within ~45 ms is x2 (PERFECT).
+- **Timing**: every trick is graded on how close to a beat it landed, from MISS and SLOPPY up through O.K., ALRIGHT, NICE, GOOD, GREAT and EXCELLENT (x1.75) to PERFECT! (x2).
 - Rings: +250 and boost. Ranks D → S at 35k / 70k / 110k / 160k.
 
 ## Music

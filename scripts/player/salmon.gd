@@ -19,6 +19,7 @@ const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
 const Splash := preload("res://scripts/fx/splash.gd")
 const Wake := preload("res://scripts/fx/wake.gd")
+const Score := preload("res://scripts/game/score.gd")
 
 const GRAVITY := Track.GRAVITY
 const CRUISE := 30.0
@@ -656,17 +657,14 @@ func _compose_trick() -> Dictionary:
 	return _on_beat(" + ".join(parts), pts)
 
 
-## Landing (or leaving a rail) close to the beat multiplies the points.
+## Landing (or leaving a rail) close to the beat multiplies the points: the closer, the better
+## the grade (see Score.GRADES).
 func _on_beat(trick_name: String, pts: int) -> Dictionary:
-	var off := absf(Music.beat_offset())
-	var beat := 0
-	if off < 0.045:
-		beat = 2
-		pts *= 2
-	elif off < 0.095:
-		beat = 1
-		pts = int(pts * 1.5)
-	return {"name": trick_name, "points": pts, "beat": beat}
+	var grade := Score.grade(Music.beat_offset(), Music.sec_per_beat)
+	pts = int(pts * float(Score.GRADES[grade][2]))
+	# (beat: 0 off it, 1 on it, 2 as good as it gets)
+	var beat := 2 if grade >= Score.GRADES.size() - 2 else (1 if grade >= Score.ON_BEAT else 0)
+	return {"name": trick_name, "points": pts, "beat": beat, "grade": grade}
 
 
 # ================================================================== rails

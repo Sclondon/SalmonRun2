@@ -896,7 +896,7 @@ static func objective_text(id: int) -> String:
 		"rings":
 			return "COLLECT %d RINGS" % o.n
 		"on_beat":
-			return "LAND %d TRICKS ON THE BEAT" % o.n
+			return "LAND %d TRICKS NICE OR BETTER" % o.n
 		"flow":
 			return "REACH FLOW x%d" % o.n
 		"score":

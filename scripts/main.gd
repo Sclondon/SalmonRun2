@@ -802,14 +802,13 @@ func _on_trick(trick: Dictionary) -> void:
 	var flow := score.flow
 	var gained := score.add_trick(trick)
 	world.player.boost = minf(world.player.boost + float(trick.points) / 40.0, 100.0)
-	hud.show_trick(trick.name, gained, flow, trick.beat)
+	var grade := int(trick.get("grade", 0))
+	hud.show_trick(trick.name, gained, flow, grade)
+	# how well it was timed, from MISS up to PERFECT!
+	hud.show_grade(grade, str(Score.GRADES[grade][0]))
 	Sfx.play("trick", 1.0 + 0.06 * (flow - 1))
-	if int(trick.beat) == 2:
-		hud.popup("PERFECT BEAT!", UI.CORAL, 0.9)
-		Sfx.play("ding")
-	elif int(trick.beat) == 1:
-		hud.popup("ON BEAT!", UI.TEAL, 0.9)
-		Sfx.play("ding", 0.8)
+	if grade >= Score.ON_BEAT:
+		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
 
 
 func _on_wipe(reason: String) -> void:
@@ -912,7 +911,7 @@ func _build_menus() -> void:
 		grid.add_child(UI.label(r[0], 24, UI.TEAL, 6))
 		grid.add_child(UI.label(r[1], 24, Color.WHITE, 6))
 	var tips := UI.label("Land upright, and let go of grabs before you hit the water.\n" +
-			"Land ON THE BEAT for x1.5, PERFECT for x2. Keep landing tricks to build FLOW (up to x5).\n" +
+			"Land on the beat: the closer, the better the grade, up to x2 for PERFECT! Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
 			"Touch: drag left or right to steer. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)
