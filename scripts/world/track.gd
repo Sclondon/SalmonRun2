@@ -164,6 +164,30 @@ func point(s: float, x: float, y: float) -> Vector3:
 	return c
 
 
+## How far the swell has lifted the water at (s, x) just now: the same wave the water shader
+## gives the surface (it moves the corners of the water mesh, and the mesh is flat between
+## them, so this does the same).
+func swell_y(s: float, x: float) -> float:
+	var swell: float = cfg.swell
+	var wide := float(cfg.width) > 40.0
+	var now := Time.get_ticks_msec() / 1000.0
+	var i := int(_fi(s))
+	var along := _fi(s) - i
+	var rows: Array[float] = [0.0, 0.0]
+	for r in 2:
+		var rs := (i + r) * STEP
+		var half := width(rs) * 0.5 + 0.8
+		var repeat := (half * 2.0 / 26.8) if wide else 1.0
+		var across := clampf((x / half + 1.0) * 2.0, 0.0, 3.999)
+		var j := int(across)
+		var corners: Array[float] = [0.0, 0.0]
+		for c in 2:
+			var u := 0.5 + float(BED_X[j + c]) * 0.5 * repeat
+			corners[c] = sin(rs * 0.45 - now * 4.0 + u * 9.0) * 0.08 + sin(rs * 0.9 + now * 2.3) * 0.05
+		rows[r] = lerpf(corners[0], corners[1], across - j)
+	return lerpf(rows[0], rows[1], along) * swell
+
+
 func surface_y(s: float, x: float) -> float:
 	return water_y(s) + ramp_height(s, x)
 

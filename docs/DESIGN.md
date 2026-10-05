@@ -222,7 +222,7 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   being steered. There it is the trail that wanders: the rings, rails, currents and
   everything else are strung along a path that swings from side to side across the water,
   up to about 24 m either way, and you steer to follow it.
-- **The camera turns a little** to look the way the salmon is steering.
+- **The camera turns** to look the way the salmon is steering, up to about 30 degrees.
 - **The salmon** animates on key poses: stretched long at take-off, squashed on landing,
   tucked as a trick starts. A swipe trick winds up the wrong way, whips round and runs a
   little past the mark before settling, and the body and tail follow on springs.

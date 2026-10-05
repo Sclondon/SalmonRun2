@@ -77,6 +77,7 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.albedo_color = Color(1, 1, 1, 0.0)
+		mat.render_priority = 1
 		node.material_override = mat
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)

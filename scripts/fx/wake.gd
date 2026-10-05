@@ -32,6 +32,8 @@ func _ready() -> void:
 	mat.vertex_color_use_as_albedo = true
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# (drawn after the water it lies on, or the water would be painted over it)
+	mat.render_priority = 1
 	material_override = mat
 
 
@@ -88,8 +90,11 @@ func _band(run: Array, side: float) -> void:
 		var col := Color(0.94, 1.0, 0.98, pow(1.0 - k, 1.4) * 0.7)
 		var y := track.water_y(ps) + 0.07
 		_mesh.surface_set_color(col)
-		_mesh.surface_add_vertex(track.point(ps, float(piece[1]) + side * inner, y))
+		# (it rides the swell with the water it lies on)
+		var x0 := float(piece[1]) + side * inner
+		var x1 := float(piece[1]) + side * (inner + wide)
+		_mesh.surface_add_vertex(track.point(ps, x0, y + track.swell_y(ps, x0)))
 		# (the outer edge thins away to nothing)
 		_mesh.surface_set_color(Color(col, col.a * 0.25))
-		_mesh.surface_add_vertex(track.point(ps, float(piece[1]) + side * (inner + wide), y))
+		_mesh.surface_add_vertex(track.point(ps, x1, y + track.swell_y(ps, x1)))
 	_mesh.surface_end()

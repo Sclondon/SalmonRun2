@@ -13,7 +13,7 @@ var mode := Mode.FOLLOW
 var shake := 0.0
 ## How far to the side the camera looks (metres, 11 m ahead) for each m/s the salmon is moving
 ## across the course.
-const LEAN := 0.2
+const LEAN := 0.42
 ## How far under the water the camera is: 0 above the surface, 1 below it.
 var submerged := 0.0
 
@@ -63,13 +63,16 @@ func _process(delta: float) -> void:
 		# The camera goes across the river with the salmon, which stays in the middle of the
 		# screen. (So a finger held to one side keeps it swimming that way, more quickly the
 		# further out the finger is.)
-		var cx := p.x
+		# It turns to look the way the salmon is steering: the eye swings out to the other side
+		# and looks across, so that the salmon stays near the middle of the picture.
+		_lean = lerpf(_lean, clampf(p.vx * LEAN, -6.5, 6.5), 1.0 - exp(-dt * 4.0))
+		# (never out over the bank)
+		var edge := maxf(track.width(cam_s) * 0.5 - 1.2, absf(p.x))
+		var cx := clampf(p.x - _lean * 0.6, -edge, edge)
 		var ground := maxf(track.surface_y(cam_s, cx), maxf(track.surface_y(cam_s, cx - 3.0), track.surface_y(cam_s, cx + 3.0)))
 		# dived, the camera goes under with the fish
 		under = smoothstep(0.3, 0.9, p.dive)
 		desired = track.point(cam_s, cx, lerpf(maxf(ground + 2.2, p.y + 1.9), p.y + 1.0, under))
-		# it turns a little to look the way the salmon is steering
-		_lean = lerpf(_lean, clampf(p.vx * LEAN, -3.0, 3.0), 1.0 - exp(-dt * 4.0))
 		look = track.point(p.s, p.x + _lean, p.y) + fwd * 5.0 + Vector3.UP * 0.4
 	if not _has_pos:
 		_pos = desired
