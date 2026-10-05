@@ -1,18 +1,19 @@
 extends Node3D
-## A landing splash, after the ones in The Wind Waker: rings of columns of water that shoot up
-## one after another, each wider and lower than the last, ripples spreading across the surface
-## and a burst of splattery drops.
+## A landing splash: three tubes of water, one inside the other like the tiers of a cake (the
+## outer one wide and low, the inner one narrow and tall), that shoot up out of the surface
+## with ragged crests and drop back into it, with ripples spreading across the water and a
+## burst of splattery drops.
 ##
-## It rides along the course a little slower than the salmon rather than staying where it
-## landed, or at racing speed it would be behind the camera before it had finished.
+## It stays where the salmon went in.
 
 const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
 
-const LIFE := 1.1
-## Each ring of columns: how many, how far out, how tall, how thick, and when it goes up.
-const RINGS := [[7, 0.55, 2.3, 0.16, 0.0], [10, 1.25, 1.5, 0.15, 0.08], [14, 2.1, 0.95, 0.13, 0.17]]
-const RING_TIME := 0.5
+const LIFE := 1.0
+## Each tube, from the inside out: how far out, how tall, how many waves in its crest, and
+## when it goes up.
+const TUBES := [[0.5, 2.7, 5.0, 0.0], [1.15, 1.75, 7.0, 0.05], [1.9, 0.95, 10.0, 0.1]]
+const TUBE_TIME := 0.62
 ## Each ripple: when it starts, and how wide it gets.
 const RIPPLES := [[0.0, 3.2], [0.14, 4.4], [0.3, 5.6]]
 const RIPPLE_TIME := 0.75
@@ -21,14 +22,12 @@ static var _meshes := {}
 static var _mat: StandardMaterial3D
 
 var track: Track
-## The salmon it follows along the course.
-var player: Node3D
 var s := 0.0
 var x := 0.0
 var strength := 1.0
 
 var _t := 0.0
-var _columns: Array[Node3D] = []
+var _tubes: Array[MeshInstance3D] = []
 var _ripples: Array[MeshInstance3D] = []
 
 
@@ -45,29 +44,31 @@ static func mesh(key: String) -> Mesh:
 	if _meshes.is_empty():
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 77
-		for i in RINGS.size():
-			_meshes["columns%d" % i] = Props.splash_columns(RINGS[i][0], float(RINGS[i][3]) / float(RINGS[i][1]), rng)
+		_meshes["tube"] = Props.splash_tube()
 		_meshes["ring"] = Props.splash_ring()
 		_meshes["drop"] = Props.droplet(rng)
 		_meshes["splat"] = Props.splat(rng)
 	return _meshes[key]
 
 
-func start(on: Track, follow: Node3D, at_s: float, at_x: float, how_big: float) -> void:
+func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 	track = on
-	player = follow
 	s = at_s
 	x = at_x
 	strength = how_big
-	for i in RINGS.size():
+	for i in TUBES.size():
 		var node := MeshInstance3D.new()
-		node.mesh = mesh("columns%d" % i)
-		node.material_override = material()
+		node.mesh = mesh("tube")
+		# each tube has a crest of its own, and thins out on its own
+		var mat := ShaderMaterial.new()
+		mat.shader = preload("res://shaders/splash.gdshader")
+		mat.set_shader_parameter("waves", TUBES[i][2])
+		mat.set_shader_parameter("phase", randf() * TAU)
+		node.material_override = mat
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		node.rotation.y = randf() * TAU
 		node.visible = false
 		add_child(node)
-		_columns.append(node)
+		_tubes.append(node)
 	for i in RIPPLES.size():
 		var node := MeshInstance3D.new()
 		node.mesh = mesh("ring")
@@ -80,9 +81,9 @@ func start(on: Track, follow: Node3D, at_s: float, at_x: float, how_big: float) 
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
 		_ripples.append(node)
-	_burst("drop", int(10 * strength), 0.26, 5.0, 10.0)
-	_burst("splat", int(8 * strength), 0.34, 3.5, 7.5)
-	_place()
+	_burst("drop", int(12 * strength), 0.26, 5.0, 11.0)
+	_burst("splat", int(9 * strength), 0.34, 3.5, 8.0)
+	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + 0.03))
 
 
 ## A one-shot spray of drops, flung up and outwards.
@@ -113,27 +114,23 @@ func _burst(key: String, amount: int, size: float, slow: float, fast: float) -> 
 	p.emitting = true
 
 
-func _place() -> void:
-	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + 0.03))
-
-
 func _process(delta: float) -> void:
 	_t += delta
-	if _t > LIFE or track == null or not is_instance_valid(player):
+	if _t > LIFE:
 		queue_free()
 		return
-	s = minf(s + float(player.get("speed")) * 0.82 * delta, track.length - 4.0)
-	_place()
-	for i in _columns.size():
-		var u := (_t - float(RINGS[i][4])) / RING_TIME
-		var node := _columns[i]
+	for i in _tubes.size():
+		var u := (_t - float(TUBES[i][3])) / TUBE_TIME
+		var node := _tubes[i]
 		node.visible = u > 0.0 and u < 1.0
 		if not node.visible:
 			continue
-		# up fast, hang, then drop away: the key pose is the top, a quarter of the way in
-		var rise := sin(minf(u / 0.25, 1.0) * PI * 0.5) if u < 0.25 else 1.0 - pow((u - 0.25) / 0.75, 2.2)
-		var r := float(RINGS[i][1]) * sqrt(strength) * (1.0 + 0.35 * u)
-		node.scale = Vector3(r, maxf(float(RINGS[i][2]) * strength * rise, 0.01), r)
+		# up fast, hang at the top, then drop back: the key pose is the top, a fifth of the
+		# way in
+		var rise := sin(minf(u / 0.2, 1.0) * PI * 0.5) if u < 0.2 else 1.0 - pow((u - 0.2) / 0.8, 2.0)
+		var r := float(TUBES[i][0]) * sqrt(strength) * (1.0 + 0.3 * u)
+		node.scale = Vector3(r, maxf(float(TUBES[i][1]) * strength * rise, 0.01), r)
+		(node.material_override as ShaderMaterial).set_shader_parameter("spent", smoothstep(0.3, 1.0, u))
 	for i in _ripples.size():
 		var u := (_t - float(RIPPLES[i][0])) / RIPPLE_TIME
 		var node := _ripples[i]

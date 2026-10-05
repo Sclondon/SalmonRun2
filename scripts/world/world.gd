@@ -179,6 +179,6 @@ func _process(_delta: float) -> void:
 		var under: float = camera.submerged
 		var murk: Color = (track.cfg.get("water_shallow", Color(0.16, 0.7, 0.64)) as Color).lerp(track.cfg.get("water_deep", Color(0.03, 0.3, 0.36)), 0.5)
 		env.fog_light_color = (track.cfg.fog as Color).lerp(murk, under)
-		env.fog_density = lerpf(track.cfg.fog_density, 0.016, under)
+		env.fog_density = lerpf(track.cfg.fog_density, track.cfg.get("murk", 0.016), under)
 		env.fog_sky_affect = lerpf(0.25, 1.0, under)
 		_sky.set_shader_parameter("sun_color", (track.cfg.sun as Color).lerp(murk, under))

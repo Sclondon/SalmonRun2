@@ -80,7 +80,7 @@ above, pink on the map) splits off at Neon Harbor, which can only be reached fro
 Arctic Waters, and the rest is North America. Each route has a fish farm as a quick, easy early
 ending (the default way on from its harbor) and a home lake at the end of the full run.
 
-The pins are real places: the open ocean in the mid Pacific, the Bering Sea, the Mariana
+The pins are real places: the open ocean in the mid Pacific, the Gulf of Alaska, the Mariana
 Trench, a reef off Okinawa, the British Columbia coast, Puget Sound and the rivers behind it, Bend in Oregon and
 Mount Rainier; then Tokyo Bay and Hokkaido. The globe only turns, it never zooms: where ways on
 are only a few miles apart, their pins are fanned out round the one you are at.

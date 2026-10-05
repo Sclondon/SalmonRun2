@@ -197,6 +197,12 @@ func _spline(knots: PackedFloat32Array, f: float) -> float:
 	return cubic_interpolate(knots[i], knots[i + 1], knots[maxi(i - 1, 0)], knots[mini(i + 2, last)], f - i)
 
 
+## A stage with a "shore" has land on that side only (-1 is the left, 1 the right) and open
+## sea on the other.
+func is_sea_side(side: float) -> bool:
+	return cfg.has("shore") and signf(side) != signf(float(cfg.shore))
+
+
 ## Returns the (x, y-above-water) profile of one bank, from the water's edge outwards.
 func bank_profile(s: float, side: float) -> PackedVector2Array:
 	var hw := width(s) * 0.5
@@ -204,7 +210,7 @@ func bank_profile(s: float, side: float) -> PackedVector2Array:
 	var n1 := _noise.get_noise_2d(s * 0.03, k)
 	var n2 := _noise.get_noise_2d(s * 0.008, k + 30.0)
 	var out := PackedVector2Array()
-	for p: Array in cfg.profile:
+	for p: Array in (SEA_PROFILE if is_sea_side(side) else cfg.profile):
 		out.append(Vector2(hw + float(p[0]), float(p[1]) + n1 * float(p[2]) + n2 * float(p[3])))
 	return out
 
@@ -317,7 +323,22 @@ func _plan_features() -> void:
 		s += used + gap
 		since_fall += used + gap
 	finish_s = length - 150.0
+	_fit_to_river()
 	_plan_deep()
+
+
+## Every piece is laid out for a river some 20 m across. In a narrower one they are all drawn
+## in towards the middle, so that nothing is left in the bank.
+func _fit_to_river() -> void:
+	var k := clampf((float(cfg.width) * 0.5 - 2.6) / 7.4, 0.5, 1.0)
+	if k >= 1.0:
+		return
+	for list: Array in [ramps, rocks, rings, bears]:
+		for piece: Dictionary in list:
+			piece.x = float(piece.x) * k
+	for r: Dictionary in rails:
+		r.x0 = float(r.x0) * k
+		r.x1 = float(r.x1) * k
 
 
 ## What is under the sea is laid out on its own, from one end of the course to the other,
@@ -378,6 +399,7 @@ func _slide(from: Dictionary, shift: float) -> void:
 func _plan_test() -> void:
 	length = 1500.0
 	finish_s = length - 150.0
+	_fit_to_river()
 	_plan_deep()
 	# steering: a ring slalom on the water that gets wider
 	for k in 18:
@@ -681,6 +703,9 @@ func _floor_depth(s: float, x: float) -> float:
 ## The sea floor of an open-water stage: a coarse sheet of hills far wider than the course,
 ## way down under the water.
 func _build_floor() -> void:
+	# (a floor too deep to see is not built at all: there is only the dark below)
+	if float(cfg.floor) > 100.0:
+		return
 	var cell := 16.0
 	var half := float(cfg.width) * 0.5 + 180.0
 	var across := int(ceil(half * 2.0 / cell))
@@ -719,13 +744,17 @@ func _add_mesh(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
 
 
+## The "bank" on the side that is open sea: a shelf under the water, out of sight.
+const SEA_PROFILE := [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]]
 const BED_X := [-1.0, -0.5, 0.0, 0.5, 1.0]
 const BED_D := [-1.2, -2.6, -3.0, -2.6, -1.2]
 
 
 func _ground_strip(mb: MB, i: int) -> void:
-	# open sea has no river bed or banks: its floor is built on its own, far below
-	if cfg.has("floor"):
+	# open sea has no river bed or banks: its floor is built on its own, far below. (Where it
+	# has a shore, there is the one bank.)
+	var open: bool = cfg.has("floor")
+	if open and not cfg.has("shore"):
 		return
 	var sa := i * STEP
 	var sb := (i + 1) * STEP
@@ -734,7 +763,7 @@ func _ground_strip(mb: MB, i: int) -> void:
 	var hint := Vector3.UP + fwd * 0.6
 	var rock: Color = cfg.cliff
 	var bed: Color = cfg.bed
-	for j in 4:
+	for j in (0 if open else 4):
 		var a := point(sa, BED_X[j] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j])
 		var b := point(sa, BED_X[j + 1] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j + 1])
 		var c := point(sb, BED_X[j + 1] * (width(sb) * 0.5 - 0.5), water_y(sb) + BED_D[j + 1])
@@ -742,6 +771,9 @@ func _ground_strip(mb: MB, i: int) -> void:
 		var col := Props.vary(rock if cliff else bed, _rng, 0.05)
 		mb.quad(a, b, c, d, col, hint)
 	for side: float in [-1.0, 1.0]:
+		var sea := is_sea_side(side)
+		if open and sea:
+			continue
 		var pa := bank_profile(sa, side)
 		var pb := bank_profile(sb, side)
 		var bank_hint := Vector3.UP + fwd * 0.6 - right(sa) * side * 0.4
@@ -750,7 +782,7 @@ func _ground_strip(mb: MB, i: int) -> void:
 			var b := point(sa, side * pa[j + 1].x, water_y(sa) + pa[j + 1].y)
 			var c := point(sb, side * pb[j + 1].x, water_y(sb) + pb[j + 1].y)
 			var d := point(sb, side * pb[j].x, water_y(sb) + pb[j].y)
-			var base: Color = rock if cliff else cfg.bank_colors[j]
+			var base: Color = rock if cliff else (bed if sea else cfg.bank_colors[j])
 			mb.quad(a, b, c, d, Props.vary(base, _rng, 0.04), bank_hint)
 
 
@@ -783,6 +815,9 @@ func _water_strip(mb: MB, i: int) -> void:
 	var d1: float = cfg.get("sea_to", 170.0)
 	for side: float in [-1.0, 1.0]:
 		var prev := d0
+		# (not over the land, where there is a shore)
+		if cfg.has("shore") and not is_sea_side(side):
+			continue
 		for dist: float in [minf(d0 + 30.0, d1), d1]:
 			var a := point(sa, side * (width(sa) * 0.5 + prev), water_y(sa))
 			var b := point(sa, side * (width(sa) * 0.5 + dist), water_y(sa))
@@ -807,9 +842,12 @@ func _build_features() -> void:
 			Props.rock(frng, Props.shade(cfg.rock, 0.82), cfg.rock_cap)]
 	if cfg.get("rock_mesh", "") == "crate":
 		rock_meshes = [Props.crate(frng, cfg.rock), Props.crate(frng, Props.shade(cfg.rock, 0.8)), Props.crate(frng, cfg.rock)]
+	if cfg.get("rock_mesh", "") == "buoy":
+		rock_meshes = [Props.buoy(frng, cfg.rock, cfg.rock_cap), Props.buoy(frng, cfg.rock_cap, cfg.rock), Props.buoy(frng, cfg.rock, cfg.rock_cap)]
 	for r: Dictionary in rocks:
 		var mi := _add_mesh(rock_meshes[frng.randi() % 3], mat_world)
-		var b := Basis(Vector3.UP, frng.randf() * TAU).scaled(Vector3(r.r, r.r * 1.1, r.r) * 1.15)
+		# (a float is a slimmer thing than a rock, so it is drawn bigger to fill the same room)
+		var b := Basis(Vector3.UP, frng.randf() * TAU).scaled(Vector3(r.r, r.r * 1.1, r.r) * (1.5 if cfg.get("rock_mesh", "") == "buoy" else 1.15))
 		mi.transform = Transform3D(b, point(r.s, r.x, water_y(r.s) - 0.35))
 
 	for r: Dictionary in rails:
@@ -1026,6 +1064,8 @@ func _scatter_meshes(kind: String, rng: RandomNumberGenerator) -> Array:
 		"crate":
 			return [Props.crate(rng, Props.CONTAINER_COLORS[0]), Props.crate(rng, Props.CONTAINER_COLORS[1]),
 					Props.crate(rng, Props.CONTAINER_COLORS[2]), Props.crate(rng, Props.CONTAINER_COLORS[3])]
+		"boat":
+			return [Props.boat(rng), Props.boat(rng), Props.boat(rng)]
 		"ship":
 			return [Props.ship(rng), Props.ship(rng)]
 		"piling":
@@ -1098,8 +1138,14 @@ func _scatter() -> void:
 				var variants: int = (meshes[kind] as Array).size()
 				match rule[7]:
 					"bank":
+						# (no bank on the side that is open sea)
+						if is_sea_side(side):
+							continue
 						_try(bucket, srng, kind, variants, rule[1], s, side, hw + float(rule[2]), hw + float(rule[3]), rule[4], rule[5], rule[6])
 					"water":
+						# (and nothing afloat beyond the course on the side that is land)
+						if cfg.has("shore") and not is_sea_side(side) and float(rule[2]) >= 0.0:
+							continue
 						if srng.randf() < float(rule[1]):
 							var d := srng.randf_range(hw + float(rule[2]), hw + float(rule[3]))
 							# keep the course itself clear of rapids and ramps
@@ -1111,7 +1157,7 @@ func _scatter() -> void:
 							var sink := srng.randf_range(-12.0, 4.0) if kind in ["hill", "mountain", "mesa"] else float(rule[6])
 							_put(bucket, kind, srng.randi() % variants, s, point(s, side * d, water_y(s) + sink), srng.randf_range(rule[4], rule[5]), srng)
 			# lane markers where there are no banks to show the way
-			if cfg.has("markers") and int(s) % 16 == 0:
+			if cfg.has("markers") and int(s) % 16 == 0 and not (cfg.has("shore") and not is_sea_side(side)):
 				_put(bucket, "marker", 0, s, point(s, side * (hw + 0.4), water_y(s)), 1.0, srng)
 		s += 4.0
 	if cfg.has("markers"):

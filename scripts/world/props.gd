@@ -944,3 +944,48 @@ static func sea_nettle(rng: RandomNumberGenerator) -> ArrayMesh:
 		frustum(mb, o, o.lerp(end, 0.5) + Vector3(0.12, 0.0, -0.1), 0.2, 0.15, 4, pale, false, rng)
 		frustum(mb, o.lerp(end, 0.5) + Vector3(0.12, 0.0, -0.1), end, 0.15, 0.03, 4, pale, false, rng)
 	return mb.build()
+
+
+## A small fishing boat: a painted hull, a white wheelhouse forward, a mast and boom, and a
+## pile of crab pots on the deck aft.
+static func boat(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	var b := Basis(Vector3.UP, rng.randf() * TAU)
+	var hull: Color = [Color(0.16, 0.3, 0.5), Color(0.6, 0.14, 0.12), Color(0.12, 0.4, 0.34), Color(0.85, 0.85, 0.8), Color(0.2, 0.2, 0.24)][rng.randi() % 5]
+	var white := Color(0.93, 0.93, 0.88)
+	box(mb, b * Vector3(0.0, 0.6, 0.0), Vector3(3.6, 2.2, 11.0), hull, rng, 0.08, b)
+	# the bow: narrower, and a little higher
+	box(mb, b * Vector3(0.0, 0.9, 6.3), Vector3(2.4, 2.4, 2.2), hull, rng, 0.08, b)
+	box(mb, b * Vector3(0.0, 1.78, 0.0), Vector3(3.8, 0.22, 11.2), white, null, 0.0, b)
+	box(mb, b * Vector3(0.0, 3.0, 2.6), Vector3(2.6, 2.3, 3.0), white, rng, 0.05, b)
+	box(mb, b * Vector3(0.0, 3.3, 4.12), Vector3(2.2, 0.8, 0.1), Color(0.1, 0.16, 0.24), null, 0.0, b)
+	box(mb, b * Vector3(0.0, 4.3, 2.6), Vector3(2.9, 0.2, 3.4), hull, null, 0.0, b)
+	frustum(mb, b * Vector3(0.0, 4.3, 1.6), b * Vector3(0.0, 8.2, 1.6), 0.1, 0.06, 4, Color(0.3, 0.3, 0.32), false)
+	frustum(mb, b * Vector3(0.0, 6.6, 1.6), b * Vector3(0.0, 4.6, -3.6), 0.07, 0.05, 4, Color(0.3, 0.3, 0.32), false)
+	blob(mb, b * Vector3(0.0, 8.4, 1.6), Vector3(0.16, 0.16, 0.16), rng, glow(Color(1.0, 0.9, 0.5), 0.8), 4, 2, 0.0)
+	for k in rng.randi_range(2, 5):
+		box(mb, b * Vector3(rng.randf_range(-0.9, 0.9), 2.3 + 0.75 * (k / 2), -2.2 - 1.3 * (k % 2)), Vector3(1.4, 0.7, 1.2), Color(0.85, 0.62, 0.2), rng, 0.06, b)
+	return mb.build()
+
+
+## One tube of a landing splash: an open wall of radius 1 and height 1, flaring out a little
+## towards the top (the node is scaled to size, and shaders/splash.gdshader cuts its crest).
+static func splash_tube() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var seg := 28
+	var rows := 4
+	for j in rows + 1:
+		var v := float(j) / rows
+		var radius := 1.0 + 0.16 * v * v
+		for i in seg + 1:
+			var a := TAU * i / seg
+			st.set_uv(Vector2(float(i) / seg, v))
+			st.add_vertex(Vector3(cos(a) * radius, v, sin(a) * radius))
+	for j in rows:
+		for i in seg:
+			var a := j * (seg + 1) + i
+			var b := a + seg + 1
+			for k: int in [a, b, a + 1, a + 1, b, b + 1]:
+				st.add_index(k)
+	return st.commit()

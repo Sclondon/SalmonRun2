@@ -18,6 +18,7 @@ enum State { IDLE, SWIM, AIR, GRIND, WIPEOUT, CURRENT }
 const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
 const Splash := preload("res://scripts/fx/splash.gd")
+const Wake := preload("res://scripts/fx/wake.gd")
 
 const GRAVITY := Track.GRAVITY
 const CRUISE := 30.0
@@ -115,8 +116,7 @@ var _prev_vx := 0.0
 var _fish: MeshInstance3D
 var _look := "spawner"
 var _mat: ShaderMaterial
-var _wake: Array[CPUParticles3D] = []
-var _bow: CPUParticles3D
+var _wake: Wake
 var _bubbles: CPUParticles3D
 var _spray: CPUParticles3D
 var _ai := {"hold": 0.0, "next_hop": 2.0, "plan": [0.0, 0.0, 0.0, -1]}
@@ -132,31 +132,12 @@ func setup(t: Track) -> void:
 	_fish.scale = Vector3.ONE * 1.35
 	add_child(_fish)
 	_base_scale = _fish.scale
-	# The wake: a trail of foam peeling away from each shoulder, so the two open out behind
-	# into a V the way a real wake does, and a little spray thrown up at the nose.
-	for side: float in [-1.0, 1.0]:
-		var trail := _particles(46, 0.75, Color(0.93, 1.0, 0.98), 0.4)
-		trail.position = Vector3(side * 0.34, 0.0, -0.3)
-		trail.emission_box_extents = Vector3(0.05, 0.02, 0.2)
-		trail.direction = Vector3(side, 0.05, 0.25)
-		trail.spread = 10.0
-		trail.initial_velocity_min = 3.2
-		trail.initial_velocity_max = 5.0
-		trail.damping_min = 2.5
-		trail.damping_max = 3.5
-		trail.gravity = Vector3.ZERO
-		# flat on the water
-		trail.mesh = _round(0.4, 0.2, Color(0.93, 1.0, 0.98))
-		_wake.append(trail)
-	_bow = _particles(12, 0.45, Color(0.9, 1.0, 0.97), 0.22)
-	_bow.position = Vector3(0, 0.05, -1.3)
-	_bow.emission_box_extents = Vector3(0.15, 0.05, 0.1)
-	_bow.direction = Vector3(0, 1, 0.5)
-	_bow.spread = 35.0
-	_bow.initial_velocity_min = 2.5
-	_bow.initial_velocity_max = 4.5
+	# The wake: two bands of foam that open out behind into a V (see fx/wake.gd)
+	_wake = Wake.new()
+	_wake.track = track
+	add_child(_wake)
 	# a string of bubbles while dived
-	_bubbles = _particles(18, 0.7, Color(0.85, 0.97, 1.0), 0.18)
+	_bubbles = _particles(18, 0.45, Color(0.85, 0.97, 1.0), 0.1)
 	_bubbles.position = Vector3(0, 0.1, 0.4)
 	_bubbles.emission_box_extents = Vector3(0.25, 0.1, 0.5)
 	_bubbles.direction = Vector3(0, 1, 0)
@@ -213,7 +194,7 @@ func _do_splash(strength: float) -> void:
 		return
 	var splash := Splash.new()
 	get_parent().add_child(splash)
-	splash.start(track, self, s, x, strength)
+	splash.start(track, s, x, strength)
 
 
 ## Which stage of its life the salmon is in: "ocean", "spawner" or "smolt" (see Props.salmon).
@@ -228,6 +209,8 @@ func set_look(look: String) -> void:
 
 func reset(at_s: float) -> void:
 	s = at_s
+	if _wake:
+		_wake.clear()
 	x = 0.0
 	y = track.water_y(s)
 	speed = 0.0
@@ -843,9 +826,9 @@ func _check_hazards() -> void:
 			var ds: float = s - float(r.s)
 			if absf(ds) < 3.5 and Vector2(ds, x - float(r.x)).length() < float(r.r) + 0.6:
 				if state == State.SWIM:
-					_bump(float(r.x))
+					_bump(float(r.x), track.cfg.get("rock_word", "ROCKED!"))
 				else:
-					_wipe("ROCKED!")
+					_wipe(track.cfg.get("rock_word", "ROCKED!"))
 				return
 	# a sea nettle stings whatever touches its bell or swims through what trails under it
 	for j: Dictionary in track.jellies:
@@ -967,9 +950,9 @@ func _update_visual(dt: float) -> void:
 	_mat.set_shader_parameter("bend", _bend)
 	var blink := invuln > 0.0 and fmod(_t, 0.2) < 0.1
 	_mat.set_shader_parameter("flash", 0.6 if blink else (0.35 if boosting else 0.0))
-	for trail in _wake:
-		trail.emitting = state == State.SWIM and speed > 5.0 and dive < 0.3
-	_bow.emitting = state == State.SWIM and speed > 12.0 and dive < 0.3
+	# the wake is cut only while swimming at the surface, and is stronger the faster it goes
+	_wake.track = track
+	_wake.lay(s, x, clampf(speed / 30.0, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
 	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
 	_spray.emitting = state == State.AIR or state == State.GRIND
 

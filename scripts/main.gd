@@ -138,6 +138,8 @@ var _pv_where: Label
 var _pv_kicker: Label
 var _pv_ask: Label
 var _muffled := false
+var _title_head: VBoxContainer
+var _title_menu: VBoxContainer
 var _busy := false
 
 var _autotest_dir := ""
@@ -731,6 +733,7 @@ func _process(delta: float) -> void:
 	var p := world.player
 	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused and not _travel.visible
 	_layout_globes()
+	_layout_title()
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	# under the water the picture swims and takes the colour of the water, and the music is
@@ -862,6 +865,13 @@ func _build_menus() -> void:
 	col.add_child(TitleLogo.new())
 	_title_sub = UI.label("", 34, UI.TEAL, 10)
 	col.add_child(_title_sub)
+	# the buttons are a block of their own, so that on a phone they can sit at the bottom of
+	# the screen, under the thumb (see _layout_title)
+	_title_head = col
+	_title_menu = VBoxContainer.new()
+	_title_menu.add_theme_constant_override("separation", 14)
+	_title.add_child(_title_menu)
+	col = _title_menu
 	col.add_child(UI.button("NEW RUN", _open_run))
 	col.add_child(UI.button("PRACTICE", func() -> void: _open_practice(_level, false)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
@@ -1258,6 +1268,28 @@ func _build_globe() -> void:
 	pv.add_child(_pv_way)
 	_travel_globe.chosen.connect(_take_way)
 	_travel_globe.pointed.connect(_preview)
+
+
+## The title screen: the name at the top left with the buttons under it; on a phone held
+## upright, the name across the top and the buttons, bigger, at the bottom under the thumb.
+func _layout_title() -> void:
+	var area := _title.size
+	var head := _title_head.get_combined_minimum_size()
+	var menu := _title_menu.get_combined_minimum_size()
+	_title_head.size = head
+	_title_menu.size = menu
+	if area.y > area.x:
+		var k := clampf((area.x - 140.0) / head.x, 1.0, 2.2)
+		_title_head.scale = Vector2(k, k)
+		_title_head.position = Vector2(70.0, 90.0)
+		var kb := clampf((area.x - 200.0) / menu.x, 1.0, 2.4)
+		_title_menu.scale = Vector2(kb, kb)
+		_title_menu.position = Vector2((area.x - menu.x * kb) * 0.5, area.y - menu.y * kb - 150.0)
+	else:
+		_title_head.scale = Vector2.ONE
+		_title_head.position = Vector2(70.0, 40.0)
+		_title_menu.scale = Vector2.ONE
+		_title_menu.position = Vector2(70.0, 40.0 + head.y + 14.0)
 
 
 ## Where the globe sits in each globe scene, after the concept art: the Earth behind, and the

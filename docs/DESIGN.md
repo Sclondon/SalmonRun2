@@ -59,7 +59,7 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 | Step | Stage | Where | Leads to (default first) | Goal to open the rest |
 |---|---|---|---|---|
 | 1 | Open Ocean | mid Pacific | Shallow Sea, Ocean Trench | collect 12 rings |
-| 2 | Shallow Sea | Bering Sea | Coastline, The Harbor | 5 tricks on the beat |
+| 2 | Shallow Sea | Gulf of Alaska | Coastline, The Harbor | 5 tricks on the beat |
 | 2 | Ocean Trench | Mariana Trench | Coral Reef, Arctic Waters | 5 tricks on the beat |
 | 3 | Coastline | off British Columbia | The Fish Ladder, Dry Riverbed | no more than 2 wipeouts |
 | 3 | The Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
@@ -105,15 +105,19 @@ width, slope, how much it bends, what it is made of, how often waterfalls come),
 
 **The stages at a glance**
 
+The sea is wide and the rivers are narrow: the sea stages are 70 to 140 m of open water
+(the Coastline and the Coral Reef with land along one side only), and the rivers after them
+are 16 to 21 m between their banks.
+
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
-| Open Ocean | night, moon, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water (five times a river), long empty stretches, no rock fields |
-| Shallow Sea | bright reef between sandbars | flat | shark | |
-| Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open | shark | |
-| Coastline | golden-hour river mouth, beaches, palms | barely climbs | shark | |
+| Open Ocean | night, moon, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight; three layers to dive |
+| Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | strings of crab-pot floats (dive under them) |
+| Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, three layers to dive | shark | currents, boost rings and sea nettles below |
+| Coastline | golden-hour sea, 70 m wide, with the beach and palms along one side only and open water on the other | barely climbs | shark | |
 | The Harbor | quays, cranes, sodium light | barely climbs | shark | |
-| Coral Reef | pink dawn lagoon, dense coral | flat, open | shark | |
-| Arctic Waters | pack ice and icebergs under an aurora | flat, open | shark | |
+| Coral Reef | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |
+| Arctic Waters | pack ice and icebergs under an aurora, 100 m wide | flat, open | shark | |
 | Meandering River | farmland, barns, windmills; very winding | gentle climb | none | harvest gold in autumn, green in spring |
 | Dry Riverbed | red-rock canyon, cacti, mesas | climbs | none | a few waterfalls; blooms in spring |
 | The Fish Ladder | concrete channel through forest | climbs | none | a waterfall every 170 m |
@@ -200,11 +204,13 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
 - **Open sea** stages have a floor of rolling hills far below (`floor`), instead of a river
   bed.
-- **The wake** is two trails of foam peeling off the shoulders into a V, with spray at the
-  nose, and a string of bubbles when dived. All drops are round.
-- **Landing** throws up a splash after The Wind Waker: three rings of columns of water, each
-  wider and lower than the last, ripples across the surface and splattery drops. Its size
-  follows how hard the landing was.
+- **The wake** is two unbroken bands of foam laid on the water off the shoulders, opening
+  out behind into a V and fading, with a string of bubbles when dived.
+- **Landing** throws up a splash that stays where the salmon went in: three tubes of water
+  one inside the other, like the tiers of a cake (the outer wide and low, the inner narrow
+  and tall), with ragged crests and water streaming down them. They shoot up and drop back,
+  with ripples across the surface and splattery drops. Its size follows how hard the landing
+  was.
 - **The salmon** animates on key poses: stretched long at take-off, squashed on landing,
   tucked as a trick starts. A swipe trick winds up the wrong way, whips round and runs a
   little past the mark before settling, and the body and tail follow on springs.

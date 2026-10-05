@@ -107,4 +107,10 @@ void fragment() {
 	ROUGHNESS = 0.45;
 	SPECULAR = 0.2;
 	EMISSION = beat.rgb * beat_pulse * sparkle * (0.12 + 0.5 * band + 0.3 * patches) + foam_color.rgb * fall * 0.15;
+	// seen from underneath, the surface is a bright ceiling that hides the sky
+	if (!FRONT_FACING) {
+		ALBEDO = mix(shallow.rgb, vec3(1.0), 0.2 + 0.4 * white);
+		ALPHA = 0.95;
+		EMISSION = shallow.rgb * 0.45;
+	}
 }
