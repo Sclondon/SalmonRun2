@@ -206,9 +206,10 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
 
 - **Water** is lit as real water is (PBR), then stylised: a shiny skin of small crossing waves,
   whose slopes are worked out per pixel, so that it mirrors the sky, turns to a mirror at a
-  low angle and catches the sun on every crest. The highlights are hard-edged (toon
-  specular), the waves are drawn in flat lighter and darker tones over the smooth shading
-  (`water_toon`), and the tops of the bigger waves break into flecks of foam: whitecaps
+  low angle and catches the sun on every crest. The waves are broad and few, so that it is
+  calm to look at; a thin light line is drawn along the shoulder of each swell
+  (`water_lines`),
+  and the tops of the bigger waves break into flecks of foam: whitecaps
   (`water_whitecaps`, more of them on the open sea). Its shape and shine can be set per stage
   (`water_roughness`, `water_specular`, `water_wave_scale`, `water_wave_height`,
   `water_wave_choppy`, `water_wave_speed`). Over that it keeps its toon touches:
@@ -218,8 +219,10 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
 - **Open sea** stages have a floor of rolling hills far below (`floor`), instead of a river
   bed.
-- **The wake** is two unbroken bands of foam laid on the water off the shoulders, opening
-  out behind into a V and fading, with a string of bubbles when dived.
+- **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
+  bands of foam off the shoulders, opening
+  out behind into a V and fading, with the waves and whitecaps churned flat between them,
+  and a string of bubbles when dived.
 - **Landing** throws up a splash that stays where the salmon went in: three tubes of water
   one inside the other, like the tiers of a cake (the outer wide and low, the inner narrow
   and tall), with ragged crests and water streaming down them. They shoot up and drop back,

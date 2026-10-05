@@ -7,7 +7,7 @@
 // Every stage can set any of these from its entry in levels.gd: a key "water_<name>" sets the
 // uniform <name>.
 shader_type spatial;
-render_mode cull_disabled, specular_toon;
+render_mode cull_disabled, specular_schlick_ggx;
 
 #include "res://shaders/psx_common.gdshaderinc"
 
@@ -24,13 +24,13 @@ uniform float depth_range = 5.0;
 uniform float alpha_shallow : hint_range(0.0, 1.0) = 0.6;
 uniform float alpha_deep : hint_range(0.0, 1.0) = 0.93;
 // How much the surface colour varies in ripples.
-uniform float ripple : hint_range(0.0, 1.0) = 0.35;
+uniform float ripple : hint_range(0.0, 1.0) = 0.12;
 
 group_uniforms foam;
 // Drifting patches of foam: 0 is none, 1 is a lot.
-uniform float foam_amount : hint_range(0.0, 1.0) = 0.3;
+uniform float foam_amount : hint_range(0.0, 1.0) = 0.25;
 // Whitecaps: how readily the tops of the waves break into flecks of foam (0 is never).
-uniform float whitecaps : hint_range(0.0, 1.0) = 0.4;
+uniform float whitecaps : hint_range(0.0, 1.0) = 0.3;
 // Size of the patches (bigger number, smaller patches).
 uniform float foam_scale = 1.0;
 // Extra foam along a river's banks and in rapids.
@@ -50,19 +50,30 @@ uniform float sparkle : hint_range(0.0, 2.0) = 1.0;
 group_uniforms surface;
 // The surface is lit as real water is: a smooth, shiny skin of small waves that mirrors the
 // sky and catches the sun. How rough it is (0 is a mirror), and how strongly it reflects.
-uniform float roughness : hint_range(0.0, 1.0) = 0.15;
+uniform float roughness : hint_range(0.0, 1.0) = 0.14;
 uniform float specular : hint_range(0.0, 1.0) = 0.3;
-// Stylised: how strongly the waves are drawn in flat tones (a lighter one on the faces turned
-// to the light, a darker one in the troughs) over the smooth shading.
-uniform float toon : hint_range(0.0, 1.0) = 0.5;
+// Stylised: how strongly a thin light line is drawn along the shoulder of each swell.
+uniform float lines : hint_range(0.0, 1.0) = 0.5;
 // The small waves that give it its shape: how fine they are, how steep, how peaked their
 // crests are, and how fast they move.
-uniform float wave_scale = 1.5;
-uniform float wave_height : hint_range(0.0, 3.0) = 0.3;
-uniform float wave_choppy = 1.7;
+uniform float wave_scale = 0.55;
+uniform float wave_height : hint_range(0.0, 3.0) = 0.5;
+uniform float wave_choppy = 1.4;
 uniform float wave_speed = 1.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
 uniform float across = 22.0;
+
+group_uniforms wake;
+// The salmon's trail, oldest first: (where across, as UV.x; metres along; seconds ago, or -1
+// for a break in it). Set every frame by fx/wake.gd.
+uniform vec3 wake_pts[24];
+uniform int wake_count = 0;
+// The stretch of water (metres along) the trail lies in: nothing outside it is looked at.
+uniform vec2 wake_span = vec2(0.0, 0.0);
+// How long the wake lasts (s), how fast its arms move apart (m/s), and how wide they get (m).
+uniform float wake_life = 1.6;
+uniform float wake_spread = 2.1;
+uniform float wake_width = 0.55;
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
@@ -99,7 +110,7 @@ float swell_of(float phase) {
 }
 
 // The height of the small waves at a point on the water (metres across, metres along):
-// several trains of waves crossing one another, each running its own way, with a finer
+// a few broad trains of swell crossing one another, each running its own way, with a soft
 // ripple over them. A slow drift bends them all, so that no two crests run side by side
 // for long.
 float wave_h(vec2 p) {
@@ -109,9 +120,7 @@ float wave_h(vec2 p) {
 	float h = swell_of(dot(p, vec2(0.8, 0.6)) + t * 1.3) * 0.9;
 	h += swell_of(dot(p, vec2(-0.5, 0.86)) * 1.7 - t * 1.7) * 0.55;
 	h += swell_of(dot(p, vec2(0.95, -0.3)) * 2.9 + t * 2.3) * 0.3;
-	h += swell_of(dot(p, vec2(-0.2, -0.98)) * 4.7 - t * 3.1) * 0.17;
-	h += vnoise(p * 2.3 + vec2(t * 0.6, 0.0)) * 0.5;
-	h += vnoise(p * 5.3 - vec2(0.0, t * 0.9)) * 0.22;
+	h += vnoise(p * 2.3 + vec2(t * 0.6, 0.0)) * 0.35;
 	return h;
 }
 
@@ -158,18 +167,56 @@ void fragment() {
 	float h0 = wave_h(at);
 	float slope_x = (wave_h(at + vec2(eps, 0.0)) - h0) / eps;
 	float slope_y = (wave_h(at + vec2(0.0, eps)) - h0) / eps;
-	// whitecaps: the tops of the bigger waves break into hard-edged flecks of foam
-	// (broken up by a finer noise, so that they are flecks and streaks, not blobs)
-	float fleck = vnoise(at * 5.0 + vec2(0.0, TIME * 0.7)) * 0.65 + vnoise(at * 1.3 - vec2(TIME * 0.3, 0.0)) * 0.35;
-	float cap = step(mix(0.95, 0.66, whitecaps), h0 / 2.64 + (fleck - 0.5) * 0.5) * (1.0 - fall) * step(0.001, whitecaps);
+	// The salmon's wake is part of the water: two bands of foam that open out behind it into
+	// a V, with the water between them churned flat, so that the waves do not run on through
+	// it. (The salmon's trail comes in as a string of points: where it was across the water,
+	// how far along, and how long ago.)
+	float wake_foam = 0.0;
+	float wake_calm = 0.0;
+	vec2 here = vec2((UV.x - 0.5) * across, UV.y);
+	if (wake_count > 1 && here.y > wake_span.x && here.y < wake_span.y) {
+		for (int i = 0; i < wake_count - 1; i++) {
+			vec3 a = wake_pts[i];
+			vec3 b = wake_pts[i + 1];
+			if (a.z < 0.0 || b.z < 0.0) {
+				continue;
+			}
+			vec2 pa = vec2((a.x - 0.5) * across, a.y);
+			vec2 ab = vec2((b.x - 0.5) * across, b.y) - pa;
+			// (only the water beside this stretch of the trail, not round its ends)
+			float t = dot(here - pa, ab) / max(dot(ab, ab), 0.0001);
+			if (t < -0.04 || t > 1.04) {
+				continue;
+			}
+			float d = length(here - (pa + ab * t));
+			float age = mix(a.z, b.z, t);
+			float k = clamp(age / wake_life, 0.0, 1.0);
+			// each arm moves out from the middle as it ages, widens, and fades
+			float inner = 0.26 + wake_spread * age * (1.0 - 0.3 * k);
+			float wide = wake_width * smoothstep(0.0, 0.12, age) * (1.0 - 0.45 * k) + 0.06;
+			float fade = pow(1.0 - k, 1.3);
+			float arm = smoothstep(inner - 0.1, inner, d) * (1.0 - smoothstep(inner + wide * 0.35, inner + wide, d));
+			wake_foam = max(wake_foam, arm * fade);
+			wake_calm = max(wake_calm, (1.0 - smoothstep(inner * 0.7, inner + wide, d)) * fade);
+		}
+	}
+	// (its foam has a ragged edge, like the rest)
+	float wake_white = step(0.4, wake_foam * (0.5 + n));
+	white = max(white, wake_white);
+	col = mix(col, shallow.rgb, wake_calm * 0.3 * (1.0 - white));
+	col = mix(col, foam_color.rgb, wake_white);
+	// whitecaps: the tops of the bigger waves break into hard-edged flecks of foam (broken up
+	// by a finer noise, so that they are flecks and streaks, not blobs). There are none far
+	// off, where they would only be specks, nor in the wake.
+	float fleck = vnoise(at * 4.0 + vec2(0.0, TIME * 0.7)) * 0.65 + vnoise(at * 1.1 - vec2(TIME * 0.3, 0.0)) * 0.35;
+	float cap = step(mix(0.95, 0.66, whitecaps), h0 / 2.1 + (fleck - 0.5) * 0.5) * (1.0 - fall) * step(0.001, whitecaps)
+			* (1.0 - smoothstep(110.0, 300.0, far)) * (1.0 - wake_calm);
 	white = max(white, cap * 0.92);
 	col = mix(col, foam_color.rgb, cap * 0.92);
-	// and the waves are drawn in flat tones, as in a cartoon: lighter where a face is turned
-	// to the light, darker in the troughs
-	float facing = slope_x * 0.6 + slope_y * 0.8;
-	float calm = (1.0 - white) * toon * mix(1.0, 0.35, smoothstep(40.0, 240.0, far));
-	col = mix(col, mix(col, shallow.rgb, 0.45) * 1.06, step(1.1, facing) * calm);
-	col = mix(col, mix(col, deep.rgb, 0.5) * 0.92, step(0.9, -facing) * calm);
+	// wave lines: a thin light line along the shoulder of each swell, as water is drawn
+	float line = (1.0 - smoothstep(0.0, 0.03, abs(h0 / 2.1 - 0.56))) * lines * (1.0 - white)
+			* (1.0 - smoothstep(60.0, 200.0, far)) * (1.0 - wake_calm);
+	col = mix(col, mix(shallow.rgb, foam_color.rgb, 0.45), line);
 	vec2 metres = vec2(UV.x * across, UV.y);
 	vec3 dp1 = dFdx(v_world);
 	vec3 dp2 = dFdy(v_world);
@@ -179,8 +226,8 @@ void fragment() {
 	vec3 along_way = normalize(dp2 * d1.x - dp1 * d2.x + vec3(0.0, 0.0, 0.00001));
 	vec3 flat_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// (far off the waves are smaller than a pixel: they are smoothed away, or they would
-	// only be noise; and foam is not shiny)
-	float steepness = wave_height * 0.5 * mix(1.0, 0.3, smoothstep(40.0, 240.0, far)) * (1.0 - white);
+	// only be noise; foam is not shiny; and the wake has flattened them)
+	float steepness = wave_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_calm);
 	vec3 wavy = normalize(flat_normal - (across_way * slope_x + along_way * slope_y) * steepness);
 	// seen at a low angle water is a mirror, however clear it is seen from above
 	float fresnel = pow(1.0 - clamp(dot(wavy, to_eye / max(far, 0.001)), 0.0, 1.0), 5.0);

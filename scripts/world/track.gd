@@ -166,6 +166,13 @@ func point(s: float, x: float, y: float) -> Vector3:
 	return c
 
 
+## Where a point of the course is across the water's mapping (UV.x): see _water_strip.
+func water_u(s: float, x: float) -> float:
+	if float(cfg.width) > 40.0:
+		return 0.5 + x / 26.8
+	return 0.5 + x / (width(s) + 1.6)
+
+
 ## How far the swell has lifted the water at (s, x) just now: the same wave the water shader
 ## gives the surface (it moves the corners of the water mesh, and the mesh is flat between
 ## them, so this does the same).
