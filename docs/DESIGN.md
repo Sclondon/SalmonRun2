@@ -284,8 +284,9 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 - **Water lab:** on the title menu. The salmon swims a stage by itself under a panel of
   sliders and colour pickers for the water shader (colour, surface, foam, wake), which change
-  the water as you watch. The arrows change stage, HIDE folds the panel away, COPY puts the
-  changed values on the clipboard as text, and RESET goes back to each stage's own water.
+  the water as you watch. The arrows change stage, HIDE folds the panel away, SAVE hands
+  every value over as text (the phone share sheet or a downloaded file, the clipboard, and a
+  page on screen to take a picture of), and RESET goes back to each stage's own water.
   What is set is kept in the save and used in play on every stage until RESET.
 - **Field guide:** on the title menu. A page of the same encyclopedia with a model on it that
   turns slowly (drag to turn it yourself), its name and scientific name, how big it really

@@ -1,7 +1,7 @@
 extends Control
 ## The water lab: the salmon swims a stage on its own while a panel of sliders changes the
 ## water shader as you watch. What is set here is kept (in the save) and used in play too,
-## on every stage, until RESET. COPY puts the changed values on the clipboard as text.
+## on every stage, until RESET. SAVE hands every value over as text (see _save).
 
 signal closed
 ## Asks for another stage to look at (-1 or 1).
@@ -61,6 +61,8 @@ var _sliders := {}
 var _values := {}
 var _pickers := {}
 var _reading := false
+var _page: PanelContainer
+var _page_text: Label
 
 
 func _ready() -> void:
@@ -145,9 +147,31 @@ func _ready() -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	_body.add_child(buttons)
-	for b: Button in [_small("BACK", func() -> void: closed.emit(), 0), _small("RESET", _reset, 0), _small("COPY", _copy, 0)]:
+	for b: Button in [_small("BACK", func() -> void: closed.emit(), 0), _small("RESET", _reset, 0), _small("SAVE", _save, 0)]:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		buttons.add_child(b)
+	_build_page()
+
+
+# The page of values SAVE puts up, over everything, to read or take a picture of.
+func _build_page() -> void:
+	_page = PanelContainer.new()
+	var frame := UI.card(UI.PAPER, UI.INK, 2, 6)
+	frame.set_content_margin_all(12)
+	_page.add_theme_stylebox_override("panel", frame)
+	_page.visible = false
+	_wrap.add_child(_page)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	_page.add_child(col)
+	_page_text = UI.label("", 13, UI.INK, 0)
+	_page_text.custom_minimum_size.x = 440
+	col.add_child(_page_text)
+	var hint := UI.label("SAVED. SENT TO SHARE OR DOWNLOAD, AND COPIED; OR TAKE A PICTURE OF THIS PAGE.", 12, UI.RED, 0)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	hint.custom_minimum_size.x = 440
+	col.add_child(hint)
+	col.add_child(_small("CLOSE", func() -> void: _page.visible = false, 0))
 
 
 func _small(text: String, on_press: Callable, wide: float) -> Button:
@@ -222,19 +246,46 @@ func _reset() -> void:
 	_read()
 
 
-# The changed values, as text for levels.gd, on the clipboard.
-func _copy() -> void:
-	var parts := PackedStringArray()
-	for key: String in Track.water_overrides:
-		var v: Variant = Track.water_overrides[key]
-		if v is Color:
-			parts.append("%s = (%.2f, %.2f, %.2f)" % [key, v.r, v.g, v.b])
+# Every value as it stands, as text: the changed ones first and marked, then the rest.
+func _report() -> String:
+	var changed := PackedStringArray()
+	var same := PackedStringArray()
+	for row: Variant in ROWS:
+		if row is String:
+			continue
+		var key: String = row[0]
+		var v: Variant = _now(key)
+		var line := "%s = (%.2f, %.2f, %.2f)" % [key, v.r, v.g, v.b] if v is Color else "%s = %.2f" % [key, float(v)]
+		if Track.water_overrides.has(key):
+			changed.append(line)
 		else:
-			parts.append("%s = %.2f" % [key, float(v)])
-	var text := ", ".join(parts) if not parts.is_empty() else "nothing changed"
-	DisplayServer.clipboard_set("%s water: %s" % [_stage.text, text])
+			same.append(line)
+	return "SALMON RUN 2 WATER, ON %s\nCHANGED:\n%s\nUNCHANGED:\n%s" % [_stage.text,
+			"\n".join(changed) if not changed.is_empty() else "(nothing)", "\n".join(same)]
+
+
+# SAVE: keeps the values, and hands them over as text every way there is, so that one of them
+# works wherever this is running: the share sheet of a phone (or a downloaded text file), the
+# clipboard, and a page of them on the screen to take a picture of.
+func _save() -> void:
+	Save.water = Track.water_overrides
 	Save.store()
-	_note.text = "COPIED: " + text
+	var text := _report()
+	DisplayServer.clipboard_set(text)
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("""
+			(function(text) {
+				var file = function() {
+					var a = document.createElement('a');
+					a.href = URL.createObjectURL(new Blob([text], {type: 'text/plain'}));
+					a.download = 'salmon-water.txt';
+					document.body.appendChild(a); a.click(); a.remove();
+				};
+				if (navigator.share) { navigator.share({title: 'Salmon Run 2 water', text: text}).catch(file); } else { file(); }
+			})(%s);
+		""" % JSON.stringify(text), true)
+	_page_text.text = text
+	_page.visible = true
 
 
 func _process(_delta: float) -> void:
@@ -248,3 +299,6 @@ func _process(_delta: float) -> void:
 	var k := clampf((area.x - 40.0) / card.x, 1.0, 2.6) if tall else 1.0
 	_wrap.scale = Vector2(k, k)
 	_wrap.position = Vector2((area.x - card.x * k) * 0.5 if tall else 20.0, area.y - card.y * k - (40.0 if tall else 20.0))
+	# (the page of saved values stands over the panel, its foot level with the panel's)
+	_page.size = _page.get_combined_minimum_size()
+	_page.position = Vector2(0.0, card.y - _page.size.y)
