@@ -138,7 +138,7 @@ avoid rocks, ride ramps and leap falls. They are company only.
 
 | Gesture | On the water | In the air |
 |---|---|---|
-| Hold | the salmon swims towards your finger: it stays in the middle of the screen, so a finger held to one side keeps it going that way | |
+| Drag | the salmon moves across the river as far as you drag your finger, and stops there. Where on the screen you touch makes no difference: it stays in the middle of the screen | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
 | Swipe down | dive one layer deeper | frontflip |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |

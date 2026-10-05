@@ -18,7 +18,7 @@ const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const Globe := preload("res://scripts/ui/globe.gd")
 
-const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
+const PRACTICE_HINT := "DRAG: STEER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
 enum Phase { TITLE, COUNTDOWN, RACE, FINISHED, CUTSCENE }
 
@@ -902,7 +902,7 @@ func _build_menus() -> void:
 			"Land ON THE BEAT for x1.5, PERFECT for x2. Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
-			"Touch: hold a finger down and the salmon swims to it. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)
+			"Touch: drag left or right to steer. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)
 	tips.autowrap_mode = TextServer.AUTOWRAP_WORD
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)

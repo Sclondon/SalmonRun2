@@ -74,9 +74,10 @@ func _ensure(action: String) -> void:
 # ------------------------------------------------------------------ touch gestures
 # Written by the touch controls, read by the salmon.
 
-## A finger is held down: the salmon swims towards it.
+## A finger is held down: the salmon goes where it is dragged to.
 var follow := false
-## How far the finger is from the salmon, in metres across the river (+ is river-right).
+## How far the salmon is from where the finger has dragged it to, in metres across the river
+## (+ is river-right).
 var follow_dx := 0.0
 ## The finger is wiggling back and forth: boost.
 var wiggling := false

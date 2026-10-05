@@ -53,6 +53,10 @@ var _head := 0.0
 var _has_head := false
 var _flips: Array[float] = []  # when the finger last doubled back on itself
 var _steady_x := 0.0           # the finger's position with the wiggle smoothed out of it
+# Steering is by dragging: where the finger came down, and where across the river the salmon
+# was then. (Where on the screen it came down makes no difference.)
+var _drag_from := 0.0
+var _fish_from := 0.0
 var _flash := 0.0
 var _flash_dir := Vector2.ZERO
 var _flash_pos := Vector2.ZERO
@@ -100,6 +104,8 @@ func _touch_down(index: int, p: Vector2) -> void:
 	_armed = true
 	_trail = [[_now(), p]]
 	_steady_x = p.x
+	_drag_from = p.x
+	_fish_from = player.x if player else 0.0
 	_turns.clear()
 	_flips.clear()
 	_head_pos = p
@@ -214,7 +220,8 @@ func _process(delta: float) -> void:
 	if metre < 1.0:
 		return
 	GameInput.follow = true
-	GameInput.follow_dx = (_steady_x - fish_x) / metre
+	# the salmon goes as far across the river as the finger has been dragged, and stops there
+	GameInput.follow_dx = _fish_from + (_steady_x - _drag_from) / metre - player.x
 
 
 func _draw() -> void:
