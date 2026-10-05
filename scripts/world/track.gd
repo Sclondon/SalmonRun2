@@ -22,6 +22,11 @@ const CURRENT_KNOT := 26.0
 ## turns at the middle of a bend (radians per metre).
 const MEANDER := 250.0
 const MEANDER_TURN := 0.012
+## On open water it is the trail that wanders, not the course: metres from one swing to the
+## next (a long one and a short one), and the steepest it runs across the course.
+const TRAIL_LONG := 620.0
+const TRAIL_SHORT := 230.0
+const TRAIL_SLOPE := 0.22
 ## A current that ends at the surface throws the salmon into the air: how fast it is going
 ## along the course by then, and how fast upwards.
 const LAUNCH_SPEED := 46.0
@@ -288,7 +293,6 @@ func _plan_features() -> void:
 	var falls_every: float = cfg.falls_every
 	var last := ""
 	var room := lane_room()
-	var shift := 0.0
 	while s < length - 320.0:
 		var kind: String
 		if falls_every > 0.0 and since_fall > falls_every:
@@ -321,8 +325,7 @@ func _plan_features() -> void:
 			"predators":
 				used = _plan_predators(s)
 		if room > 0.0:
-			shift = clampf(shift + _rng.randf_range(-36.0, 36.0), -room, room)
-			_slide(from, shift)
+			_slide(from, 0)
 		var gap := _rng.randf_range(45.0, 80.0) * float(cfg.get("spacing", 1.0))
 		s += used + gap
 		since_fall += used + gap
@@ -352,7 +355,6 @@ func _plan_deep() -> void:
 	if deep.is_empty():
 		return
 	var s := 260.0
-	var shift := 0.0
 	var k := 0
 	while s < length - 480.0:
 		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
@@ -367,8 +369,7 @@ func _plan_deep() -> void:
 			"jellies":
 				used = _plan_jellies(s)
 		k += 1
-		shift = clampf(shift + _rng.randf_range(-30.0, 30.0), -lane_room(), lane_room())
-		_slide(from, shift)
+		_slide(from, 1)
 		s += used + _rng.randf_range(30.0, 70.0)
 
 
@@ -377,25 +378,44 @@ func lane_room() -> float:
 	return maxf(float(cfg.width) * 0.5 - 16.0, 0.0)
 
 
-## Every piece is laid out round the middle of the course, as a river needs. On open water
-## far wider than a river, each piece is then slid sideways as a whole (so a trail of rings
-## stays a trail), never too far from the last one to swim to.
-func _slide(from: Dictionary, shift: float) -> void:
+## Every piece is laid out round the middle of the course, as a river needs. Open water far
+## wider than a river runs straight, and it is the trail of things to swim for that wanders
+## from side to side across it: each thing is moved over to where the trail is at that point.
+## (lane 0 is the trail on the surface, 1 the one under the sea, which goes its own way.)
+func _slide(from: Dictionary, lane: int) -> void:
 	for i in range(int(from.ramps), ramps.size()):
-		ramps[i].x = float(ramps[i].x) + shift
+		ramps[i].x = float(ramps[i].x) + trail_x(ramps[i].s, lane)
 	for i in range(int(from.rocks), rocks.size()):
-		rocks[i].x = float(rocks[i].x) + shift
+		rocks[i].x = float(rocks[i].x) + trail_x(rocks[i].s, lane)
 	for i in range(int(from.rings), rings.size()):
-		rings[i].x = float(rings[i].x) + shift
+		# (rings in the air stay in line with the leap that goes through them)
+		rings[i].x = float(rings[i].x) + trail_x(rings[i].ref, lane)
 	for i in range(int(from.bears), bears.size()):
-		bears[i].x = float(bears[i].x) + shift
+		bears[i].x = float(bears[i].x) + trail_x(bears[i].s, lane)
 	for i in range(int(from.rails), rails.size()):
-		rails[i].x0 = float(rails[i].x0) + shift
-		rails[i].x1 = float(rails[i].x1) + shift
+		rails[i].x0 = float(rails[i].x0) + trail_x(rails[i].s0, lane)
+		rails[i].x1 = float(rails[i].x1) + trail_x(rails[i].s1, lane)
 	for i in range(int(from.currents), currents.size()):
-		currents[i].off = shift
+		var c: Dictionary = currents[i]
+		var xs: PackedFloat32Array = c.xs
+		for k in xs.size():
+			xs[k] += trail_x(float(c.s0) + CURRENT_KNOT * k, lane)
+		c.xs = xs
 	for i in range(int(from.jellies), jellies.size()):
-		jellies[i].x = float(jellies[i].x) + shift
+		jellies[i].x = float(jellies[i].x) + trail_x(jellies[i].s, lane)
+
+
+## Where the trail is across open water at s: a long swing from side to side with a shorter
+## one on top, never steeper than the salmon can comfortably steer.
+func trail_x(s: float, lane := 0) -> float:
+	var room := lane_room()
+	if room <= 0.0:
+		return 0.0
+	var phase := float(int(cfg.seed) % 100) * 0.063 + lane * 2.1
+	var wide := minf(room * 0.7, TRAIL_SLOPE * TRAIL_LONG / TAU)
+	var narrow := minf(room * 0.25, TRAIL_SLOPE * 0.4 * TRAIL_SHORT / TAU)
+	# (it starts from the middle, where the salmon does)
+	return (wide * sin(s * TAU / TRAIL_LONG + phase) + narrow * sin(s * TAU / TRAIL_SHORT + phase * 1.7)) * smoothstep(150.0, 400.0, s)
 
 
 ## Fixed layout, in the order you'd want to learn things: steer, jump, ramps, a rail,
@@ -559,10 +579,13 @@ func _plan_surge(s: float) -> float:
 	var cx := _rng.randf_range(-5.0, 5.0)
 	var swing := _rng.randf_range(4.0, 8.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
 	var wave := _rng.randf_range(0.5, 0.8)
+	# (it dips no more than three layers, from wherever it starts: more is too steep to follow)
+	var span := mini(layers() - 1, 3)
+	var top := float(_rng.randi_range(1, layers() - span))
 	for k in count:
 		var rs := s + 25.0 + 17.0 * k
-		# (the first is one layer down, where a single dive finds it)
-		var layer := 1.0 + (layers() - 1) * (0.5 - 0.5 * cos(PI * k / maxf(count - 1.0, 1.0) * 2.0))
+		# (down and back up again)
+		var layer := top + span * (0.5 - 0.5 * cos(PI * k / maxf(count - 1.0, 1.0) * 2.0))
 		rings.append({"s": rs, "x": cx + sin(k * wave) * swing, "h": -layer * layer_depth() + 0.2, "ref": rs, "boost": true})
 	return 17.0 * count + 40.0
 
@@ -669,7 +692,10 @@ func _build_centreline() -> void:
 		# and it meanders: bends to the left and to the right, one after the other, all the
 		# way along
 		var bend := sin(s * TAU / MEANDER + float(int(cfg.seed) % 100) * 0.063) * MEANDER_TURN
-		h += (curv * (0.3 if test else float(cfg.curve)) + bend * (0.3 if test else float(cfg.get("meander", 1.0)))) * STEP * _calm(s)
+		# (open water runs all but straight: there it is the trail that wanders, see trail_x,
+		# so that the salmon is never turned without being steered)
+		var open := 0.15 if lane_room() > 0.0 else 1.0
+		h += (curv * (0.3 if test else float(cfg.curve)) * open + bend * (0.3 if test else float(cfg.get("meander", 1.0))) * floorf(open)) * STEP * _calm(s)
 		pos += Vector3(sin(h), 0.0, -cos(h)) * STEP
 		var down := -1.0 if uphill() else 1.0
 		pos.y -= _slope(s) * STEP * down

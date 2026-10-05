@@ -158,7 +158,7 @@ jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 
 The salmon swims on the surface or **dived** under it. Swiping down goes down a layer;
 swiping up comes up one (and from the surface, jumps). Steering and speed are the same at
-every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
+every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has six and the Ocean Trench
 three, 3.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
@@ -216,8 +216,13 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   green spawner with its humped back and hooked jaw from the upper rivers on. On the way
   back down it is a fry in the lake, a barred parr in the rivers and a silver smolt by the
   sea. (The young are drawn bigger than life, or they would be lost on the screen.)
-- **Every course meanders**: bends to the left and to the right, one after the other, on top
+- **Every river meanders**: bends to the left and to the right, one after the other, on top
   of whatever else the stage does (`meander` in `levels.gd`).
+- **Open water runs straight** (the sea stages), so the salmon is never turned without
+  being steered. There it is the trail that wanders: the rings, rails, currents and
+  everything else are strung along a path that swings from side to side across the water,
+  up to about 24 m either way, and you steer to follow it.
+- **The camera turns a little** to look the way the salmon is steering.
 - **The salmon** animates on key poses: stretched long at take-off, squashed on landing,
   tucked as a trick starts. A swipe trick winds up the wrong way, whips round and runs a
   little past the mark before settling, and the body and tail follow on springs.

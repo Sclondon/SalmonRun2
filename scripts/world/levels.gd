@@ -59,8 +59,8 @@ const LIST: Array[Dictionary] = [
 		# under the sea, laid out on its own: currents to ride, ones that launch you, runs of
 		# boost rings and drifts of sea nettles
 		"deep": ["currents", "surge", "launch", "jellies"],
-		# the one place deep enough to dive more than once: three layers under the surface
-		"layers": 3, "layer_depth": 3.6,
+		# the deepest water there is: six layers under the surface
+		"layers": 6, "layer_depth": 3.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.06, 0.14), Color(0.02, 0.05, 0.12), Color(0.02, 0.05, 0.12)],
