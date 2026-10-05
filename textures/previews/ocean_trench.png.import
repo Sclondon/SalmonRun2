@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/ocean_trench.png-e0b22e4344cbb8511531c0b3ab6d
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
