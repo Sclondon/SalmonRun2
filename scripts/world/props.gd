@@ -709,7 +709,7 @@ static func pen(rng: RandomNumberGenerator) -> ArrayMesh:
 	return mb.build()
 
 
-# ------------------------------------------------------------------ the southern route
+# ------------------------------------------------------------------ trench, plains and desert
 
 ## A glowing jellyfish drifting at the surface.
 static func jelly(rng: RandomNumberGenerator) -> ArrayMesh:
@@ -733,58 +733,6 @@ static func spire(rng: RandomNumberGenerator) -> ArrayMesh:
 		var tip := o + Vector3(rng.randf_range(-1.0, 1.0), h, rng.randf_range(-1.0, 1.0))
 		frustum(mb, o, tip, rng.randf_range(1.6, 2.6), 0.15, 5, stone, false, rng)
 		blob(mb, o.lerp(tip, rng.randf_range(0.3, 0.7)), Vector3(0.3, 0.3, 0.3), rng, glow(Color(0.3, 1.0, 0.9), 0.85), 4, 2, 0.1)
-	return mb.build()
-
-
-## A mangrove standing on its arching stilt roots.
-static func mangrove(rng: RandomNumberGenerator) -> ArrayMesh:
-	var mb := MB.new()
-	var wood := Color(0.34, 0.26, 0.2)
-	var h := rng.randf_range(4.5, 7.5)
-	var crown := Vector3(rng.randf_range(-0.6, 0.6), h, rng.randf_range(-0.6, 0.6))
-	var knot := Vector3(0.0, 1.8, 0.0)
-	for k in rng.randi_range(5, 7):
-		var a := TAU * k / 6.0 + rng.randf_range(-0.3, 0.3)
-		var foot := Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(1.2, 2.2) + Vector3(0.0, -1.0, 0.0)
-		var elbow := foot * 0.7 + Vector3(0.0, 2.0, 0.0)
-		frustum(mb, foot, elbow, 0.1, 0.1, 4, wood, false)
-		frustum(mb, elbow, knot, 0.1, 0.14, 4, wood, false)
-	frustum(mb, knot, crown, 0.26, 0.16, 5, wood, false, rng)
-	for k in rng.randi_range(2, 4):
-		var off := Vector3(rng.randf_range(-1.6, 1.6), rng.randf_range(-0.4, 0.8), rng.randf_range(-1.6, 1.6))
-		blob(mb, crown + off, Vector3(rng.randf_range(1.8, 2.8), rng.randf_range(0.9, 1.4), rng.randf_range(1.8, 2.8)), rng,
-				Color(0.14, 0.42, 0.2).lerp(Color(0.26, 0.52, 0.2), rng.randf()), 6, 3, 0.2)
-	return mb.build()
-
-
-## A stilt house with a thatched roof and a paper lantern.
-static func hut(rng: RandomNumberGenerator) -> ArrayMesh:
-	var mb := MB.new()
-	var wood := Color(0.42, 0.3, 0.2)
-	var b := Basis(Vector3.UP, rng.randf() * TAU)
-	for sx: float in [-1.0, 1.0]:
-		for sz: float in [-1.0, 1.0]:
-			frustum(mb, b * Vector3(sx * 1.6, -1.2, sz * 1.3), b * Vector3(sx * 1.6, 2.0, sz * 1.3), 0.1, 0.1, 4, wood, false)
-	box(mb, b * Vector3(0.0, 2.9, 0.0), Vector3(3.8, 1.8, 3.2), Color(0.56, 0.42, 0.28), rng, 0.05, b)
-	var thatch := Color(0.7, 0.58, 0.32)
-	var ridge_a := b * Vector3(-2.0, 5.4, 0.0)
-	var ridge_b := b * Vector3(2.0, 5.4, 0.0)
-	for sz: float in [-1.0, 1.0]:
-		mb.quad(b * Vector3(-2.5, 3.6, sz * 2.3), b * Vector3(2.5, 3.6, sz * 2.3), ridge_b, ridge_a, vary(thatch, rng, 0.05), b * Vector3(0.0, 1.0, sz))
-	box(mb, b * Vector3(2.2, 3.0, 1.9), Vector3(0.4, 0.55, 0.4), glow(Color(1.0, 0.35, 0.2), 0.85), null, 0.0, b)
-	return mb.build()
-
-
-## A limestone tower with a cap of forest, like the ones standing over a mangrove bay.
-static func karst(rng: RandomNumberGenerator, stone: Color) -> ArrayMesh:
-	var mb := MB.new()
-	for k in rng.randi_range(1, 3):
-		var o := Vector3(rng.randf_range(-30.0, 30.0), -15.0, rng.randf_range(-30.0, 30.0))
-		var r := rng.randf_range(14.0, 26.0)
-		var h := rng.randf_range(50.0, 100.0)
-		frustum(mb, o, o + Vector3(0.0, h * 0.5, 0.0), r * 1.1, r, 7, stone, false, rng)
-		frustum(mb, o + Vector3(0.0, h * 0.5, 0.0), o + Vector3(rng.randf_range(-4.0, 4.0), h, 0.0), r, r * 0.7, 7, shade(stone, 0.9), false, rng)
-		blob(mb, o + Vector3(0.0, h, 0.0), Vector3(r * 0.85, r * 0.4, r * 0.85), rng, Color(0.16, 0.4, 0.22), 7, 3, 0.2)
 	return mb.build()
 
 
@@ -849,4 +797,67 @@ static func mesa(rng: RandomNumberGenerator, stone: Color) -> ArrayMesh:
 	var h := rng.randf_range(28.0, 46.0)
 	frustum(mb, Vector3(0.0, -15.0, 0.0), Vector3(0.0, h * 0.45, 0.0), r * 1.7, r * 1.05, 8, shade(stone, 0.85), false, rng)
 	frustum(mb, Vector3(0.0, h * 0.45, 0.0), Vector3(0.0, h, 0.0), r, r * 0.9, 8, stone, true, rng)
+	return mb.build()
+
+
+# ------------------------------------------------------------------ the bamboo river
+
+## A clump of bamboo: tall jointed canes with leaves at the top.
+static func bamboo(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	for k in rng.randi_range(4, 7):
+		var o := Vector3(rng.randf_range(-1.0, 1.0), -0.4, rng.randf_range(-1.0, 1.0))
+		var h := rng.randf_range(7.0, 12.0)
+		var lean := Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)) * 0.9
+		var cane := Color(0.5, 0.68, 0.24).lerp(Color(0.4, 0.58, 0.2), rng.randf())
+		var prev := o
+		for j in 4:
+			var t := float(j + 1) / 4.0
+			var p := o + Vector3(0.0, h * t, 0.0) + lean * t * t
+			frustum(mb, prev, p, 0.11, 0.1, 4, cane if j % 2 == 0 else shade(cane, 0.85), false)
+			prev = p
+		for j in 5:
+			var a := rng.randf() * TAU
+			blade(mb, prev - Vector3(0.0, rng.randf_range(0.0, h * 0.35), 0.0), Vector3(cos(a), 0.0, sin(a)),
+					rng.randf_range(1.2, 2.2), 0.3, 0.3, 0.9, Color(0.3, 0.6, 0.2), rng, 2)
+	return mb.build()
+
+
+## A maple (or, in pink, a cherry in blossom): a dark trunk under clouds of leaves.
+static func maple(rng: RandomNumberGenerator, leaf: Color, leaf2: Color) -> ArrayMesh:
+	var mb := MB.new()
+	var bark := Color(0.24, 0.17, 0.14)
+	var h := rng.randf_range(3.5, 5.5)
+	var top := Vector3(rng.randf_range(-0.8, 0.8), h, rng.randf_range(-0.8, 0.8))
+	frustum(mb, Vector3(0.0, -0.5, 0.0), top, 0.34, 0.2, 5, bark, false, rng)
+	for k in rng.randi_range(3, 5):
+		var off := Vector3(rng.randf_range(-2.2, 2.2), rng.randf_range(-0.3, 1.4), rng.randf_range(-2.2, 2.2))
+		frustum(mb, top, top + off * 0.8, 0.12, 0.06, 4, bark, false)
+		blob(mb, top + off, Vector3(rng.randf_range(1.6, 2.4), rng.randf_range(0.9, 1.3), rng.randf_range(1.6, 2.4)), rng,
+				leaf.lerp(leaf2, rng.randf()), 6, 3, 0.25)
+	return mb.build()
+
+
+static func torii(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	var red := Color(0.82, 0.16, 0.1)
+	var b := Basis(Vector3.UP, rng.randf_range(-0.4, 0.4))
+	for sx: float in [-1.0, 1.0]:
+		frustum(mb, b * Vector3(sx * 2.0, -0.4, 0.0), b * Vector3(sx * 1.8, 5.0, 0.0), 0.26, 0.22, 6, red, false)
+		box(mb, b * Vector3(sx * 2.0, 0.0, 0.0), Vector3(0.7, 0.5, 0.7), Color(0.12, 0.1, 0.1), null, 0.0, b)
+	box(mb, b * Vector3(0.0, 4.2, 0.0), Vector3(4.6, 0.32, 0.3), red, null, 0.0, b)
+	box(mb, b * Vector3(0.0, 5.2, 0.0), Vector3(5.6, 0.4, 0.45), red, null, 0.0, b)
+	box(mb, b * Vector3(0.0, 5.55, 0.0), Vector3(6.2, 0.26, 0.6), Color(0.12, 0.1, 0.1), null, 0.0, b)
+	return mb.build()
+
+
+## A stone lantern with a lit window.
+static func lantern(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	var stone := Color(0.56, 0.56, 0.52)
+	box(mb, Vector3(0.0, 0.1, 0.0), Vector3(0.9, 0.3, 0.9), stone, rng, 0.03)
+	frustum(mb, Vector3(0.0, 0.2, 0.0), Vector3(0.0, 1.3, 0.0), 0.2, 0.16, 5, stone, false)
+	box(mb, Vector3(0.0, 1.4, 0.0), Vector3(0.8, 0.14, 0.8), stone)
+	box(mb, Vector3(0.0, 1.75, 0.0), Vector3(0.5, 0.5, 0.5), glow(Color(1.0, 0.7, 0.3), 0.85))
+	frustum(mb, Vector3(0.0, 2.0, 0.0), Vector3(0.0, 2.5, 0.0), 0.66, 0.06, 4, stone, false)
 	return mb.build()

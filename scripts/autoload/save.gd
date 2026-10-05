@@ -2,7 +2,7 @@ extends Node
 ## Persistent settings + high scores (user://salmonrun2.cfg).
 
 const PATH := "user://salmonrun2.cfg"
-const LEVELS := 15
+const LEVELS := 18
 
 ## Best run of each stage: stage index (+100 for the downstream leg) -> [score, rank]
 var bests := {}

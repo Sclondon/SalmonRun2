@@ -1,7 +1,7 @@
 extends RefCounted
-## The journey home, one level per stage of the salmon run: out of the deep ocean, over the
-## shallows, into the river mouth, up through the jungle and the mountains to the lake where
-## it all started. Each entry is everything that makes a level look and play differently;
+## The journey home: every stage of the salmon run, from the open ocean up to the spawning
+## grounds, and how the stages connect. Each entry is everything that makes a stage look and
+## play differently;
 ## track.gd builds the course from it and world.gd the sky and light.
 ##
 ## profile: the bank, as [distance from the water's edge, height above the water, noise 1, noise 2]
@@ -11,15 +11,22 @@ extends RefCounted
 ## spring:  settings that change on the way back down. The run up is late summer and autumn
 ##          (August to November); the young go to sea in spring.
 ## at:      where on Earth it is, as (latitude, longitude), for the globe.
+## tier:    which step of the journey it is (its row on the map, and its tune); order is its
+##          place along that row.
+## route:   "japan" for the stages of the Japan route, which splits off at step 4; the rest are
+##          shared or North American.
+## like:    borrow every setting of another stage (by name), replacing only what is listed.
+## next:    the stages it leads to heading upstream. The first is the default; the others are
+##          more advanced routes, opened by meeting this stage's objective.
 ## kinds:   what the course is made of ("ramps", "rails", "rocks", "rings", "predators").
 ## scatter: [mesh, chance, nearest, farthest, smallest, biggest, sink, mode] dressing rules;
 ##          mode "bank" sits on the bank, "water" floats, "far" is a backdrop every 40 m.
 
-const JUNGLE := 3
 
 const LIST: Array[Dictionary] = [
 	{
-		"name": "DEEP OCEAN", "at": Vector2(40, -175), "tier": 0, "lane": 0, "salt": true,
+		"name": "OPEN OCEAN", "at": Vector2(22, -165), "tier": 0, "salt": true,
+		"next": ["SHALLOW SEA", "OCEAN TRENCH"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "SOMETHING IS CALLING YOU HOME",
 		"seed": 4101, "length": 2600.0,
@@ -30,14 +37,15 @@ const LIST: Array[Dictionary] = [
 		"bank_colors": [Color(0.02, 0.06, 0.14), Color(0.02, 0.05, 0.12), Color(0.02, 0.05, 0.12)],
 		"bed": Color(0.02, 0.07, 0.15), "cliff": Color(0.3, 0.35, 0.42),
 		"sea_from": 0.8, "markers": [Color(0.9, 0.2, 0.15), Color(1.0, 0.5, 0.2)],
-		"rock": Color(0.78, 0.9, 1.0), "rock_cap": Color(1.0, 1.0, 1.0),
+		"rock": Color(0.75, 0.32, 0.15), "rock_cap": Color(0.75, 0.32, 0.15), "rock_mesh": "crate",
 		"ramp": Color(0.05, 0.25, 0.45), "ramp_top": Color(0.75, 0.93, 1.0),
 		"rail": Color(0.85, 0.5, 0.15), "rail_node": Color(0.95, 0.95, 0.9),
 		"arch": Color(0.5, 0.62, 0.72), "ruins": false,
 		"scatter": [
-			["floe", 0.35, 3.0, 60.0, 0.6, 1.8, 0.0, "water"],
-			["iceberg", 0.07, 22.0, 120.0, 0.8, 2.6, 0.0, "water"],
-			["iceberg", 0.5, 110.0, 160.0, 2.5, 5.0, 0.0, "far"],
+			# nothing out here but swell, the odd lost container and ships on the horizon
+			["crate", 0.04, 4.0, 70.0, 1.2, 2.4, -0.6, "water"],
+			["ship", 0.006, 70.0, 130.0, 1.0, 1.0, 0.0, "water"],
+			["ship", 0.25, 120.0, 165.0, 1.0, 1.4, 0.0, "far"],
 		],
 		"sky_top": Color(0.01, 0.02, 0.10), "sky_horizon": Color(0.10, 0.34, 0.48),
 		"sky_bottom": Color(0.03, 0.12, 0.20), "sun": Color(0.85, 0.95, 1.0), "sun_dir": Vector3(0.25, 0.3, -1.0),
@@ -49,7 +57,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.4, 0.9, 1.0),
 	},
 	{
-		"name": "SHALLOW SEA", "at": Vector2(58, -170), "tier": 1, "lane": 0, "salt": true,
+		"name": "SHALLOW SEA", "at": Vector2(57.5, -172), "tier": 1, "salt": true,
+		"next": ["COASTLINE", "THE HARBOR"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "WARM WATER, BRIGHT REEF",
 		"seed": 5202, "length": 2800.0,
@@ -84,7 +93,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 1.0, 0.8),
 	},
 	{
-		"name": "THE COAST", "at": Vector2(57, -135), "tier": 2, "lane": 0, "salt": false,
+		"name": "COASTLINE", "at": Vector2(51, -129.5), "tier": 2, "order": 0, "salt": false,
+		"next": ["THE FISH LADDER", "DRY RIVERBED"],
 		"objective": {"type": "clean", "n": 2},
 		"tagline": "YOU CAN SMELL THE RIVER FROM HERE",
 		"seed": 6303, "length": 3000.0,
@@ -122,47 +132,51 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.9, 0.6),
 	},
 	{
-		"name": "JUNGLE FALLS", "at": Vector2(47.5, -123.5), "tier": 3, "lane": 0, "salt": false,
+		"name": "RAINFOREST FALLS", "at": Vector2(47.0, -122.05), "tier": 4, "order": 0, "salt": false,
+		"next": ["THE HOME LAKE"],
 		"objective": {"type": "rings", "n": 14},
-		"tagline": "UPSTREAM NOW. LEAP THE FALLS, MIND THE BEARS",
+		"tagline": "MOSS, MIST AND GIANT CEDARS. LEAP THE FALLS",
 		"seed": 1987, "length": 3400.0,
 		"width": 24.0, "slope": 0.03, "curve": 1.0,
 		"kinds": ["ramps", "rails", "rocks", "rings", "ramps", "rails"],
 		"falls_every": 420.0, "uphill": true, "predator": "bear", "predator_word": "BEAR'D!",
 		"profile": [[-0.5, -1.2, 0, 0], [2.5, 0.6, 0.4, 0], [7.0, 2.4, 1.5, 1.0], [15.0, 4.0, 0, 3.0],
 				[27.0, 7.0, 2.0, 5.0], [46.0, 18.0, 0, 6.0]],
-		"bank_colors": [Color(0.38, 0.29, 0.18), Color(0.42, 0.48, 0.2), Color(0.22, 0.46, 0.15),
-				Color(0.16, 0.38, 0.13), Color(0.11, 0.3, 0.12)],
+		"bank_colors": [Color(0.34, 0.3, 0.24), Color(0.3, 0.44, 0.2), Color(0.2, 0.42, 0.18),
+				Color(0.14, 0.34, 0.18), Color(0.1, 0.26, 0.16)],
 		"bed": Color(0.34, 0.3, 0.22), "cliff": Color(0.42, 0.4, 0.38),
-		"rock": Color(0.46, 0.44, 0.40), "rock_cap": Color(0.28, 0.48, 0.18),
-		"ramp": Color(0.48, 0.44, 0.38), "ramp_top": Color(0.32, 0.5, 0.22),
-		"rail": Color(0.5, 0.66, 0.22), "rail_node": Color(0.36, 0.5, 0.16),
-		"arch": Color(0.55, 0.52, 0.44), "ruins": true,
+		"rock": Color(0.4, 0.4, 0.38), "rock_cap": Color(0.3, 0.52, 0.2),
+		"ramp": Color(0.4, 0.3, 0.2), "ramp_top": Color(0.3, 0.5, 0.22),
+		"rail": Color(0.42, 0.3, 0.2), "rail_node": Color(0.3, 0.48, 0.2),
+		"arch": Color(0.42, 0.32, 0.22), "ruins": false,
 		"scatter": [
-			["tree", 0.85, 7.0, 42.0, 0.8, 1.4, -0.4, "bank"],
-			["tree", 0.5, 40.0, 46.0, 1.5, 2.1, -0.4, "bank"],
-			["palm", 0.3, 2.5, 9.0, 0.8, 1.2, -0.3, "bank"],
-			["fern", 0.9, 1.5, 10.0, 0.8, 1.4, -0.1, "bank"],
-			["bush", 0.5, 5.0, 25.0, 0.8, 1.5, -0.3, "bank"],
-			["rock", 0.12, 0.0, 4.0, 0.6, 1.8, -0.3, "bank"],
-			["flower", 0.3, 2.0, 14.0, 0.9, 1.4, 0.0, "bank"],
-			["shroom", 0.15, 3.0, 20.0, 0.8, 1.6, 0.0, "bank"],
-			["reeds", 0.35, -1.5, 0.5, 0.8, 1.3, 0.0, "water"],
-			["lily", 0.1, -5.0, -1.5, 0.8, 1.4, 0.04, "water"],
+			# a temperate rainforest: big conifers, a few mossy broadleaves, ferns everywhere
+			["pine", 0.9, 6.0, 42.0, 1.3, 2.3, -0.5, "bank"],
+			["pine", 0.6, 40.0, 46.0, 2.0, 2.8, -0.5, "bank"],
+			["tree", 0.2, 5.0, 30.0, 0.7, 1.1, -0.4, "bank"],
+			["larch", 0.08, 4.0, 20.0, 0.5, 0.8, -0.5, "bank"],
+			["fern", 1.0, 1.0, 14.0, 0.9, 1.7, -0.1, "bank"],
+			["fern", 0.6, 10.0, 30.0, 1.0, 1.8, -0.1, "bank"],
+			["bush", 0.4, 4.0, 25.0, 0.8, 1.4, -0.3, "bank"],
+			["rock", 0.25, 0.0, 6.0, 0.7, 2.2, -0.3, "bank"],
+			["driftwood", 0.14, 0.5, 6.0, 1.0, 1.8, 0.1, "bank"],
+			["shroom", 0.2, 2.0, 20.0, 0.8, 1.6, 0.0, "bank"],
+			["reeds", 0.2, -1.5, 0.5, 0.8, 1.3, 0.0, "water"],
 			["hill", 0.6, 70.0, 160.0, 1.0, 1.0, 0.0, "far"],
 		],
-		"hill": Color(0.08, 0.26, 0.14),
-		"sky_top": Color(0.10, 0.05, 0.24), "sky_horizon": Color(1.0, 0.42, 0.36),
-		"sky_bottom": Color(0.04, 0.16, 0.12), "sun": Color(1.0, 0.82, 0.35), "sun_dir": Vector3(0.0, 0.12, -1.0),
-		"fog": Color(0.85, 0.5, 0.55), "fog_density": 0.0055,
-		"ambient": Color(0.55, 0.5, 0.7), "ambient_energy": 0.7,
-		"light": Color(1.0, 0.86, 0.7), "light_energy": 1.15,
-		"water_deep": Color(0.03, 0.30, 0.36), "water_shallow": Color(0.16, 0.70, 0.64),
+		"hill": Color(0.1, 0.26, 0.2), "snow": 0.0,
+		"sky_top": Color(0.3, 0.4, 0.46), "sky_horizon": Color(0.82, 0.88, 0.82),
+		"sky_bottom": Color(0.16, 0.26, 0.22), "sun": Color(1.0, 0.96, 0.82), "sun_dir": Vector3(0.2, 0.3, -1.0),
+		"fog": Color(0.7, 0.8, 0.74), "fog_density": 0.009,
+		"ambient": Color(0.56, 0.68, 0.62), "ambient_energy": 0.85,
+		"light": Color(0.96, 1.0, 0.9), "light_energy": 1.0,
+		"water_deep": Color(0.04, 0.24, 0.26), "water_shallow": Color(0.3, 0.62, 0.54),
 		"water_beat": Color(0.25, 1.0, 0.8), "swell": 1.0,
-		"motes": Color(0.8, 1.0, 0.4),
+		"motes": Color(0.85, 1.0, 0.8),
 	},
 	{
-		"name": "ALPINE RUN", "at": Vector2(52, -117), "tier": 4, "lane": 0, "salt": false,
+		"name": "ALPINE RUN", "at": Vector2(46.9, -121.4), "tier": 4, "order": 1, "salt": false,
+		"next": ["THE HOME LAKE"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "COLD, FAST AND STEEP",
 		"seed": 7405, "length": 3200.0,
@@ -214,7 +228,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 1.0, 1.0),
 	},
 	{
-		"name": "THE HOME LAKE", "at": Vector2(44, -115), "tier": 5, "lane": 0, "salt": false,
+		"name": "THE HOME LAKE", "at": Vector2(46.55, -121.75), "tier": 5, "order": 0, "salt": false,
+		"ending": "HOME AT LAST. SPAWNED!",
 		"tagline": "WHERE IT ALL BEGAN",
 		"seed": 8506, "length": 2400.0,
 		"width": 28.0, "slope": 0.0, "curve": 0.3,
@@ -267,39 +282,41 @@ const LIST: Array[Dictionary] = [
 		"water_beat": Color(1.0, 0.5, 0.8), "swell": 0.6,
 		"motes": Color(1.0, 0.8, 0.9),
 	},
-	# ---------------------------------------------------------------- the other way home
+	# ---------------------------------------------------------------- the other ways home
 	{
-		"name": "SHIPPING LANE", "at": Vector2(30, -150), "tier": 1, "lane": 1, "salt": true,
-		"objective": {"type": "flow", "n": 4},
-		"tagline": "DIESEL, RUST AND VERY BIG SHIPS",
+		"name": "ARCTIC WATERS", "at": Vector2(66, -168), "tier": 2, "order": 3, "salt": true,
+		"next": ["MEANDERING RIVER", "NEON HARBOR"],
+		"objective": {"type": "rings", "n": 12},
+		"tagline": "PACK ICE UNDER THE NORTHERN LIGHTS",
 		"seed": 5909, "length": 2800.0,
-		"width": 26.0, "slope": 0.0, "curve": 0.3,
-		"kinds": ["rocks", "ramps", "rails", "predators", "rocks", "rings"],
+		"width": 25.0, "slope": 0.0, "curve": 0.6,
+		"kinds": ["rocks", "ramps", "rings", "predators", "rocks", "rails"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
-		"bank_colors": [Color(0.05, 0.09, 0.09), Color(0.04, 0.08, 0.08), Color(0.04, 0.08, 0.08)],
-		"bed": Color(0.05, 0.1, 0.1), "cliff": Color(0.3, 0.32, 0.34),
-		"sea_from": 0.8, "markers": [Color(0.15, 0.55, 0.25), Color(0.3, 1.0, 0.4)],
-		"rock": Color(0.75, 0.32, 0.15), "rock_cap": Color(0.75, 0.32, 0.15), "rock_mesh": "crate",
-		"ramp": Color(0.3, 0.32, 0.36), "ramp_top": Color(0.9, 0.75, 0.2),
-		"rail": Color(0.58, 0.6, 0.64), "rail_node": Color(0.3, 0.32, 0.36),
-		"arch": Color(0.4, 0.42, 0.46), "ruins": false,
+		"bank_colors": [Color(0.02, 0.08, 0.14), Color(0.02, 0.07, 0.12), Color(0.02, 0.07, 0.12)],
+		"bed": Color(0.02, 0.09, 0.15), "cliff": Color(0.3, 0.35, 0.42),
+		"sea_from": 0.8, "markers": [Color(0.9, 0.2, 0.15), Color(0.4, 1.0, 0.7)],
+		"rock": Color(0.78, 0.9, 1.0), "rock_cap": Color(1.0, 1.0, 1.0),
+		"ramp": Color(0.6, 0.8, 0.95), "ramp_top": Color(0.92, 0.97, 1.0),
+		"rail": Color(0.7, 0.9, 1.0), "rail_node": Color(0.95, 0.98, 1.0),
+		"arch": Color(0.7, 0.84, 0.94), "ruins": false,
 		"scatter": [
-			["crate", 0.1, 4.0, 70.0, 1.2, 2.4, -0.6, "water"],
-			["ship", 0.012, 55.0, 120.0, 1.0, 1.0, 0.0, "water"],
-			["ship", 0.5, 110.0, 165.0, 1.0, 1.6, 0.0, "far"],
+			["floe", 0.7, 2.0, 70.0, 0.8, 2.6, 0.0, "water"],
+			["iceberg", 0.16, 16.0, 120.0, 0.8, 2.8, 0.0, "water"],
+			["iceberg", 0.8, 100.0, 160.0, 2.5, 5.5, 0.0, "far"],
 		],
-		"sky_top": Color(0.2, 0.2, 0.3), "sky_horizon": Color(0.86, 0.6, 0.4),
-		"sky_bottom": Color(0.2, 0.22, 0.22), "sun": Color(1.0, 0.6, 0.3), "sun_dir": Vector3(0.2, 0.14, -1.0),
-		"fog": Color(0.5, 0.42, 0.36), "fog_density": 0.011,
-		"ambient": Color(0.55, 0.5, 0.52), "ambient_energy": 0.8,
-		"light": Color(1.0, 0.8, 0.65), "light_energy": 1.0,
-		"water_deep": Color(0.04, 0.11, 0.11), "water_shallow": Color(0.2, 0.34, 0.3),
-		"water_beat": Color(1.0, 0.6, 0.2), "swell": 2.0,
-		"motes": Color(1.0, 0.7, 0.4),
+		"sky_top": Color(0.0, 0.03, 0.1), "sky_horizon": Color(0.16, 0.86, 0.6),
+		"sky_bottom": Color(0.03, 0.14, 0.2), "sun": Color(0.8, 1.0, 0.92), "sun_dir": Vector3(-0.3, 0.2, -1.0),
+		"fog": Color(0.1, 0.34, 0.36), "fog_density": 0.01,
+		"ambient": Color(0.4, 0.66, 0.74), "ambient_energy": 0.9,
+		"light": Color(0.7, 0.95, 0.9), "light_energy": 0.95,
+		"water_deep": Color(0.01, 0.1, 0.16), "water_shallow": Color(0.1, 0.4, 0.44),
+		"water_beat": Color(0.3, 1.0, 0.7), "swell": 1.6,
+		"motes": Color(0.9, 1.0, 1.0),
 	},
 	{
-		"name": "THE HARBOR", "at": Vector2(33.7, -118.3), "tier": 2, "lane": 1, "salt": false,
+		"name": "THE HARBOR", "at": Vector2(47.25, -122.5), "tier": 2, "order": 1, "salt": false,
+		"next": ["THE FISH FARM", "THE FISH LADDER"],
 		"objective": {"type": "score", "n": 60000},
 		"tagline": "QUAYS, CRANES AND SODIUM LIGHT",
 		"seed": 6910, "length": 3000.0,
@@ -333,7 +350,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.7, 0.3),
 	},
 	{
-		"name": "THE FISH LADDER", "at": Vector2(30.8, 111), "tier": 4, "lane": 2, "salt": false,
+		"name": "THE FISH LADDER", "at": Vector2(47.67, -122.4), "tier": 3, "order": 2, "salt": false,
+		"next": ["ALPINE RUN", "THE HOME LAKE"],
 		"objective": {"type": "on_beat", "n": 6},
 		"tagline": "A DAM IN THE WAY. ONE STEP AT A TIME",
 		"seed": 7911, "length": 3000.0,
@@ -368,8 +386,9 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.95, 1.0),
 	},
 	{
-		"name": "THE FISH FARM", "at": Vector2(44, -86), "tier": 5, "lane": 1, "salt": false,
-		"tagline": "NOT QUITE HOME, BUT THERE ARE PELLETS",
+		"name": "THE FISH FARM", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false,
+		"ending": "SPAWNED... IN A FISH FARM",
+		"tagline": "THE SHORT WAY: NOT HOME, BUT THERE ARE PELLETS",
 		"seed": 8912, "length": 2400.0,
 		"width": 26.0, "slope": 0.0, "curve": 0.3,
 		"kinds": ["rings", "ramps", "rocks", "rails", "rings", "ramps"],
@@ -402,9 +421,9 @@ const LIST: Array[Dictionary] = [
 		"water_beat": Color(1.0, 0.6, 0.2), "swell": 0.6,
 		"motes": Color(0.9, 0.9, 0.8),
 	},
-	# ---------------------------------------------------------------- the southern route
 	{
-		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "lane": 2, "salt": true,
+		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
+		"next": ["CORAL REEF", "ARCTIC WATERS"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "NOTHING BUT DARK WATER AND LIVING LIGHT",
 		"seed": 5313, "length": 2800.0,
@@ -434,7 +453,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.3, 1.0, 0.9),
 	},
 	{
-		"name": "CORAL REEF", "at": Vector2(-1, 130), "tier": 2, "lane": 2, "salt": true,
+		"name": "CORAL REEF", "at": Vector2(26.3, 127.8), "tier": 2, "order": 2, "salt": true,
+		"next": ["NEON HARBOR", "MEANDERING RIVER", "DRY RIVERBED"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "A GARDEN UNDER GLASS",
 		"seed": 6314, "length": 3000.0,
@@ -464,45 +484,56 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.8, 0.9),
 	},
 	{
-		"name": "MANGROVE DELTA", "at": Vector2(10, 106), "tier": 3, "lane": 2, "salt": false,
+		"name": "BAMBOO RIVER", "at": Vector2(43.6, 142.8), "tier": 4, "order": 2, "route": "japan", "salt": false,
+		"next": ["THE CRATER LAKE"],
 		"objective": {"type": "flow", "n": 4},
-		"tagline": "STILT ROOTS, LANTERNS AND LIMESTONE TOWERS",
+		"tagline": "A MOUNTAIN STREAM UNDER BAMBOO AND RED MAPLES",
 		"seed": 7315, "length": 3200.0,
-		"width": 23.0, "slope": 0.008, "curve": 1.2, "uphill": true,
-		"kinds": ["rails", "rocks", "ramps", "rings", "predators", "rails"],
-		"falls_every": 0.0, "predator": "shark", "predator_word": "SNAPPED!",
-		"profile": [[-0.5, -1.2, 0, 0], [3.0, 0.2, 0.2, 0], [10.0, 0.6, 0.3, 0.3], [22.0, 1.2, 0.5, 1.0],
-				[40.0, 3.0, 1.0, 2.0], [70.0, 9.0, 0, 4.0]],
-		"bank_colors": [Color(0.3, 0.26, 0.18), Color(0.34, 0.34, 0.2), Color(0.2, 0.4, 0.2),
-				Color(0.14, 0.34, 0.2), Color(0.1, 0.28, 0.2)],
-		"bed": Color(0.26, 0.24, 0.16), "cliff": Color(0.5, 0.5, 0.46),
-		"rock": Color(0.36, 0.34, 0.3), "rock_cap": Color(0.24, 0.46, 0.22),
-		"ramp": Color(0.42, 0.3, 0.2), "ramp_top": Color(0.6, 0.48, 0.3),
+		"width": 21.0, "slope": 0.035, "curve": 1.1, "uphill": true,
+		"kinds": ["rails", "rocks", "ramps", "rings", "rails", "ramps"],
+		"falls_every": 380.0, "predator": "bear", "predator_word": "BEAR'D!",
+		"profile": [[-0.5, -1.2, 0, 0], [2.0, 0.8, 0.4, 0], [6.0, 2.6, 1.2, 1.0], [14.0, 6.0, 1.0, 3.0],
+				[28.0, 11.0, 2.0, 5.0], [50.0, 26.0, 0, 8.0]],
+		"bank_colors": [Color(0.4, 0.4, 0.38), Color(0.34, 0.46, 0.26), Color(0.26, 0.46, 0.22),
+				Color(0.2, 0.4, 0.22), Color(0.16, 0.32, 0.22)],
+		"bed": Color(0.36, 0.36, 0.34), "cliff": Color(0.46, 0.46, 0.46),
+		"rock": Color(0.46, 0.46, 0.44), "rock_cap": Color(0.3, 0.5, 0.2),
+		"ramp": Color(0.46, 0.44, 0.4), "ramp_top": Color(0.34, 0.5, 0.24),
 		"rail": Color(0.5, 0.66, 0.22), "rail_node": Color(0.36, 0.5, 0.16),
-		"arch": Color(0.5, 0.36, 0.26), "ruins": false,
+		"arch": Color(0.72, 0.16, 0.12), "ruins": false,
+		# autumn on the way up: the maples have turned
 		"scatter": [
-			["mangrove", 0.75, -1.5, 3.0, 0.8, 1.3, -0.4, "water"],
-			["mangrove", 0.7, 3.0, 40.0, 0.9, 1.6, -0.3, "bank"],
-			["fern", 0.5, 2.0, 20.0, 0.8, 1.4, -0.1, "bank"],
-			["hut", 0.06, 3.0, 12.0, 0.9, 1.2, 0.0, "bank"],
-			["lily", 0.12, -5.0, -1.5, 0.8, 1.4, 0.04, "water"],
-			["karst", 0.9, 75.0, 190.0, 1.0, 1.0, 0.0, "far"],
-			["karst", 0.04, 30.0, 70.0, 0.4, 0.7, -2.0, "bank"],
+			["bamboo", 0.9, 2.0, 30.0, 0.8, 1.4, -0.3, "bank"],
+			["maple", 0.3, 4.0, 40.0, 0.8, 1.4, -0.4, "bank"],
+			["pine", 0.4, 24.0, 50.0, 0.9, 1.5, -0.5, "bank"],
+			["fern", 0.5, 1.5, 10.0, 0.8, 1.3, -0.1, "bank"],
+			["rock", 0.25, 0.0, 6.0, 0.7, 2.0, -0.3, "bank"],
+			["lantern", 0.06, 1.5, 4.0, 1.0, 1.2, 0.0, "bank"],
+			["torii", 0.025, 3.0, 9.0, 1.0, 1.2, 0.0, "bank"],
+			["mountain", 0.7, 90.0, 190.0, 1.0, 1.0, 0.0, "far"],
 		],
-		"hill": Color(0.5, 0.52, 0.5),
-		"sky_top": Color(0.1, 0.22, 0.34), "sky_horizon": Color(0.8, 0.86, 0.7),
-		"sky_bottom": Color(0.12, 0.24, 0.2), "sun": Color(1.0, 0.92, 0.7), "sun_dir": Vector3(-0.2, 0.2, -1.0),
-		"fog": Color(0.62, 0.74, 0.62), "fog_density": 0.009,
-		"ambient": Color(0.55, 0.68, 0.6), "ambient_energy": 0.85,
-		"light": Color(1.0, 0.94, 0.78), "light_energy": 1.0,
-		"water_deep": Color(0.1, 0.2, 0.12), "water_shallow": Color(0.36, 0.5, 0.3),
-		"water_beat": Color(1.0, 0.8, 0.3), "swell": 0.7,
-		"motes": Color(1.0, 0.8, 0.3),
+		"hill": Color(0.22, 0.36, 0.32), "peak": Color(0.36, 0.48, 0.44), "snow": 0.0,
+		"leaf": Color(0.86, 0.22, 0.12), "leaf2": Color(0.95, 0.55, 0.12),
+		# spring on the way down: cherry blossom, and snow still on the peaks
+		"spring": {
+			"leaf": Color(1.0, 0.72, 0.82), "leaf2": Color(1.0, 0.86, 0.9),
+			"peak": Color(0.94, 0.96, 1.0), "motes": Color(1.0, 0.75, 0.85),
+			"water_beat": Color(1.0, 0.7, 0.85),
+		},
+		"sky_top": Color(0.3, 0.46, 0.7), "sky_horizon": Color(0.96, 0.9, 0.84),
+		"sky_bottom": Color(0.3, 0.38, 0.34), "sun": Color(1.0, 0.92, 0.8), "sun_dir": Vector3(-0.3, 0.3, -1.0),
+		"fog": Color(0.86, 0.88, 0.85), "fog_density": 0.0075,
+		"ambient": Color(0.66, 0.72, 0.72), "ambient_energy": 0.9,
+		"light": Color(1.0, 0.94, 0.84), "light_energy": 1.1,
+		"water_deep": Color(0.06, 0.26, 0.3), "water_shallow": Color(0.4, 0.74, 0.68),
+		"water_beat": Color(1.0, 0.6, 0.3), "swell": 1.0,
+		"motes": Color(1.0, 0.5, 0.2),
 	},
 	{
-		"name": "PLAINS RIVER", "at": Vector2(41, -100), "tier": 4, "lane": 1, "salt": false,
+		"name": "MEANDERING RIVER", "at": Vector2(47.55, -121.8), "tier": 3, "order": 0, "salt": false,
+		"next": ["RAINFOREST FALLS", "ALPINE RUN"],
 		"objective": {"type": "score", "n": 70000},
-		"tagline": "HARVEST TIME. BIG SKY, SLOW BENDS",
+		"tagline": "FARMLAND, BIG SKY AND SLOW BENDS",
 		"seed": 8316, "length": 3200.0,
 		"width": 26.0, "slope": 0.012, "curve": 1.5, "uphill": true,
 		"kinds": ["ramps", "rails", "rings", "rocks", "ramps", "rings"],
@@ -550,7 +581,8 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.85, 0.4),
 	},
 	{
-		"name": "DESERT RIVER BED", "at": Vector2(36, -112), "tier": 3, "lane": 1, "salt": false,
+		"name": "DRY RIVERBED", "at": Vector2(44.05, -121.3), "tier": 3, "order": 1, "salt": false,
+		"next": ["ALPINE RUN", "THE HOME LAKE"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "A THREAD OF WATER THROUGH RED ROCK",
 		"seed": 8317, "length": 3000.0,
@@ -594,66 +626,176 @@ const LIST: Array[Dictionary] = [
 		"water_beat": Color(1.0, 0.7, 0.3), "swell": 0.7,
 		"motes": Color(1.0, 0.8, 0.5),
 	},
+	# ---------------------------------------------------------------- the Japan route's own harbor and endings
+	# ("like" borrows every setting of another stage; anything listed here replaces it. The two
+	# endings only replace looks, so they play exactly like the North American ones.)
+	{
+		"name": "NEON HARBOR", "like": "THE HARBOR", "at": Vector2(35.45, 139.85), "tier": 3, "order": 4,
+		"route": "japan", "salt": false,
+		"next": ["THE HATCHERY", "BAMBOO RIVER"],
+		"objective": {"type": "score", "n": 60000},
+		"tagline": "A PORT CITY THAT NEVER GOES DARK",
+		"seed": 6920,
+		# the same quays and cranes, under pink and violet city light instead of sodium orange
+		"sky_top": Color(0.04, 0.02, 0.12), "sky_horizon": Color(0.9, 0.3, 0.62),
+		"sky_bottom": Color(0.08, 0.04, 0.12), "sun": Color(1.0, 0.6, 0.85),
+		"fog": Color(0.32, 0.14, 0.32), "ambient": Color(0.5, 0.42, 0.7),
+		"light": Color(1.0, 0.7, 0.9),
+		"water_deep": Color(0.04, 0.03, 0.12), "water_shallow": Color(0.26, 0.14, 0.36),
+		"water_beat": Color(1.0, 0.3, 0.7), "motes": Color(1.0, 0.5, 0.85),
+		"rock": Color(0.8, 0.25, 0.55), "rock_cap": Color(0.8, 0.25, 0.55),
+	},
+	{
+		"name": "THE CRATER LAKE", "like": "THE HOME LAKE", "at": Vector2(42.75, 141.35), "tier": 5, "order": 2,
+		"route": "japan", "salt": false,
+		"ending": "HOME AT LAST. SPAWNED!",
+		"tagline": "STILL WATER IN AN OLD VOLCANO",
+		"arch": Color(0.72, 0.16, 0.12),
+		"scatter": [
+			["pine", 0.5, 66.0, 120.0, 0.9, 1.6, -0.5, "bank"],
+			["maple", 0.5, 64.0, 110.0, 0.9, 1.5, -0.4, "bank"],
+			["bamboo", 0.3, 63.0, 90.0, 0.8, 1.3, -0.3, "bank"],
+			["torii", 0.02, 62.0, 68.0, 1.2, 1.6, 0.0, "bank"],
+			["lantern", 0.05, 62.0, 68.0, 1.0, 1.3, 0.0, "bank"],
+			["rock", 0.25, 62.0, 80.0, 0.8, 2.4, -0.4, "bank"],
+			["lily", 0.14, 3.0, 40.0, 0.9, 1.6, 0.04, "water"],
+			["reeds", 0.2, 4.0, 60.0, 0.8, 1.4, 0.0, "water"],
+			["mountain", 0.9, 130.0, 210.0, 1.0, 1.0, 0.0, "far"],
+		],
+		"leaf": Color(0.86, 0.22, 0.12), "leaf2": Color(0.95, 0.55, 0.12),
+		"hill": Color(0.26, 0.34, 0.36), "peak": Color(0.5, 0.5, 0.58),
+		"spring": {
+			"leaf": Color(1.0, 0.72, 0.82), "leaf2": Color(1.0, 0.86, 0.9),
+			"peak": Color(0.94, 0.96, 1.0), "motes": Color(1.0, 0.75, 0.85),
+			"sky_top": Color(0.12, 0.3, 0.75), "sky_horizon": Color(0.9, 0.86, 0.92),
+			"sky_bottom": Color(0.3, 0.4, 0.5), "sun": Color(1.0, 1.0, 0.9), "sun_dir": Vector3(-0.3, 0.4, -1.0),
+			"fog": Color(0.84, 0.84, 0.92), "ambient": Color(0.68, 0.72, 0.86), "light": Color(1.0, 0.97, 0.92),
+			"water_deep": Color(0.06, 0.24, 0.42), "water_shallow": Color(0.5, 0.8, 0.88), "water_beat": Color(1.0, 0.7, 0.85),
+		},
+	},
+	{
+		"name": "THE HATCHERY", "like": "THE FISH FARM", "at": Vector2(39.6, 141.9), "tier": 4, "order": 3,
+		"route": "japan", "salt": false,
+		"ending": "SPAWNED... IN A HATCHERY",
+		"tagline": "NEAT PENS, CLEAN WATER, NO WAY OUT",
+		"markers": [Color(0.85, 0.2, 0.15), Color(1.0, 0.9, 0.8)],
+		"scatter": [
+			["pen", 0.1, 8.0, 54.0, 1.0, 1.7, 0.0, "water"],
+			["shed", 0.02, 10.0, 50.0, 0.7, 1.0, 0.3, "water"],
+			["pine", 0.5, 66.0, 120.0, 0.9, 1.6, -0.5, "bank"],
+			["bamboo", 0.5, 64.0, 100.0, 0.8, 1.3, -0.3, "bank"],
+			["shed", 0.1, 64.0, 80.0, 1.0, 1.6, 0.0, "bank"],
+			["lamp", 0.15, 62.0, 70.0, 1.0, 1.3, 0.0, "bank"],
+			["mountain", 0.7, 130.0, 210.0, 1.0, 1.0, 0.0, "far"],
+		],
+	},
 ]
 
-const LAST_TIER := 5
-## Lane 0 is the northern wild route, lane 2 the southern one and lane 1 the man-made one.
-const MADE := 1
+## Where a run starts, and the stage the training course borrows its look from.
+const START := 0
+const RAINFOREST := 3
 
 
-## The stage at a place on the map; -1 if there is none.
-static func at(tier: int, lane: int) -> int:
+## Everything about a stage, with whatever it borrows from another ("like") filled in.
+static func settings(id: int) -> Dictionary:
+	var own: Dictionary = LIST[id]
+	if not own.has("like"):
+		return own.duplicate()
+	var out: Dictionary = LIST[find(own.like)].duplicate()
+	out.merge(own, true)
+	return out
+
+
+static func find(stage_name: String) -> int:
 	for i in LIST.size():
-		if LIST[i].tier == tier and LIST[i].lane == lane:
+		if LIST[i].name == stage_name:
 			return i
 	return -1
 
 
-## True when the way on from this stage forks (so its goal matters).
-static func forks(id: int) -> bool:
-	var tier := int(LIST[id].tier) + 1
-	var count := 0
-	for lane in 3:
-		if at(tier, lane) != -1:
-			count += 1
-	return count > 1
-
-
-## Where you can go next heading upstream, best first. Meeting the stage's goal keeps you
-## wild: your own route first if it carries on, and the other natural route as a choice.
-## Missing it sweeps you onto the man-made route.
-static func next_up(id: int, met: bool) -> Array[int]:
-	var tier := int(LIST[id].tier) + 1
-	var made := at(tier, MADE)
-	var wild: Array[int] = []
-	for lane: int in [int(LIST[id].lane), 0, 2]:
-		var stage := at(tier, lane)
-		if lane != MADE and stage != -1 and not wild.has(stage):
-			wild.append(stage)
+## The stages this one leads to heading upstream, the default first (see "next").
+static func next_of(id: int) -> Array[int]:
 	var out: Array[int] = []
-	if not met and made != -1:
-		out.append(made)
-	elif wild.is_empty():
-		if made != -1:
-			out.append(made)
-	else:
-		out = wild
-		if out.size() == 1 and made != -1:
-			out.append(made)
+	for stage_name: String in LIST[id].get("next", []):
+		var stage := find(stage_name)
+		if stage != -1:
+			out.append(stage)
 	return out
 
 
-## The next stage heading back downstream: the way you came up if we know it, otherwise the
-## same route's stage one tier down.
+## True for the stages a run up ends on (the spawning grounds).
+static func is_end(id: int) -> bool:
+	return next_of(id).is_empty()
+
+
+## True when the way on from this stage forks (so its goal matters).
+static func forks(id: int) -> bool:
+	return next_of(id).size() > 1
+
+
+## Where you can go next heading upstream. The default is always open; meeting the stage's
+## goal opens its other, more advanced ways on as well.
+static func next_up(id: int, met: bool) -> Array[int]:
+	var all := next_of(id)
+	if met or all.size() <= 1:
+		return all
+	return [all[0]] as Array[int]
+
+
+## The stages that lead to this one, those it is the default for first.
+static func before(id: int) -> Array[int]:
+	var out: Array[int] = []
+	for i in LIST.size():
+		var onward := next_of(i)
+		if not onward.is_empty() and onward[0] == id:
+			out.append(i)
+	for i in LIST.size():
+		if next_of(i).has(id) and not out.has(i):
+			out.append(i)
+	return out
+
+
+## The next stage heading back downstream: the way you came up if we know it, otherwise a
+## stage that leads here.
 static func prev_down(id: int, route: Array[int]) -> int:
-	var tier := int(LIST[id].tier) - 1
-	if tier < 0:
-		return -1
+	var from := before(id)
 	for r in route:
-		if LIST[r].tier == tier:
+		if from.has(r):
 			return r
-	var same := at(tier, LIST[id].lane)
-	return same if same != -1 else at(tier, 0)
+	return from[0] if not from.is_empty() else -1
+
+
+## A way up to this stage from the start, ending with the stage itself.
+static func path_to(id: int) -> Array[int]:
+	var out: Array[int] = [id]
+	while not before(out[0]).is_empty() and out.size() < LIST.size():
+		out.push_front(before(out[0])[0])
+	return out
+
+
+## The way down to this stage from the spawning grounds above it, ending with the stage itself.
+static func path_from_top(id: int) -> Array[int]:
+	var out: Array[int] = [id]
+	while not is_end(out[0]) and out.size() < LIST.size():
+		out.push_front(next_of(out[0])[0])
+	return out
+
+
+## The stages on one tier of the map, left to right.
+static func on_tier(tier: int) -> Array[int]:
+	var out: Array[int] = []
+	for i in LIST.size():
+		if int(LIST[i].tier) == tier:
+			out.append(i)
+	out.sort_custom(func(a: int, b: int) -> bool: return int(LIST[a].get("order", a)) < int(LIST[b].get("order", b)))
+	return out
+
+
+static func tiers() -> int:
+	var top := 0
+	for stage: Dictionary in LIST:
+		top = maxi(top, int(stage.tier))
+	return top + 1
 
 
 static func objective_text(id: int) -> String:
@@ -672,24 +814,3 @@ static func objective_text(id: int) -> String:
 		"clean":
 			return "NO MORE THAN %d WIPEOUTS" % o.n
 	return ""
-
-
-## The stages leading up to this one along its own route (the northern one where its own has
-## nothing on a tier), ending with the stage itself.
-static func path_to(id: int) -> Array[int]:
-	var out: Array[int] = []
-	for tier in int(LIST[id].tier):
-		var stage := at(tier, LIST[id].lane)
-		out.append(stage if stage != -1 else at(tier, 0))
-	out.append(id)
-	return out
-
-
-## The same, coming the other way: from the spawning grounds down to this stage.
-static func path_from_top(id: int) -> Array[int]:
-	var out: Array[int] = []
-	for tier in range(LAST_TIER, int(LIST[id].tier), -1):
-		var stage := at(tier, LIST[id].lane)
-		out.append(stage if stage != -1 else at(tier, 0))
-	out.append(id)
-	return out

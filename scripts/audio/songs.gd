@@ -15,7 +15,7 @@ const TRACKS := [
 	{"name": "ABYSSAL", "style": "deep", "bpm": 150.0, "file": "res://audio/race_deep.wav"},
 	{"name": "REEF BREAK", "style": "liquid", "bpm": 160.0, "file": "res://audio/race_liquid.wav"},
 	{"name": "RIVER MOUTH", "style": "coast", "bpm": 166.0, "file": "res://audio/race_coast.wav"},
-	{"name": "JUNGLE FALLS", "style": "jungle", "bpm": 174.0, "file": "res://audio/race.wav"},
+	{"name": "UPRIVER", "style": "jungle", "bpm": 174.0, "file": "res://audio/race.wav"},
 	{"name": "WHITE WATER", "style": "dark", "bpm": 186.0, "file": "res://audio/race_dark.wav"},
 	{"name": "HOMECOMING", "style": "home", "bpm": 178.0, "file": "res://audio/race_home.wav"},
 ]

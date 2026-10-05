@@ -20,7 +20,10 @@ Godot **4.7**, Forward+. Open `project.godot` and press F5.
 | Esc / P | Start | ⏸ | pause | |
 
 Touch is gestures only for now (no corkscrew or grabs), and the mouse counts as a finger.
-**PRACTICE** on the title screen is a short, straight river with one of everything (ring slalom,
+**PRACTICE** on the title screen opens a stage select (the globe with every stage listed beside
+it): pick any stage, in either direction, to swim
+it with no countdown, goal or finish (it loops, and nothing is saved). TRAINING COURSE there is
+a short, straight river with one of everything (ring slalom,
 jump rings, ramps, rails, rocks, a waterfall) that loops forever, for trying the controls.
 
 ## The journey
@@ -34,24 +37,45 @@ stage is swum twice:
 2. **Seaward migration** (spring): the adults spawn and die, and you swim the same stages back
    down to the ocean as one of their young, a small silver smolt.
 
-The way up branches like Star Fox 64's map: six tiers, three routes. SWIM! opens it as a little
-globe with every stage pinned on the Earth; point at a stage and the globe turns to it and draws
-the way there. Between stages the same globe shows a red line crossing to the next one.
-
-| Tier | Northern wild route | Southern route | Man-made route |
-|---|---|---|---|
-| 1 | Deep Ocean | | |
-| 2 | Shallow Sea | Ocean Trench | Shipping Lane |
-| 3 | The Coast | Coral Reef | The Harbor |
-| 4 | Jungle Falls | Mangrove Delta | Desert River Bed |
-| 5 | Alpine Run | The Fish Ladder | Plains River |
-| 6 | The Home Lake | | The Fish Farm |
-
-Each stage that forks has a goal, shown under the progress bar (collect so many rings, land so
-many tricks on the beat, reach a flow, a score, or stay clean). Meet it and you stay wild: your
-own route carries on, with the other natural route offered as a choice. Miss it and you are
-swept onto the man-made route. The way back down retraces the stages you came up through.
 All stages are open from the map for now, in either direction.
+SWIM! always starts a run at the Open Ocean. The way up branches like Star Fox 64's map, and
+the map is a little globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
+you finish a stage it shows the way you have come as a red line and the ways on as pins. Look
+between them with left / right or a tap, then swim; ways you did not earn are shown locked.
+The same globe then draws the line across to the stage you picked.
+
+Each stage lists the stages it leads to (`next` in `levels.gd`). The first is the default way
+on; the others are more advanced routes, opened by meeting that stage's goal (shown under the
+progress bar: so many rings, tricks on the beat, a flow, a score, or few wipeouts).
+
+| Step | Stage | Leads to (default first) |
+|---|---|---|
+| 1 | Open Ocean | Shallow Sea, Ocean Trench |
+| 2 | Shallow Sea | Coastline, The Harbor |
+| 2 | Ocean Trench | Coral Reef, Arctic Waters |
+| 3 | Coastline | The Fish Ladder, Dry Riverbed |
+| 3 | The Harbor | The Fish Farm, The Fish Ladder |
+| 3 | Coral Reef | **Neon Harbor**, Meandering River, Dry Riverbed |
+| 3 | Arctic Waters | Meandering River, **Neon Harbor** |
+| 4 | Meandering River | Rainforest Falls, Alpine Run |
+| 4 | Dry Riverbed | Alpine Run, The Home Lake (an early finish) |
+| 4 | The Fish Ladder | Alpine Run, The Home Lake (an early finish) |
+| 4 | The Fish Farm | an early ending |
+| 4 | **Neon Harbor** | **The Hatchery**, **Bamboo River** |
+| 5 | Rainforest Falls, Alpine Run | The Home Lake |
+| 5 | **The Hatchery** | an early ending |
+| 5 | **Bamboo River** | **The Crater Lake** |
+
+There are two routes. Everything is shared up to step 3; from step 4 the **Japan route** (bold
+above, pink on the map) splits off at Neon Harbor, which can only be reached from Coral Reef or
+Arctic Waters, and the rest is North America. Each route has a fish farm as a quick, easy early
+ending (the default way on from its harbor) and a home lake at the end of the full run.
+
+The pins are real places: the open ocean in the mid Pacific, the Bering Sea, the Mariana
+Trench, a reef off Okinawa, the British Columbia coast, Puget Sound and the rivers behind it, Bend in Oregon and
+Mount Rainier; then Tokyo Bay and Hokkaido. Stages can be oceans or a few miles apart, so the globe zooms in
+until the stage in hand and its neighbours are clear of each other.
+The way back down retraces the stages you came up through.
 
 Each stage is one entry in `scripts/world/levels.gd` (tier, route, goal, course shape, what it
 is made of, bank profile, scenery rules, colours, sky and light, plus a `spring` block for
@@ -76,7 +100,7 @@ Other salmon swim the course with you. They are company, not obstacles.
 
 Every tier of the map has its own tune (stages side by side share one), each at its own tempo:
 Abyssal (150 BPM), Reef Break (160), River
-Mouth (166), Jungle Falls (174), White Water (186) and Homecoming (178). The beat clock follows
+Mouth (166), Upriver (174), White Water (186) and Homecoming (178). The beat clock follows
 the tune, so on-beat landings, the countdown and the predators all keep time with it. They are
 the `STYLES` in `scripts/audio/dnb_synth.gd`, listed in level order in `Songs.TRACKS`.
 

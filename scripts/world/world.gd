@@ -46,13 +46,13 @@ func _ready() -> void:
 
 ## Swaps in another level (or the practice course, which borrows the jungle). Rebuilding takes a moment.
 func has_course(level: int, test: bool, down := false) -> bool:
-	return track.test == test and track.level == (Levels.JUNGLE if test else level) and track.down == (down and not test)
+	return track.test == test and track.level == (Levels.RAINFOREST if test else level) and track.down == (down and not test)
 
 
 func set_course(level: int, test: bool, down := false) -> void:
 	if test:
 		down = false
-		level = Levels.JUNGLE
+		level = Levels.RAINFOREST
 	_dress_player(level, down)
 	if has_course(level, test, down):
 		return
