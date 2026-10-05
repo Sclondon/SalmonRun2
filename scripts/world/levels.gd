@@ -88,7 +88,7 @@ const LIST: Array[Dictionary] = [
 		"water_beat": Color(0.5, 0.85, 1.0), "swell": 3.0,
 		# deep blue water, and no bottom to be seen (a floor this deep is not drawn)
 		"floor": 160.0, "water_depth_range": 26.0, "water_alpha_deep": 1.0, "water_foam_amount": 0.14,
-		"murk": 0.035,
+		"murk": 0.035, "water_whitecaps": 0.6,
 		"motes": Color(0.9, 0.97, 1.0),
 	},
 	{
@@ -137,7 +137,7 @@ const LIST: Array[Dictionary] = [
 		"water_beat": Color(0.5, 1.0, 0.9), "swell": 2.0,
 		# clear enough to see the floor, some way down
 		"floor": 17.0, "water_depth_range": 16.0, "water_alpha_shallow": 0.35, "water_alpha_deep": 0.72, "water_foam_amount": 0.14,
-		"motes": Color(0.8, 1.0, 0.95),
+		"water_whitecaps": 0.5, "motes": Color(0.8, 1.0, 0.95),
 	},
 	{
 		"name": "COASTLINE", "at": Vector2(51, -129.5), "tier": 2, "order": 0, "salt": false,
@@ -368,7 +368,7 @@ const LIST: Array[Dictionary] = [
 		"water_deep": Color(0.01, 0.1, 0.16), "water_shallow": Color(0.1, 0.4, 0.44),
 		"water_beat": Color(0.3, 1.0, 0.7), "swell": 1.6,
 		"floor": 38.0, "water_depth_range": 22.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.2,
-		"motes": Color(0.9, 1.0, 1.0),
+		"water_whitecaps": 0.55, "motes": Color(0.9, 1.0, 1.0),
 	},
 	{
 		"name": "THE HARBOR", "at": Vector2(47.25, -122.5), "tier": 2, "order": 1, "salt": false,
@@ -513,7 +513,7 @@ const LIST: Array[Dictionary] = [
 		"water_deep": Color(0.0, 0.01, 0.08), "water_shallow": Color(0.04, 0.1, 0.3),
 		"water_beat": Color(0.3, 1.0, 0.9), "swell": 2.5,
 		"floor": 90.0, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
-		"motes": Color(0.3, 1.0, 0.9),
+		"water_whitecaps": 0.55, "motes": Color(0.3, 1.0, 0.9),
 	},
 	{
 		"name": "CORAL REEF", "at": Vector2(26.3, 127.8), "tier": 2, "order": 2, "salt": true,

@@ -204,9 +204,12 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
 
 ## 6b. Water, wake and splashes
 
-- **Water** is lit as real water is (PBR): a smooth, shiny skin of small crossing waves,
+- **Water** is lit as real water is (PBR), then stylised: a shiny skin of small crossing waves,
   whose slopes are worked out per pixel, so that it mirrors the sky, turns to a mirror at a
-  low angle and catches the sun on every crest. Its shape and shine can be set per stage
+  low angle and catches the sun on every crest. The highlights are hard-edged (toon
+  specular), the waves are drawn in flat lighter and darker tones over the smooth shading
+  (`water_toon`), and the tops of the bigger waves break into flecks of foam: whitecaps
+  (`water_whitecaps`, more of them on the open sea). Its shape and shine can be set per stage
   (`water_roughness`, `water_specular`, `water_wave_scale`, `water_wave_height`,
   `water_wave_choppy`, `water_wave_speed`). Over that it keeps its toon touches:
   its colour runs from shallow to deep with how much water is really

@@ -7,7 +7,7 @@
 // Every stage can set any of these from its entry in levels.gd: a key "water_<name>" sets the
 // uniform <name>.
 shader_type spatial;
-render_mode cull_disabled, specular_schlick_ggx;
+render_mode cull_disabled, specular_toon;
 
 #include "res://shaders/psx_common.gdshaderinc"
 
@@ -28,7 +28,9 @@ uniform float ripple : hint_range(0.0, 1.0) = 0.35;
 
 group_uniforms foam;
 // Drifting patches of foam: 0 is none, 1 is a lot.
-uniform float foam_amount : hint_range(0.0, 1.0) = 0.25;
+uniform float foam_amount : hint_range(0.0, 1.0) = 0.3;
+// Whitecaps: how readily the tops of the waves break into flecks of foam (0 is never).
+uniform float whitecaps : hint_range(0.0, 1.0) = 0.4;
 // Size of the patches (bigger number, smaller patches).
 uniform float foam_scale = 1.0;
 // Extra foam along a river's banks and in rapids.
@@ -48,12 +50,15 @@ uniform float sparkle : hint_range(0.0, 2.0) = 1.0;
 group_uniforms surface;
 // The surface is lit as real water is: a smooth, shiny skin of small waves that mirrors the
 // sky and catches the sun. How rough it is (0 is a mirror), and how strongly it reflects.
-uniform float roughness : hint_range(0.0, 1.0) = 0.1;
-uniform float specular : hint_range(0.0, 1.0) = 0.5;
+uniform float roughness : hint_range(0.0, 1.0) = 0.15;
+uniform float specular : hint_range(0.0, 1.0) = 0.3;
+// Stylised: how strongly the waves are drawn in flat tones (a lighter one on the faces turned
+// to the light, a darker one in the troughs) over the smooth shading.
+uniform float toon : hint_range(0.0, 1.0) = 0.5;
 // The small waves that give it its shape: how fine they are, how steep, how peaked their
 // crests are, and how fast they move.
-uniform float wave_scale = 1.1;
-uniform float wave_height : hint_range(0.0, 3.0) = 0.6;
+uniform float wave_scale = 1.5;
+uniform float wave_height : hint_range(0.0, 3.0) = 0.3;
 uniform float wave_choppy = 1.7;
 uniform float wave_speed = 1.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
@@ -153,6 +158,18 @@ void fragment() {
 	float h0 = wave_h(at);
 	float slope_x = (wave_h(at + vec2(eps, 0.0)) - h0) / eps;
 	float slope_y = (wave_h(at + vec2(0.0, eps)) - h0) / eps;
+	// whitecaps: the tops of the bigger waves break into hard-edged flecks of foam
+	// (broken up by a finer noise, so that they are flecks and streaks, not blobs)
+	float fleck = vnoise(at * 5.0 + vec2(0.0, TIME * 0.7)) * 0.65 + vnoise(at * 1.3 - vec2(TIME * 0.3, 0.0)) * 0.35;
+	float cap = step(mix(0.95, 0.66, whitecaps), h0 / 2.64 + (fleck - 0.5) * 0.5) * (1.0 - fall) * step(0.001, whitecaps);
+	white = max(white, cap * 0.92);
+	col = mix(col, foam_color.rgb, cap * 0.92);
+	// and the waves are drawn in flat tones, as in a cartoon: lighter where a face is turned
+	// to the light, darker in the troughs
+	float facing = slope_x * 0.6 + slope_y * 0.8;
+	float calm = (1.0 - white) * toon * mix(1.0, 0.35, smoothstep(40.0, 240.0, far));
+	col = mix(col, mix(col, shallow.rgb, 0.45) * 1.06, step(1.1, facing) * calm);
+	col = mix(col, mix(col, deep.rgb, 0.5) * 0.92, step(0.9, -facing) * calm);
 	vec2 metres = vec2(UV.x * across, UV.y);
 	vec3 dp1 = dFdx(v_world);
 	vec3 dp2 = dFdy(v_world);
