@@ -6,6 +6,8 @@ extends Control
 signal closed
 ## Asks for another stage to look at (-1 or 1).
 signal stage_stepped(dir: int)
+## Asks for the camera to go with the salmon (true) or to stand still over the water.
+signal follow_changed(on: bool)
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Track := preload("res://scripts/world/track.gd")
@@ -61,6 +63,8 @@ var _sliders := {}
 var _values := {}
 var _pickers := {}
 var _reading := false
+var _follow: Button
+var _following := false
 var _page: PanelContainer
 var _page_text: Label
 
@@ -90,13 +94,18 @@ func _ready() -> void:
 	_stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(_stage)
 	top.add_child(_small(">", func() -> void: stage_stepped.emit(1), 44))
-	_hide = _small("HIDE", _toggle, 76)
+	_follow = _small("STILL", func() -> void:
+		_following = not _following
+		_follow.text = "FOLLOW" if _following else "STILL"
+		follow_changed.emit(_following), 84)
+	top.add_child(_follow)
+	_hide = _small("HIDE", _toggle, 70)
 	top.add_child(_hide)
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 6)
 	col.add_child(_body)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(440, 300)
+	scroll.custom_minimum_size = Vector2(440, 190)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_body.add_child(scroll)
 	var list := VBoxContainer.new()

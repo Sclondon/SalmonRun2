@@ -2,7 +2,13 @@ extends Camera3D
 ## Follows the salmon in track space. Mode FOLLOW is the gameplay chase cam; mode CINEMA cycles
 ## through a few TV-style angles for the title screen.
 
-enum Mode { FOLLOW, CINEMA }
+enum Mode { FOLLOW, CINEMA, OVERLOOK }
+
+## OVERLOOK (the water lab) looks down on the water from high up: either going along with the
+## salmon, or standing still over one stretch of water while the salmon swims on.
+var overlook_follow := false
+var _overlook_s := -1.0
+var _overlook_x := 0.0
 
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
@@ -26,6 +32,7 @@ var _cine_kind := 0
 
 
 func snap() -> void:
+	_overlook_s = -1.0
 	_has_pos = false
 
 
@@ -40,7 +47,14 @@ func _process(delta: float) -> void:
 	var look: Vector3
 	var cam_s: float
 	var under := 0.0
-	if mode == Mode.CINEMA:
+	if mode == Mode.OVERLOOK:
+		if overlook_follow or _overlook_s < 0.0:
+			_overlook_s = p.s
+			_overlook_x = p.x
+		cam_s = minf(_overlook_s - 5.0, track.length - 40.0)
+		desired = track.point(cam_s, _overlook_x, track.water_y(cam_s) + 12.0)
+		look = track.point(cam_s + 9.0, _overlook_x, track.water_y(cam_s))
+	elif mode == Mode.CINEMA:
 		_cine_t += dt
 		if _cine_t > 6.0:
 			_cine_t = 0.0

@@ -936,6 +936,9 @@ func _build_menus() -> void:
 		Save.store()
 		_enter_title())
 	_lab_view.stage_stepped.connect(func(dir: int) -> void: _open_lab(posmod(_lab_stage + dir, Levels.LIST.size())))
+	_lab_view.follow_changed.connect(func(on: bool) -> void:
+		world.camera.overlook_follow = on
+		world.camera.snap())
 	_lab.add_child(_lab_view)
 
 	# --- the field guide: the models, to look at
@@ -1453,11 +1456,12 @@ func _open_lab(stage: int) -> void:
 	_lab_stage = stage
 	world.set_course(stage, false, false)
 	var p := world.player
-	p.reset(Track.START_S)
+	# (well down the course, clear of the starting gate)
+	p.reset(minf(600.0, world.track.length * 0.3))
 	p.autopilot = true
 	p.control = false
 	p.go()
-	world.camera.mode = ChaseCam.Mode.FOLLOW
+	world.camera.mode = ChaseCam.Mode.OVERLOOK
 	world.camera.snap()
 	_lab_view.track = world.track
 	_lab_view.set_stage(Levels.LIST[stage].name)

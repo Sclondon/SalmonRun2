@@ -284,7 +284,9 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 - **Water lab:** on the title menu. The salmon swims a stage by itself under a panel of
   sliders and colour pickers for the water shader (colour, surface, foam, wake), which change
-  the water as you watch. The arrows change stage, HIDE folds the panel away, SAVE hands
+  the water as you watch, seen from high up looking down. STILL / FOLLOW chooses whether the
+  camera stands over one stretch of water or goes with the salmon. The arrows change stage,
+  HIDE folds the panel away, SAVE hands
   every value over as text (the phone share sheet or a downloaded file, the clipboard, and a
   page on screen to take a picture of), and RESET goes back to each stage's own water.
   What is set is kept in the save and used in play on every stage until RESET.
