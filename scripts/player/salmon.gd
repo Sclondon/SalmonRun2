@@ -22,8 +22,8 @@ const Wake := preload("res://scripts/fx/wake.gd")
 const Score := preload("res://scripts/game/score.gd")
 
 const GRAVITY := Track.GRAVITY
-const CRUISE := 30.0
-const BOOST_SPEED := 14.0
+const CRUISE := 25.0
+const BOOST_SPEED := 12.0
 const STEER := 15.0
 const SPIN_RATE := 620.0
 const FLIP_RATE := 480.0
@@ -125,6 +125,10 @@ var _wake: Wake
 var _bubbles: CPUParticles3D
 var _spray: CPUParticles3D
 var _dots: Array[CPUParticles3D] = []
+var _splashes: Array[Splash] = []
+var _splash_next := 0
+# the current being ridden is cut away near the eye (see shaders/current.gdshader)
+var _ridden: ShaderMaterial
 var _ai := {"hold": 0.0, "next_hop": 2.0, "plan": [0.0, 0.0, 0.0, -1]}
 
 
@@ -151,20 +155,27 @@ func setup(t: Track) -> void:
 	_bubbles.initial_velocity_min = 1.5
 	_bubbles.initial_velocity_max = 2.6
 	_bubbles.gravity = Vector3.ZERO
-	# while it swims at the surface: small white dots of spray flicked up off each shoulder
+	# while it swims at the surface: small white dots of spray tossed up off each shoulder.
+	# (They travel with the salmon, so that they stay round it and are not strung out behind.)
 	for side: float in [-1.0, 1.0]:
-		var dots := _particles(14, 0.42, Color(0.96, 1.0, 1.0), 0.11)
-		dots.position = Vector3(side * 0.3, 0.05, -0.5)
-		dots.emission_box_extents = Vector3(0.05, 0.03, 0.25)
-		dots.direction = Vector3(side * 0.9, 1.0, 0.3)
-		dots.spread = 22.0
-		dots.initial_velocity_min = 2.2
-		dots.initial_velocity_max = 4.6
-		dots.gravity = Vector3(0, -16, 0)
+		var dots := _particles(10, 0.3, Color(0.96, 1.0, 1.0), 0.1)
+		dots.local_coords = true
+		dots.position = Vector3(side * 0.28, 0.05, -0.35)
+		dots.emission_box_extents = Vector3(0.05, 0.03, 0.3)
+		dots.direction = Vector3(side * 0.55, 1.0, 0.5)
+		dots.spread = 20.0
+		dots.initial_velocity_min = 1.4
+		dots.initial_velocity_max = 2.8
+		dots.gravity = Vector3(0, -18, 0)
 		_dots.append(dots)
 	_spray = _particles(24, 0.3, Color(0.4, 1.0, 0.9), 0.14)
 	_spray.local_coords = true
 	_spray.gravity = Vector3(0, -6, 0)
+	# the splashes are made now and used in turn (see fx/splash.gd)
+	for i in 4:
+		var splash := Splash.new()
+		add_child(splash)
+		_splashes.append(splash)
 	reset(Track.START_S)
 
 
@@ -209,9 +220,8 @@ func _round(width: float, height: float, col: Color) -> SphereMesh:
 func _do_splash(strength: float) -> void:
 	if not is_inside_tree():
 		return
-	var splash := Splash.new()
-	get_parent().add_child(splash)
-	splash.start(track, s, x, strength)
+	_splash_next = (_splash_next + 1) % _splashes.size()
+	_splashes[_splash_next].start(track, s, x, strength)
 
 
 ## Which stage of its life the salmon is in: "ocean", "spawner" or "smolt" (see Props.salmon).
@@ -231,6 +241,9 @@ func reset(at_s: float) -> void:
 	if _wake:
 		_wake.clear()
 	x = 0.0
+	# (a speck of a splash, so that what draws one is ready before the first leap needs it)
+	if not _splashes.is_empty() and is_inside_tree():
+		_splashes[0].start(track, s, 0.0, 0.02)
 	y = track.water_y(s)
 	speed = 0.0
 	vx = 0.0
@@ -253,7 +266,7 @@ func reset(at_s: float) -> void:
 
 func go() -> void:
 	state = State.SWIM
-	speed = 20.0
+	speed = 17.0
 
 
 func in_air() -> bool:
@@ -287,6 +300,9 @@ func _process(delta: float) -> void:
 			_ride(delta, inp, released)
 		State.WIPEOUT:
 			_wipeout(delta)
+	if _ridden and state != State.CURRENT:
+		_ridden.set_shader_parameter("clear", 2.0)
+		_ridden = null
 	if state != State.IDLE and state != State.GRIND:
 		_check_falls(s_before)
 	if state != State.IDLE:
@@ -298,7 +314,7 @@ func _process(delta: float) -> void:
 		# a boost ring under the sea is a surge of speed as well
 		if track.surge > 0:
 			track.surge = 0
-			speed += 11.0
+			speed += 9.0
 			boost = minf(boost + 12.0, 100.0)
 			_stretch_v += 6.0
 			Sfx.play("boost", 1.4, -5.0)
@@ -439,6 +455,9 @@ func _try_current() -> void:
 		if absf(x - track.current_x(c, s)) < 2.2 and absf(depth - track.current_depth(c, s)) < 1.3:
 			state = State.CURRENT
 			rail = c
+			_ridden = c.get("mat")
+			if _ridden:
+				_ridden.set_shader_parameter("clear", 10.0)
 			rail_time = 0.0
 			charge = 0.0
 			vx = 0.0
@@ -978,7 +997,7 @@ func _update_visual(dt: float) -> void:
 	_mat.set_shader_parameter("flash", 0.6 if blink else (0.35 if boosting else 0.0))
 	# the wake is cut only while swimming at the surface, and is stronger the faster it goes
 	_wake.track = track
-	_wake.lay(s, x, clampf(speed / 30.0, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
+	_wake.lay(s, x, clampf(speed / CRUISE, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
 	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
 	_spray.emitting = state == State.AIR or state == State.GRIND
 	for dots in _dots:

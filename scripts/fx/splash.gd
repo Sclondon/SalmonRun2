@@ -4,7 +4,7 @@ extends Node3D
 ## with ragged crests and drop back into it, with ripples spreading across the water and a
 ## burst of splattery drops.
 ##
-## It stays where the salmon went in.
+## It stays where the salmon went in. The salmon keeps a few of them and uses them in turn.
 
 const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
@@ -17,6 +17,9 @@ const TUBE_TIME := 0.62
 ## Each ripple: when it starts, and how wide it gets.
 const RIPPLES := [[0.0, 3.2], [0.14, 4.4], [0.3, 5.6]]
 const RIPPLE_TIME := 0.75
+## Each burst of drops: which mesh, how many, how big, and how fast they are flung (slowest
+## and fastest).
+const BURSTS := [["drop", 12, 0.26, 5.0, 11.0], ["splat", 9, 0.34, 3.5, 8.0], ["dot", 26, 0.11, 4.0, 13.0]]
 
 static var _meshes := {}
 static var _mat: StandardMaterial3D
@@ -29,6 +32,7 @@ var strength := 1.0
 var _t := 0.0
 var _tubes: Array[MeshInstance3D] = []
 var _ripples: Array[MeshInstance3D] = []
+var _bursts: Array[CPUParticles3D] = []
 
 
 ## Plain white-and-blue water, unlit, coloured by the mesh.
@@ -57,11 +61,12 @@ static func mesh(key: String) -> Mesh:
 	return _meshes[key]
 
 
-func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
-	track = on
-	s = at_s
-	x = at_x
-	strength = how_big
+## Everything a splash is made of is built once, here, and used again each time: making it
+## afresh for every leap and every landing made the game stumble at just those moments.
+func _init() -> void:
+	top_level = true
+	visible = false
+	set_process(false)
 	for i in TUBES.size():
 		var node := MeshInstance3D.new()
 		node.mesh = mesh("tube")
@@ -69,7 +74,6 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = preload("res://shaders/splash.gdshader")
 		mat.set_shader_parameter("waves", TUBES[i][2])
-		mat.set_shader_parameter("phase", randf() * TAU)
 		node.material_override = mat
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visible = false
@@ -88,19 +92,42 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
 		_ripples.append(node)
-	_burst("drop", int(12 * strength), 0.26, 5.0, 11.0)
-	_burst("splat", int(9 * strength), 0.34, 3.5, 8.0)
-	# and a spray of small plain dots, flung higher and wider than the rest
-	_burst("dot", int(26 * strength), 0.11, 4.0, 13.0)
+	# drops, splats, and a spray of small plain dots flung higher and wider than the rest
+	for b: Array in BURSTS:
+		_bursts.append(_burst(b[0], b[1], b[2]))
+
+
+func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
+	track = on
+	s = at_s
+	x = at_x
+	strength = how_big
+	_t = 0.0
+	for node in _tubes:
+		node.visible = false
+		(node.material_override as ShaderMaterial).set_shader_parameter("phase", randf() * TAU)
+	for node in _ripples:
+		node.visible = false
+	for i in _bursts.size():
+		var p := _bursts[i]
+		# (how many drops never changes, only how hard they are flung: changing the number
+		# means making the whole burst again, which is what this is here to avoid)
+		p.initial_velocity_min = float(BURSTS[i][3]) * sqrt(strength)
+		p.initial_velocity_max = float(BURSTS[i][4]) * sqrt(strength)
+		p.restart()
+		p.emitting = true
 	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + 0.03))
+	visible = true
+	set_process(true)
 
 
 ## A one-shot spray of drops, flung up and outwards.
-func _burst(key: String, amount: int, size: float, slow: float, fast: float) -> void:
+func _burst(key: String, amount: int, size: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.mesh = mesh(key)
 	p.material_override = material()
-	p.amount = maxi(amount, 4)
+	p.amount = amount
+	p.emitting = false
 	p.one_shot = true
 	p.explosiveness = 0.95
 	p.lifetime = 0.8
@@ -109,8 +136,6 @@ func _burst(key: String, amount: int, size: float, slow: float, fast: float) -> 
 	p.emission_sphere_radius = 0.5
 	p.direction = Vector3.UP
 	p.spread = 62.0
-	p.initial_velocity_min = slow * sqrt(strength)
-	p.initial_velocity_max = fast * sqrt(strength)
 	p.gravity = Vector3(0, -24, 0)
 	p.scale_amount_min = size * 0.6
 	p.scale_amount_max = size * 1.3
@@ -120,13 +145,14 @@ func _burst(key: String, amount: int, size: float, slow: float, fast: float) -> 
 	shrink.add_point(Vector2(1.0, 0.0))
 	p.scale_amount_curve = shrink
 	add_child(p)
-	p.emitting = true
+	return p
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	if _t > LIFE:
-		queue_free()
+		visible = false
+		set_process(false)
 		return
 	for i in _tubes.size():
 		var u := (_t - float(TUBES[i][3])) / TUBE_TIME

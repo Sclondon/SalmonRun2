@@ -29,7 +29,7 @@ const TRAIL_SHORT := 230.0
 const TRAIL_SLOPE := 0.22
 ## A current that ends at the surface throws the salmon into the air: how fast it is going
 ## along the course by then, and how fast upwards.
-const LAUNCH_SPEED := 46.0
+const LAUNCH_SPEED := 40.0
 const LAUNCH_VY := 14.0
 const GRAVITY := 24.0
 
@@ -414,6 +414,8 @@ func _plan_deep() -> void:
 				used = _plan_current(s, false)
 			"launch":
 				used = _plan_current(s, true)
+			"rings":
+				used = _plan_deep_rings(s)
 			"surge":
 				used = _plan_surge(s)
 			"jellies":
@@ -592,34 +594,59 @@ func _plan_rails(s: float) -> float:
 	return r_len + 30.0
 
 
-## A current under the sea: it starts one layer down (a single dive from the surface catches
-## it), winds from side to side and between the layers, and ends one layer down again. Or it
-## is a launch: it ends by rising to the surface, and throws the salmon into the air.
+## A current under the sea: it starts near the top (a dive or two from the surface catches
+## it), winds from side to side and down and up through every layer there is, and ends at
+## whatever depth it has got to. Or it is a launch: it ends by rising to the surface, and
+## throws the salmon into the air.
 func _plan_current(s: float, launch: bool) -> float:
 	var count := _rng.randi_range(6, 9)
 	var xs := PackedFloat32Array()
 	var ds := PackedFloat32Array()
 	var cx := _rng.randf_range(-4.0, 4.0)
-	var depth := 1
+	var deepest := layers()
+	var depth := _rng.randi_range(1, mini(deepest, 2))
+	# (it makes for the bottom first, or it would hang about near the top)
+	var aim := deepest
 	for k in count + 1:
-		# (straight and level at both ends, so that it is easy to get on and off)
-		if k > 1 and k < count:
-			cx = clampf(cx + _rng.randf_range(5.0, 11.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -15.0, 15.0)
-			depth = clampi(depth + _rng.randi_range(-1, 1), 1, layers())
-		elif k == count:
-			depth = 1
+		# (straight and level at the start, so that it is easy to get on)
+		if k > 1:
+			if k < count:
+				cx = clampf(cx + _rng.randf_range(5.0, 11.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -15.0, 15.0)
+			if depth == aim:
+				aim = _rng.randi_range(1, deepest)
+			# (no more than two layers between one knot and the next: more is too steep)
+			depth += clampi(aim - depth, -2, 2)
 		xs.append(cx)
 		ds.append(float(depth))
 	var start := s + 25.0
 	var end := start + CURRENT_KNOT * count
 	if launch:
+		# the climb to the surface at the end is no steeper than the rest
 		ds[count] = 0.0
+		ds[count - 1] = minf(ds[count - 1], 2.0)
+		ds[count - 2] = minf(ds[count - 2], 4.0)
 		# rings in the air along the leap it throws you into
 		for i in 3:
 			var t := 0.45 + 0.4 * i
 			rings.append({"s": end + LAUNCH_SPEED * t, "x": cx, "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
 	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch})
 	return CURRENT_KNOT * count + 40.0
+
+
+## A trail of rings under the sea: a few on one layer, then a few on the next one down or up,
+## winding from side to side as it goes.
+func _plan_deep_rings(s: float) -> float:
+	var count := _rng.randi_range(9, 13)
+	var cx := _rng.randf_range(-5.0, 5.0)
+	var swing := _rng.randf_range(3.0, 6.0)
+	var ph := _rng.randf() * TAU
+	var layer := _rng.randi_range(1, layers())
+	for k in count:
+		var rs := s + 20.0 + 13.0 * k
+		if k > 0 and k % 4 == 0 and layers() > 1:
+			layer += 1 if (layer == 1 or (layer < layers() and _rng.randf() < 0.5)) else -1
+		rings.append({"s": rs, "x": cx + sin(ph + k * 0.6) * swing, "h": -layer * layer_depth() + 0.2, "ref": rs})
+	return 13.0 * count + 40.0
 
 
 ## A run of boost rings under the sea, strung along a curve that winds from side to side and
@@ -1019,6 +1046,7 @@ func _build_current(c: Dictionary) -> void:
 			for i: int in [a, b, a + 1, a + 1, b, b + 1]:
 				st.add_index(i)
 	_add_mesh(st.commit(), mat)
+	c.mat = mat
 	var arrows := SurfaceTool.new()
 	arrows.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for k in 3:

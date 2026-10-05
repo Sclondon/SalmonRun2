@@ -179,16 +179,22 @@ on its own along a trail of its own, whatever is on the surface above it
 (`deep` in `levels.gd`):
 
 - **Ocean currents** are rails under the water that wind about, from side to side and between
-  the layers. Swim into one (each starts one layer down, under a row of arrows on the
+  down and up through every layer there is. Swim into one (each starts a layer or two down, under a row of arrows on the
   surface) and it carries you off at boost speed, filling the boost bar and scoring by how
-  long you stay on. An up or down swipe leaves it early.
+  long you stay on. An up or down swipe leaves it early; otherwise it lets you go at whatever
+  depth it ends. It is drawn as a tube of solid streaks and hoops, under the water like
+  everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
-  rings. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you
+  rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you
   swim straight onto.
+- **Ring trails** run under the sea as well: a few rings on one layer, then a few on the next
+  one down or up.
 - **Boost rings** (pale blue) are strung in a curve down through the layers and back. Each is
   a ring and a surge of speed.
 - **Sea nettles** drift at every depth: amber jellyfish with long tentacles. Touching the
   bell or what trails under it stings (a stumble and lost speed, like a rock).
+- **Shoals of small fish** swim under the water on every stage, each at a depth of its own,
+  some with you and some the other way. They are scenery: nothing happens on touching them.
 
 ## 6. Scoring
 
@@ -224,13 +230,15 @@ on its own along a trail of its own, whatever is on the surface above it
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening
   out behind into a short V (it is a fish, not a boat) and fading, with the foam cleared
-  between them, small white dots of spray flicked off the shoulders,
+  between them, small white dots of spray tossed up off the shoulders (they stay round the
+  fish, and are not left strung out behind),
   and a string of bubbles when dived.
 - **Landing** throws up a splash that stays where the salmon went in: three tubes of water
   one inside the other, like the tiers of a cake (the outer wide and low, the inner narrow
   and tall), with ragged crests and water streaming down them. They shoot up and drop back,
   with ripples across the surface, splattery drops and a spray of small dots. Its size follows how hard the landing
-  was.
+  was. (A few splashes are built once and used in turn: building one for each leap and
+  landing made the game stumble at those moments.)
 - **The salmon you play changes with its life.** On the way up it is the silver ocean adult
   at sea, the migrating adult (silver turning red) in the lower rivers, and the red and
   green spawner with its humped back and hooked jaw from the upper rivers on. On the way
@@ -330,7 +338,7 @@ and the music and sound effects are synthesized offline by scripts in the projec
 | Course generation from a stage | `scripts/world/track.gd` |
 | Procedural meshes | `scripts/world/props.gd` |
 | The salmon: movement, tricks, hazards, autopilot | `scripts/player/salmon.gd` |
-| The other salmon | `scripts/world/school.gd` |
+| The other salmon, and shoals of small fish | `scripts/world/school.gd`, `scripts/world/shoals.gd` |
 | Predators | `scripts/world/bear.gd` |
 | Camera | `scripts/world/chase_camera.gd` |
 | Splash and wake | `scripts/fx/splash.gd`, `scripts/fx/wake.gd` (the wake is drawn in `shaders/water.gdshader`) |

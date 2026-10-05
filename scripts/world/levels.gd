@@ -57,9 +57,9 @@ const LIST: Array[Dictionary] = [
 		"kinds": ["rings", "rails", "rings", "predators"],
 		# no ramps out here: the way into the air is a current that rises to the surface
 		"ramps": false,
-		# under the sea, laid out on its own: currents to ride, ones that launch you, runs of
-		# boost rings and drifts of sea nettles
-		"deep": ["currents", "surge", "launch", "jellies"],
+		# under the sea, laid out on its own: currents to ride (one in three launches you), trails
+		# of rings, runs of boost rings and drifts of sea nettles
+		"deep": ["currents", "rings", "jellies", "surge", "currents", "rings", "launch", "jellies"],
 		# the deepest water there is: six layers under the surface
 		"layers": 6, "layer_depth": 3.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
@@ -104,7 +104,7 @@ const LIST: Array[Dictionary] = [
 		"kinds": ["rings", "rocks", "ramps", "rails", "rocks", "predators", "ramps"],
 		# two layers down, over a floor not far under them
 		"layers": 2, "layer_depth": 2.6,
-		"deep": ["surge", "jellies", "currents", "jellies", "launch"],
+		"deep": ["rings", "jellies", "currents", "surge", "jellies", "currents", "rings", "launch"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.2, 0.3, 0.3), Color(0.2, 0.3, 0.3), Color(0.2, 0.3, 0.3)],
@@ -489,7 +489,7 @@ const LIST: Array[Dictionary] = [
 		"seed": 5313, "length": 2800.0,
 		"width": 110.0, "slope": 0.0, "curve": 0.4, "spacing": 1.5,
 		"layers": 3, "layer_depth": 3.6,
-		"deep": ["jellies", "currents", "surge", "jellies", "launch"],
+		"deep": ["jellies", "currents", "rings", "surge", "jellies", "currents", "rings", "launch"],
 		"kinds": ["rings", "rocks", "predators", "ramps", "rails", "rings"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],

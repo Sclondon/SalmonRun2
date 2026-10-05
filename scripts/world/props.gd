@@ -1124,3 +1124,23 @@ static func shark_whole() -> ArrayMesh:
 			var c := Vector3(sx * (0.4 + 0.012 * g), 0.0, -1.12 + 0.11 * g)
 			mb.quad(c + Vector3(0, 0.17, -0.015), c + Vector3(0, 0.17, 0.015), c + Vector3(0, -0.17, 0.015), c + Vector3(0, -0.17, -0.015), dark, Vector3(sx, 0, 0))
 	return mb.build()
+
+
+## A small fish of the kind that goes about in shoals (a herring, say): a few flat faces, as
+## there are a great many of them. Its nose is at -z.
+static func small_fish(back: Color, flank: Color) -> ArrayMesh:
+	var mb := MB.new()
+	var nose := Vector3(0.0, 0.0, -0.5)
+	var tail := Vector3(0.0, 0.0, 0.32)
+	var top := Vector3(0.0, 0.16, -0.08)
+	var bottom := Vector3(0.0, -0.14, -0.08)
+	for side: float in [-1.0, 1.0]:
+		var mid := Vector3(side * 0.07, 0.0, -0.1)
+		var out := Vector3(side, 0.0, 0.0)
+		mb.tri(nose, top, mid, back, out + Vector3.UP)
+		mb.tri(top, tail, mid, back, out + Vector3.UP)
+		mb.tri(nose, mid, bottom, flank, out + Vector3.DOWN)
+		mb.tri(mid, tail, bottom, flank, out + Vector3.DOWN)
+		# the tail fin, seen from both sides
+		mb.tri(tail, Vector3(0.0, 0.17, 0.56), Vector3(0.0, -0.17, 0.56), back, out)
+	return mb.build()

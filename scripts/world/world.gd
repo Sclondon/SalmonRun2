@@ -6,11 +6,13 @@ const Salmon := preload("res://scripts/player/salmon.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const School := preload("res://scripts/world/school.gd")
+const Shoals := preload("res://scripts/world/shoals.gd")
 
 var track: Track
 var player: Salmon
 var camera: ChaseCam
 var school: School
+var shoals: Shoals
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -32,6 +34,9 @@ func _ready() -> void:
 	school = School.new()
 	add_child(school)
 	school.setup(track, player, 5 if Save.is_mobile() else 8)
+	shoals = Shoals.new()
+	add_child(shoals)
+	shoals.setup(track, player, 5 if Save.is_mobile() else 9, 9 if Save.is_mobile() else 14)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
@@ -72,6 +77,8 @@ func set_course(level: int, test: bool, down := false) -> void:
 	camera.track = track
 	school.track = track
 	school.scatter()
+	shoals.track = track
+	shoals.scatter()
 	camera.snap()
 
 
