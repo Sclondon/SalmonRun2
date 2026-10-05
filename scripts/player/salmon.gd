@@ -13,7 +13,7 @@ signal landed(impact: float)
 ## Dived under the surface (true) or came back up to it (false).
 signal dived(down: bool)
 
-enum State { IDLE, SWIM, AIR, GRIND, WIPEOUT }
+enum State { IDLE, SWIM, AIR, GRIND, WIPEOUT, CURRENT }
 
 const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
@@ -43,9 +43,8 @@ const SPIN := 0
 const FLIP := 1
 const TRICK_TIME := [0.4, 0.5]
 const TRICK_WINDUP := 0.16
-## Diving: how far under the surface the lower layer is (metres), and how long it takes to get
-## there or back.
-const DIVE_DEPTH := 1.7
+## Diving: how long it takes to get down a layer or back up one. (How many layers there are and
+## how far apart is the stage's business: see Track.layers.)
 const DIVE_TIME := 0.22
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
@@ -74,9 +73,12 @@ var wipe_time := 0.0
 var invuln := 0.0
 var control := false
 var autopilot := false
-## Swimming one layer under the surface, and how far down it has got so far (0 to 1)
+## Dived under the surface, to which layer (0 is the surface), and how far down it has got so
+## far, in layers
 var under := false
+var layer := 0
 var dive := 0.0
+var _current_wait := 0.0
 
 var _yaw_v := 0.0
 var _pitch_v := 0.0
@@ -241,6 +243,7 @@ func reset(at_s: float) -> void:
 	_land_twist = 0.0
 	_prev_surface = y
 	under = false
+	layer = 0
 	dive = 0.0
 	state = State.IDLE
 	Sfx.set_loop("grind", false)
@@ -278,6 +281,8 @@ func _process(delta: float) -> void:
 			_air(delta, inp)
 		State.GRIND:
 			_grind(delta, inp, released)
+		State.CURRENT:
+			_ride(delta, inp, released)
 		State.WIPEOUT:
 			_wipeout(delta)
 	if state != State.IDLE and state != State.GRIND:
@@ -288,6 +293,13 @@ func _process(delta: float) -> void:
 		if got > 0:
 			boost = minf(boost + 8.0 * got, 100.0)
 			ring_collected.emit(got)
+		# a boost ring under the sea is a surge of speed as well
+		if track.surge > 0:
+			track.surge = 0
+			speed += 11.0
+			boost = minf(boost + 12.0, 100.0)
+			_stretch_v += 6.0
+			Sfx.play("boost", 1.4, -5.0)
 	_update_visual(delta)
 
 
@@ -302,7 +314,7 @@ func _read_input(delta: float) -> Dictionary:
 		if Input.is_action_pressed("grab_%d" % (i + 1)):
 			g = i
 	if Input.is_action_just_pressed("dive") and state == State.SWIM:
-		swipes.append(Vector2.UP if under else Vector2.DOWN)
+		swipes.append(Vector2.DOWN)
 	var steer := Input.get_axis("steer_left", "steer_right")
 	if GameInput.follow:
 		steer = clampf(GameInput.follow_dx * FOLLOW_GAIN, -1.0, 1.0)
@@ -349,7 +361,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	var surf := track.surface_y(s, x)
 	# a ramp is solid all the way down: coming up to one brings you back to the surface
 	if under and track.ramp_height(s + 3.0, x) > 0.0:
-		_set_under(false)
+		_set_layer(0)
 	if surf < _prev_surface - 0.6:
 		# the surface fell away under us: end of a ramp or a waterfall lip
 		y = _prev_surface
@@ -362,34 +374,103 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
 	_ramp_vy = clampf(climb, 0.0, 20.0)
-	# The two layers: on the surface, or dived to one layer under it. Swiping up comes up a
-	# layer (and from the surface, jumps); swiping down goes down one.
-	dive = move_toward(dive, 1.0 if under else 0.0, dt / DIVE_TIME)
-	y = surf - DIVE_DEPTH * smoothstep(0.0, 1.0, dive)
+	# The layers: the surface, and one or more dived under it (a river has one, the open
+	# ocean several). Swiping down goes down one; swiping up comes up one (and from the
+	# surface, jumps).
+	dive = move_toward(dive, float(layer), dt / DIVE_TIME)
+	y = surf - track.layer_depth() * dive
 	_prev_surface = surf
+	_current_wait = maxf(_current_wait - dt, 0.0)
 	var up := released or _swiped_up(inp)
-	if under or dive > 0.35:
+	var down := (inp.swipes as Array).has(Vector2.DOWN)
+	if layer > 0 or dive > 0.35:
 		if up:
-			_set_under(false)
+			_set_layer(layer - 1)
+		elif down:
+			_set_layer(layer + 1)
+		elif _current_wait <= 0.0:
+			_try_current()
 	elif released:
 		vy = 7.0 + 8.0 * charge + _ramp_vy
 		_take_off()
 	elif up:
 		vy = 7.0 + 8.0 * SWIPE_JUMP + _ramp_vy
 		_take_off()
-	elif (inp.swipes as Array).has(Vector2.DOWN):
-		_set_under(true)
+	elif down:
+		_set_layer(1)
 
 
-## Dives one layer under the water, or comes back up to the surface.
-func _set_under(down: bool) -> void:
-	if under == down:
+## Dives to a layer under the water (0 is the surface).
+func _set_layer(to: int) -> void:
+	to = clampi(to, 0, track.layers())
+	if to == layer:
 		return
-	under = down
+	var deeper := to > layer
+	layer = to
+	under = layer > 0
 	charge = 0.0
-	_do_splash(0.5)
+	# (only breaking the surface splashes)
+	if dive < 1.0:
+		_do_splash(0.5)
 	_stretch_v += 4.0
-	dived.emit(down)
+	dived.emit(deeper)
+
+
+# ================================================================== ocean currents
+
+## Swimming into a current under the sea carries the salmon off along it.
+func _try_current() -> void:
+	var depth := track.layer_depth() * dive
+	for c: Dictionary in track.currents:
+		if s < float(c.s0) or s > float(c.s1) - 30.0:
+			continue
+		if absf(x - track.current_x(c, s)) < 2.2 and absf(depth - track.current_depth(c, s)) < 1.3:
+			state = State.CURRENT
+			rail = c
+			rail_time = 0.0
+			charge = 0.0
+			vx = 0.0
+			_stretch_v += 6.0
+			Sfx.play("boost", 1.2, -4.0)
+			return
+
+
+## Riding a current: it sets the way, fast, like a rail. An up or down swipe leaves it early.
+func _ride(dt: float, inp: Dictionary, released: bool) -> void:
+	rail_time += dt
+	boosting = true
+	boost = minf(boost + 12.0 * dt, 100.0)
+	speed = move_toward(speed, CRUISE + BOOST_SPEED + 4.0, 22.0 * dt)
+	var prev_x := x
+	s += speed * dt
+	x = lerpf(x, track.current_x(rail, s), 1.0 - exp(-14.0 * dt))
+	vx = (x - prev_x) / maxf(dt, 0.001)
+	var depth := lerpf(track.layer_depth() * dive, track.current_depth(rail, s), 1.0 - exp(-14.0 * dt))
+	dive = depth / track.layer_depth()
+	layer = clampi(roundi(dive), 1, track.layers())
+	under = true
+	_prev_surface = track.surface_y(s, x)
+	y = track.water_y(s) - depth
+	var up := released or _swiped_up(inp)
+	var down := (inp.swipes as Array).has(Vector2.DOWN)
+	var done := s >= float(rail.s1)
+	if done and rail.get("launch", false):
+		# it comes up to the surface and throws the salmon into the air
+		trick_landed.emit(_on_beat("Ocean Current", 150 + int(rail_time * 250.0)))
+		y = track.water_y(s)
+		vy = Track.LAUNCH_VY
+		vx = 0.0
+		_do_splash(1.2)
+		_take_off()
+		return
+	if up or down or done:
+		state = State.SWIM
+		boosting = false
+		vx = 0.0
+		_current_wait = 0.9
+		trick_landed.emit(_on_beat("Ocean Current", 150 + int(rail_time * 250.0)))
+		if up or down:
+			_set_layer(layer + (1 if down else -1))
 
 
 func _swiped_up(inp: Dictionary) -> bool:
@@ -407,6 +488,7 @@ func _take_off() -> void:
 	_roll_v = 0.0
 	_trick_t = [-1.0, -1.0]
 	under = false
+	layer = 0
 	dive = 0.0
 	_trick_wait = [0.0, 0.0]
 	grabs.clear()
@@ -624,6 +706,7 @@ func _try_catch_rail() -> bool:
 func _start_grind(r: Dictionary) -> void:
 	state = State.GRIND
 	under = false
+	layer = 0
 	dive = 0.0
 	rail = r
 	rail_time = 0.0
@@ -663,6 +746,7 @@ func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 func _wipe(reason: String) -> void:
 	state = State.WIPEOUT
 	under = false
+	layer = 0
 	dive = 0.0
 	wipe_time = 0.0
 	grab = -1
@@ -693,6 +777,7 @@ func _wash_back(base: float) -> void:
 	speed = 12.0
 	state = State.SWIM
 	under = false
+	layer = 0
 	dive = 0.0
 	charge = 0.0
 	grab = -1
@@ -708,14 +793,14 @@ func _wash_back(base: float) -> void:
 
 
 ## Glancing off a rock: knocked sideways and slowed, but still steerable.
-func _bump(rock_x: float) -> void:
+func _bump(rock_x: float, word := "ROCKED!") -> void:
 	speed *= 0.6
 	vx = (8.0 if x >= rock_x else -8.0)
 	charge = 0.0
 	invuln = 0.8
 	_stumble = 0.5
 	_do_splash(0.9)
-	bumped.emit("ROCKED!")
+	bumped.emit(word)
 
 
 func _wipeout(dt: float) -> void:
@@ -762,6 +847,13 @@ func _check_hazards() -> void:
 				else:
 					_wipe("ROCKED!")
 				return
+	# a sea nettle stings whatever touches its bell or swims through what trails under it
+	for j: Dictionary in track.jellies:
+		var ds: float = s - float(j.s)
+		var over := above + float(j.d)
+		if absf(ds) < 3.0 and Vector2(ds, x - float(j.x)).length() < 1.7 and over < 1.2 and over > -3.0:
+			_bump(float(j.x), "STUNG!")
+			return
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)
 		# ...and under the paws of a bear, but a shark comes from below
@@ -805,10 +897,10 @@ func _update_visual(dt: float) -> void:
 	_prev_pitch = pitch
 	_prev_vx = vx
 	match state:
-		State.IDLE, State.SWIM:
+		State.IDLE, State.SWIM, State.CURRENT:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
 			# nose down on the way under, nose up on the way back
-			var tip := ((1.0 if under else 0.0) - dive) * 0.7
+			var tip := clampf(float(layer) - dive, -1.0, 1.0) * 0.7
 			_land_twist = lerpf(_land_twist, 0.0, 1.0 - exp(-8.0 * dt))
 			if _stumble > 0.0:
 				_stumble = maxf(_stumble - dt, 0.0)
@@ -878,7 +970,7 @@ func _update_visual(dt: float) -> void:
 	for trail in _wake:
 		trail.emitting = state == State.SWIM and speed > 5.0 and dive < 0.3
 	_bow.emitting = state == State.SWIM and speed > 12.0 and dive < 0.3
-	_bubbles.emitting = state == State.SWIM and dive > 0.5
+	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
 	_spray.emitting = state == State.AIR or state == State.GRIND
 
 

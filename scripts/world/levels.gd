@@ -24,6 +24,12 @@ extends RefCounted
 ##          the usual 45 to 80 m).
 ## floor:   open sea only: how far down the sea floor is (metres); it replaces the river bed
 ##          and banks with a sheet of hills way below the water.
+## layers:  how many layers there are to dive to under the surface (1 if not given), and
+##          layer_depth, how many metres apart they are (1.7).
+## deep:    what is under the sea, in turn, all the way along: "currents" (a winding current
+##          to ride like a rail), "launch" (one that rises to the surface and throws you into
+##          the air), "surge" (a run of boost rings), "jellies" (sea nettles to keep clear of).
+## ramps:   false for a stage with no jump ramps.
 ## water_*: any setting of the water shader (see shaders/water.gdshader), e.g. water_deep,
 ##          water_foam_amount, water_depth_range, water_rim_width.
 ## kinds:   what the course is made of ("ramps", "rails", "rocks", "rings", "predators").
@@ -42,7 +48,14 @@ const LIST: Array[Dictionary] = [
 		# the gentlest start: open water five times the width of a river, long empty stretches, and almost
 		# nothing to hit (no rock fields; a pair of sharks now and then)
 		"width": 140.0, "slope": 0.0, "curve": 0.3, "spacing": 2.2,
-		"kinds": ["rings", "ramps", "rings", "rails", "ramps", "rings", "ramps", "predators"],
+		"kinds": ["rings", "rails", "rings", "predators"],
+		# no ramps out here: the way into the air is a current that rises to the surface
+		"ramps": false,
+		# under the sea, laid out on its own: currents to ride, ones that launch you, runs of
+		# boost rings and drifts of sea nettles
+		"deep": ["currents", "surge", "launch", "jellies"],
+		# the one place deep enough to dive more than once: three layers under the surface
+		"layers": 3, "layer_depth": 2.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.06, 0.14), Color(0.02, 0.05, 0.12), Color(0.02, 0.05, 0.12)],

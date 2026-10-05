@@ -16,6 +16,12 @@ const CHUNK := 100
 const GROUP_LEN := 400.0
 const START_S := 30.0
 const RAIL_H := 1.2
+## Metres between the knots an ocean current winds through.
+const CURRENT_KNOT := 26.0
+## A current that ends at the surface throws the salmon into the air: how fast it is going
+## along the course by then, and how fast upwards.
+const LAUNCH_SPEED := 46.0
+const LAUNCH_VY := 14.0
 const GRAVITY := 24.0
 
 var length := 3400.0
@@ -40,6 +46,10 @@ var pools: Array = []        # {s0, s1}
 var ramps: Array = []        # {s, x, w, len, h}
 var rocks: Array = []        # {s, x, r}
 var rails: Array = []        # {s0, s1, x0, x1}
+var currents: Array = []     # {s0, s1, xs, ds, off}: see current_x()
+var jellies: Array = []      # {s, x, d, node}: d is metres under the surface
+## Boost rings swum through since the salmon last looked (it sets this back to 0).
+var surge := 0
 var rings: Array = []        # {s, x, h, ref, pos, node, taken}
 var bears: Array = []        # {s, x, node}
 
@@ -161,6 +171,32 @@ func rail_x(r: Dictionary, s: float) -> float:
 	return lerpf(r.x0, r.x1, clampf((s - r.s0) / (r.s1 - r.s0), 0.0, 1.0))
 
 
+## How many layers there are to dive to under the surface, and how far apart they are.
+func layers() -> int:
+	return int(cfg.get("layers", 1))
+
+
+func layer_depth() -> float:
+	return float(cfg.get("layer_depth", 1.7))
+
+
+## An ocean current is a rail under the water that winds about: where it is across the course
+## at s, and how far under the surface (metres). Both are smooth curves through its knots.
+func current_x(c: Dictionary, s: float) -> float:
+	return float(c.off) + _spline(c.xs, (s - float(c.s0)) / CURRENT_KNOT)
+
+
+func current_depth(c: Dictionary, s: float) -> float:
+	return maxf(_spline(c.ds, (s - float(c.s0)) / CURRENT_KNOT), 0.0) * layer_depth()
+
+
+func _spline(knots: PackedFloat32Array, f: float) -> float:
+	var last := knots.size() - 1
+	f = clampf(f, 0.0, float(last))
+	var i := mini(int(f), last - 1)
+	return cubic_interpolate(knots[i], knots[i + 1], knots[maxi(i - 1, 0)], knots[mini(i + 2, last)], f - i)
+
+
 ## Returns the (x, y-above-water) profile of one bank, from the water's edge outwards.
 func bank_profile(s: float, side: float) -> PackedVector2Array:
 	var hw := width(s) * 0.5
@@ -203,6 +239,8 @@ func collect_rings(pos: Vector3) -> int:
 			r.taken = true
 			(r.node as Node3D).visible = false
 			got += 1
+			if r.get("boost", false):
+				surge += 1
 	return got
 
 
@@ -223,6 +261,12 @@ func _process(_delta: float) -> void:
 		var node: Node3D = r.node
 		node.scale = Vector3.ONE * (1.0 + pulse * 0.25)
 		node.position.y = (r.pos as Vector3).y + sin(t * 2.0 + r.s * 0.1) * 0.15
+	# sea nettles pulse, and drift up and down a little
+	for j: Dictionary in jellies:
+		var beat := sin(t * 2.6 + float(j.s))
+		var node: Node3D = j.node
+		node.scale = Vector3(1.0 - beat * 0.09, 1.0 + beat * 0.14, 1.0 - beat * 0.09) * 1.25
+		node.position.y = float(j.y) + sin(t * 0.9 + float(j.s) * 0.3) * 0.25
 
 
 # ================================================================== planning
@@ -245,7 +289,7 @@ func _plan_features() -> void:
 				kind = kinds[(kinds.find(kind) + 1) % kinds.size()]
 		last = kind
 		var used := 0.0
-		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size()}
+		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
 		match kind:
 			"falls", "bear_falls":
 				used = _plan_falls(s, kind == "bear_falls")
@@ -258,6 +302,12 @@ func _plan_features() -> void:
 				used = _plan_rocks(s)
 			"rings":
 				used = _plan_ring_trail(s)
+			"surge":
+				used = _plan_surge(s)
+			"jellies":
+				used = _plan_jellies(s)
+			"currents":
+				used = _plan_current(s, false)
 			"predators":
 				used = _plan_predators(s)
 		if room > 0.0:
@@ -267,6 +317,34 @@ func _plan_features() -> void:
 		s += used + gap
 		since_fall += used + gap
 	finish_s = length - 150.0
+	_plan_deep()
+
+
+## What is under the sea is laid out on its own, from one end of the course to the other,
+## whatever is on the surface above it: the things in the stage's "deep" list, in turn.
+func _plan_deep() -> void:
+	var deep: Array = cfg.get("deep", [])
+	if deep.is_empty():
+		return
+	var s := 260.0
+	var shift := 0.0
+	var k := 0
+	while s < length - 480.0:
+		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
+		var used := 0.0
+		match str(deep[k % deep.size()]):
+			"currents":
+				used = _plan_current(s, false)
+			"launch":
+				used = _plan_current(s, true)
+			"surge":
+				used = _plan_surge(s)
+			"jellies":
+				used = _plan_jellies(s)
+		k += 1
+		shift = clampf(shift + _rng.randf_range(-30.0, 30.0), -lane_room(), lane_room())
+		_slide(from, shift)
+		s += used + _rng.randf_range(30.0, 70.0)
 
 
 ## How far the pieces of a very wide course can be moved off its middle (0 on a river).
@@ -289,6 +367,10 @@ func _slide(from: Dictionary, shift: float) -> void:
 	for i in range(int(from.rails), rails.size()):
 		rails[i].x0 = float(rails[i].x0) + shift
 		rails[i].x1 = float(rails[i].x1) + shift
+	for i in range(int(from.currents), currents.size()):
+		currents[i].off = shift
+	for i in range(int(from.jellies), jellies.size()):
+		jellies[i].x = float(jellies[i].x) + shift
 
 
 ## Fixed layout, in the order you'd want to learn things: steer, jump, ramps, a rail,
@@ -296,6 +378,7 @@ func _slide(from: Dictionary, shift: float) -> void:
 func _plan_test() -> void:
 	length = 1500.0
 	finish_s = length - 150.0
+	_plan_deep()
 	# steering: a ring slalom on the water that gets wider
 	for k in 18:
 		var rs := 110.0 + k * 13.0
@@ -401,7 +484,9 @@ func _plan_ramps(s: float) -> float:
 
 func _plan_rails(s: float) -> float:
 	var rx := _rng.randf_range(-5.0, 5.0)
-	ramps.append({"s": s, "x": rx, "w": 5.0, "len": 9.0, "h": 2.6})
+	# (where there are no ramps, both rails are ones to swim straight onto)
+	if cfg.get("ramps", true):
+		ramps.append({"s": s, "x": rx, "w": 5.0, "len": 9.0, "h": 2.6})
 	var r_len := _rng.randf_range(45.0, 75.0)
 	rails.append({"s0": s + 20.0, "s1": s + 20.0 + r_len, "x0": rx, "x1": clampf(rx + _rng.randf_range(-4.0, 4.0), -7.0, 7.0)})
 	if _rng.randf() < 0.6:
@@ -409,6 +494,61 @@ func _plan_rails(s: float) -> float:
 		var x2 := -rx if absf(rx) > 2.5 else rx + 6.0
 		rails.append({"s0": s + 35.0, "s1": s + 35.0 + r_len * 0.7, "x0": x2, "x1": x2})
 	return r_len + 30.0
+
+
+## A current under the sea: it starts one layer down (a single dive from the surface catches
+## it), winds from side to side and between the layers, and ends one layer down again. Or it
+## is a launch: it ends by rising to the surface, and throws the salmon into the air.
+func _plan_current(s: float, launch: bool) -> float:
+	var count := _rng.randi_range(6, 9)
+	var xs := PackedFloat32Array()
+	var ds := PackedFloat32Array()
+	var cx := _rng.randf_range(-4.0, 4.0)
+	var depth := 1
+	for k in count + 1:
+		# (straight and level at both ends, so that it is easy to get on and off)
+		if k > 1 and k < count:
+			cx = clampf(cx + _rng.randf_range(5.0, 11.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -15.0, 15.0)
+			depth = clampi(depth + _rng.randi_range(-1, 1), 1, layers())
+		elif k == count:
+			depth = 1
+		xs.append(cx)
+		ds.append(float(depth))
+	var start := s + 25.0
+	var end := start + CURRENT_KNOT * count
+	if launch:
+		ds[count] = 0.0
+		# rings in the air along the leap it throws you into
+		for i in 3:
+			var t := 0.45 + 0.4 * i
+			rings.append({"s": end + LAUNCH_SPEED * t, "x": cx, "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
+	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch})
+	return CURRENT_KNOT * count + 40.0
+
+
+## A run of boost rings under the sea, strung along a curve that winds from side to side and
+## down through the layers: each one swum through is a surge of speed.
+func _plan_surge(s: float) -> float:
+	var count := _rng.randi_range(6, 9)
+	var cx := _rng.randf_range(-5.0, 5.0)
+	var swing := _rng.randf_range(4.0, 8.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
+	var wave := _rng.randf_range(0.5, 0.8)
+	for k in count:
+		var rs := s + 25.0 + 17.0 * k
+		# (the first is one layer down, where a single dive finds it)
+		var layer := 1.0 + (layers() - 1) * (0.5 - 0.5 * cos(PI * k / maxf(count - 1.0, 1.0) * 2.0))
+		rings.append({"s": rs, "x": cx + sin(k * wave) * swing, "h": -layer * layer_depth() + 0.2, "ref": rs, "boost": true})
+	return 17.0 * count + 40.0
+
+
+## A drift of sea nettles under the surface, at every depth: swim round them, or over them.
+func _plan_jellies(s: float) -> float:
+	var zone := 130.0
+	var count := _rng.randi_range(7, 11)
+	for k in count:
+		var js := s + 15.0 + (zone - 20.0) * (k + _rng.randf() * 0.6) / count
+		jellies.append({"s": js, "x": _rng.randf_range(-13.0, 13.0), "d": _rng.randi_range(1, layers()) * layer_depth()})
+	return zone
 
 
 func _plan_rocks(s: float) -> float:
@@ -674,13 +814,22 @@ func _build_features() -> void:
 
 	for r: Dictionary in rails:
 		_build_rail(r)
+	for j: Dictionary in jellies:
+		var nettle := _add_mesh(Props.sea_nettle(frng), mat_world)
+		nettle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		j.y = water_y(j.s) - float(j.d)
+		nettle.transform = Transform3D(Basis(Vector3.UP, frng.randf() * TAU), point(j.s, j.x, j.y))
+		j.node = nettle
+	for c: Dictionary in currents:
+		_build_current(c)
 
 	_ring_root = Node3D.new()
 	add_child(_ring_root)
 	var ring_mesh := Props.ring()
+	var boost_mesh := Props.ring(1.9, 0.2, Color(0.4, 1.0, 0.95), Color(0.85, 1.0, 1.0))
 	for r: Dictionary in rings:
 		var mi := MeshInstance3D.new()
-		mi.mesh = ring_mesh
+		mi.mesh = boost_mesh if r.get("boost", false) else ring_mesh
 		mi.material_override = mat_world
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_ring_root.add_child(mi)
@@ -721,6 +870,48 @@ func _place_facing_river(mesh: Mesh, s: float, side: float, dist: float, sc: flo
 	var b := Basis.looking_at(face, Vector3.UP).scaled(Vector3.ONE * sc)
 	# out at sea there is no bank to stand on, so it floats
 	mi.transform = Transform3D(b, point(s, side * dist, maxf(bank_y(s, side, dist), water_y(s) + 0.3) - 0.3))
+
+
+## A current is drawn as a tube of streaks running the way it flows, with a row of arrows on
+## the surface over its mouth that point down to it.
+func _build_current(c: Dictionary) -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/current.gdshader")
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sides := 8
+	var rows := int((float(c.s1) - float(c.s0)) / 2.0)
+	for k in rows + 1:
+		var s: float = float(c.s0) + 2.0 * k
+		var mid := point(s, current_x(c, s), water_y(s) - current_depth(c, s))
+		var across := right(s)
+		# (it opens out of nothing and closes to nothing)
+		var radius := 1.25 * smoothstep(0.0, 4.0, float(mini(k, rows - k)))
+		for j in sides + 1:
+			var a := TAU * j / sides
+			st.set_uv(Vector2(s / 6.0, float(j) / sides))
+			st.add_vertex(mid + (across * cos(a) + Vector3.UP * sin(a)) * radius)
+	for k in rows:
+		for j in sides:
+			var a := k * (sides + 1) + j
+			var b := a + sides + 1
+			for i: int in [a, b, a + 1, a + 1, b, b + 1]:
+				st.add_index(i)
+	_add_mesh(st.commit(), mat)
+	var arrows := SurfaceTool.new()
+	arrows.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in 3:
+		var s: float = float(c.s0) - 4.0 + 5.0 * k
+		var top := point(s, current_x(c, s), water_y(s) + 1.5 - 0.25 * k)
+		var across := right(s) * 0.9
+		for v: Vector3 in [top - across, top + across, top - Vector3.UP * 0.9]:
+			arrows.set_color(Color(0.55, 1.0, 0.95))
+			arrows.add_vertex(v)
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.vertex_color_use_as_albedo = true
+	glow.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_add_mesh(arrows.commit(), glow)
 
 
 func _build_rail(r: Dictionary) -> void:

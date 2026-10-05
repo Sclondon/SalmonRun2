@@ -413,12 +413,12 @@ static func ramp(w: float, length: float, h: float, rng: RandomNumberGenerator,
 	return mb.build()
 
 
-static func ring(radius := 1.8, tube := 0.24) -> ArrayMesh:
+static func ring(radius := 1.8, tube := 0.24, colour := Color(1.0, 0.78, 0.2), colour2 := Color(1.0, 0.55, 0.15)) -> ArrayMesh:
 	var mb := MB.new()
 	var seg := 12
 	var tseg := 4
-	var gold := glow(Color(1.0, 0.78, 0.2), 0.55)
-	var gold2 := glow(Color(1.0, 0.55, 0.15), 0.55)
+	var gold := glow(colour, 0.55)
+	var gold2 := glow(colour2, 0.55)
 	for i in seg:
 		for j in tseg:
 			var p := func(ii: int, jj: int) -> Vector3:
@@ -914,4 +914,33 @@ static func splat(rng: RandomNumberGenerator) -> ArrayMesh:
 	blob(mb, Vector3.ZERO, Vector3(0.5, 0.3, 0.42), rng, WATER_WHITE, 6, 3, 0.3, 0.02)
 	blob(mb, Vector3(-0.5, 0.05, 0.0), Vector3(0.28, 0.16, 0.2), rng, WATER_BLUE, 5, 3, 0.3, 0.02)
 	blob(mb, Vector3(-0.85, 0.1, 0.05), Vector3(0.13, 0.1, 0.1), rng, WATER_WHITE, 4, 2, 0.2, 0.02)
+	return mb.build()
+
+
+## A sea nettle: an amber bell with dark stripes down it, frilly pale arms under the middle
+## and long thin tentacles trailing from the rim.
+static func sea_nettle(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	var amber := glow(Color(1.0, 0.62, 0.22), 0.45)
+	var stripe := glow(Color(0.62, 0.2, 0.1), 0.3)
+	var pale := glow(Color(1.0, 0.9, 0.78), 0.5)
+	blob(mb, Vector3(0.0, 0.2, 0.0), Vector3(0.85, 0.6, 0.85), rng, amber, 8, 4, 0.04)
+	for k in 8:
+		var a := TAU * k / 8.0
+		var out := Vector3(cos(a), 0.0, sin(a))
+		var side := Vector3(-sin(a), 0.0, cos(a))
+		# a stripe from the crown to the rim
+		mb.tri(Vector3(0.0, 0.84, 0.0), out * 0.9 + side * 0.09 + Vector3(0.0, 0.1, 0.0), out * 0.9 - side * 0.09 + Vector3(0.0, 0.1, 0.0), stripe, out + Vector3.UP)
+		# a tentacle, hanging in a slight curve
+		var top := out * 0.78 + Vector3(0.0, 0.05, 0.0)
+		var mid := out * 0.95 + Vector3(rng.randf_range(-0.2, 0.2), -1.4, rng.randf_range(-0.2, 0.2))
+		var tip := out * 0.7 + Vector3(rng.randf_range(-0.3, 0.3), -rng.randf_range(2.6, 3.6), rng.randf_range(-0.3, 0.3))
+		frustum(mb, top, mid, 0.05, 0.035, 3, stripe, false)
+		frustum(mb, mid, tip, 0.035, 0.01, 3, stripe, false)
+	for k in 4:
+		var a := TAU * k / 4.0 + 0.4
+		var o := Vector3(cos(a), 0.0, sin(a)) * 0.22
+		var end := o * 1.6 + Vector3(0.0, -rng.randf_range(1.5, 2.1), 0.0)
+		frustum(mb, o, o.lerp(end, 0.5) + Vector3(0.12, 0.0, -0.1), 0.2, 0.15, 4, pale, false, rng)
+		frustum(mb, o.lerp(end, 0.5) + Vector3(0.12, 0.0, -0.1), end, 0.15, 0.03, 4, pale, false, rng)
 	return mb.build()

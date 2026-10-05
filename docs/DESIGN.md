@@ -138,9 +138,9 @@ avoid rocks, ride ramps and leap falls. They are company only.
 
 | Gesture | On the water | In the air |
 |---|---|---|
-| Hold | the salmon swims to under your finger | |
+| Hold | the salmon swims towards your finger: it stays in the middle of the screen, so a finger held to one side keeps it going that way | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
-| Swipe down | dive one layer under the surface | frontflip |
+| Swipe down | dive one layer deeper | frontflip |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
 | Wiggle back and forth | boost | |
 | Circles | boost | corkscrew, the way the finger goes round |
@@ -150,18 +150,35 @@ Touch has no grabs yet.
 **Keyboard / gamepad** keep the fuller set: steer, swim harder or brake, hold-and-release
 jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 
-### The two layers
+### The layers under the water
 
-The salmon swims in one of two layers: on the surface, or **dived** one layer (1.7 m) under
-it. Swiping down dives; swiping up comes back up (and from the surface, jumps). Steering and
-speed are the same in both.
+The salmon swims on the surface or **dived** under it. Swiping down goes down a layer;
+swiping up comes up one (and from the surface, jumps). Steering and speed are the same at
+every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
+three, 2.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
   barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
   comes from below.
-- Rings and rails are on the surface, and a ramp is solid all the way down: coming up to one
-  brings you back to the surface.
-- Nothing is built for the lower layer yet. It is there to design levels round.
+- A ramp is solid all the way down: coming up to one brings you back to the surface.
+- **Under water the camera goes under too**, and the picture changes: it sways, takes the
+  colour of the water, shafts of light slant down from the surface, the distance goes murky
+  and the music is muffled.
+
+What is under the Open Ocean is laid out on its own, whatever is on the surface above it
+(`deep` in `levels.gd`):
+
+- **Ocean currents** are rails under the water that wind about, from side to side and between
+  the layers. Swim into one (each starts one layer down, under a row of arrows on the
+  surface) and it carries you off at boost speed, filling the boost bar and scoring by how
+  long you stay on. An up or down swipe leaves it early.
+- **Launch currents** end by rising to the surface and throw you into the air, through three
+  rings. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you
+  swim straight onto.
+- **Boost rings** (pale blue) are strung in a curve down through the layers and back. Each is
+  a ring and a surge of speed.
+- **Sea nettles** drift at every depth: amber jellyfish with long tentacles. Touching the
+  bell or what trails under it stings (a stumble and lost speed, like a rock).
 
 ## 6. Scoring
 

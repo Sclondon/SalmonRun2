@@ -137,6 +137,7 @@ var _pv_line: Label
 var _pv_where: Label
 var _pv_kicker: Label
 var _pv_ask: Label
+var _muffled := false
 var _busy := false
 
 var _autotest_dir := ""
@@ -732,6 +733,15 @@ func _process(delta: float) -> void:
 	_layout_globes()
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
+	# under the water the picture swims and takes the colour of the water, and the music is
+	# muffled
+	var under: float = world.camera.submerged
+	var post := _container.material as ShaderMaterial
+	post.set_shader_parameter("underwater", under)
+	post.set_shader_parameter("water_tint", world.track.cfg.get("water_shallow", Color(0.16, 0.7, 0.64)))
+	if phase == Phase.RACE and (under > 0.5) != _muffled:
+		_muffled = under > 0.5
+		Music.set_filter(1100.0 if _muffled else 20000.0)
 	match phase:
 		Phase.CUTSCENE:
 			_run_cutscene(delta)
