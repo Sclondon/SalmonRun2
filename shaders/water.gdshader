@@ -1,5 +1,5 @@
-// Water. It is lit as real water is: a smooth, shiny skin of small waves that mirrors the sky
-// and catches the sun on every crest. Its colour goes from shallow to deep with how much
+// Water, in a flat, painted style: matte colour, clear close to and solid far off, faint pale
+// lines wandering over it and drifts of flat white foam. Its colour goes from shallow to deep with how much
 // water there really is under each pixel, a rim of foam forms wherever something breaks the
 // surface (banks, rocks, ramps, the fish), patches of foam drift with the current, waterfalls
 // turn to white water, and the whole thing shimmers on the beat.
@@ -24,12 +24,12 @@ uniform float depth_range = 5.0;
 uniform float alpha_shallow : hint_range(0.0, 1.0) = 0.6;
 uniform float alpha_deep : hint_range(0.0, 1.0) = 0.93;
 // How much the surface colour varies in ripples.
-uniform float ripple : hint_range(0.0, 1.0) = 0.12;
+uniform float ripple : hint_range(0.0, 1.0) = 0.08;
 
 group_uniforms foam;
 // Drifting patches of foam: 0 is none, 1 is a lot.
-uniform float foam_amount : hint_range(0.0, 1.0) = 0.25;
-// Whitecaps: how readily the tops of the waves break into flecks of foam (0 is never).
+uniform float foam_amount : hint_range(0.0, 1.0) = 0.18;
+// Whitecaps: how much of the water has drifts of flat white foam lying on it (0 is none).
 uniform float whitecaps : hint_range(0.0, 1.0) = 0.3;
 // Size of the patches (bigger number, smaller patches).
 uniform float foam_scale = 1.0;
@@ -50,14 +50,14 @@ uniform float sparkle : hint_range(0.0, 2.0) = 1.0;
 group_uniforms surface;
 // The surface is lit as real water is: a smooth, shiny skin of small waves that mirrors the
 // sky and catches the sun. How rough it is (0 is a mirror), and how strongly it reflects.
-uniform float roughness : hint_range(0.0, 1.0) = 0.14;
-uniform float specular : hint_range(0.0, 1.0) = 0.3;
-// Stylised: how strongly a thin light line is drawn along the shoulder of each swell.
-uniform float lines : hint_range(0.0, 1.0) = 0.5;
+uniform float roughness : hint_range(0.0, 1.0) = 0.5;
+uniform float specular : hint_range(0.0, 1.0) = 0.12;
+// Stylised: how strongly faint pale lines are drawn wandering over the surface.
+uniform float lines : hint_range(0.0, 1.0) = 0.6;
 // The small waves that give it its shape: how fine they are, how steep, how peaked their
 // crests are, and how fast they move.
 uniform float wave_scale = 0.55;
-uniform float wave_height : hint_range(0.0, 3.0) = 0.5;
+uniform float wave_height : hint_range(0.0, 3.0) = 0.16;
 uniform float wave_choppy = 1.4;
 uniform float wave_speed = 1.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
@@ -72,8 +72,8 @@ uniform int wake_count = 0;
 uniform vec2 wake_span = vec2(0.0, 0.0);
 // How long the wake lasts (s), how fast its arms move apart (m/s), and how wide they get (m).
 uniform float wake_life = 1.6;
-uniform float wake_spread = 2.1;
-uniform float wake_width = 0.55;
+uniform float wake_spread = 2.4;
+uniform float wake_width = 0.4;
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
@@ -205,18 +205,23 @@ void fragment() {
 	white = max(white, wake_white);
 	col = mix(col, shallow.rgb, wake_calm * 0.3 * (1.0 - white));
 	col = mix(col, foam_color.rgb, wake_white);
-	// whitecaps: the tops of the bigger waves break into hard-edged flecks of foam (broken up
-	// by a finer noise, so that they are flecks and streaks, not blobs). There are none far
-	// off, where they would only be specks, nor in the wake.
-	float fleck = vnoise(at * 4.0 + vec2(0.0, TIME * 0.7)) * 0.65 + vnoise(at * 1.1 - vec2(TIME * 0.3, 0.0)) * 0.35;
-	float cap = step(mix(0.95, 0.66, whitecaps), h0 / 2.1 + (fleck - 0.5) * 0.5) * (1.0 - fall) * step(0.001, whitecaps)
-			* (1.0 - smoothstep(110.0, 300.0, far)) * (1.0 - wake_calm);
-	white = max(white, cap * 0.92);
-	col = mix(col, foam_color.rgb, cap * 0.92);
-	// wave lines: a thin light line along the shoulder of each swell, as water is drawn
-	float line = (1.0 - smoothstep(0.0, 0.03, abs(h0 / 2.1 - 0.56))) * lines * (1.0 - white)
-			* (1.0 - smoothstep(60.0, 200.0, far)) * (1.0 - wake_calm);
-	col = mix(col, mix(shallow.rgb, foam_color.rgb, 0.45), line);
+	// Foam lies on the water in flat white patches with ragged edges, gathered into drifts
+	// with clear water between them, and a scatter of small flecks round about. (None far
+	// off, where they would only be specks, nor in the wake.)
+	vec2 fp = at * 0.16;
+	fp += (vec2(vnoise(fp * 1.7 + 5.0), vnoise(fp * 1.7 + 9.0)) - 0.5) * 1.6;
+	float drift = vnoise(at * 0.028 + 20.0);
+	float sheet = vnoise(fp) * 0.7 + vnoise(fp * 3.1 + 2.0) * 0.3;
+	float cap = step(mix(0.8, 0.6, whitecaps), sheet) * step(mix(0.78, 0.52, whitecaps), drift);
+	cap = max(cap, step(0.87, vnoise(at * 0.8 + 40.0)) * step(mix(0.72, 0.46, whitecaps), vnoise(at * 0.06 + 3.0)));
+	cap *= (1.0 - fall) * step(0.001, whitecaps) * (1.0 - smoothstep(150.0, 340.0, far)) * (1.0 - wake_calm);
+	white = max(white, cap);
+	col = mix(col, foam_color.rgb, cap);
+	// and faint pale lines wander over it, like light on the surface
+	vec2 lp = at * 0.3 + (vec2(vnoise(at * 0.2 + 1.0), vnoise(at * 0.2 + 7.0)) - 0.5) * 2.0;
+	float line = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(lp + vec2(0.0, TIME * 0.12)) - 0.5))) * lines * (1.0 - white)
+			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_calm);
+	col = mix(col, mix(col, foam_color.rgb, 0.35), line);
 	vec2 metres = vec2(UV.x * across, UV.y);
 	vec3 dp1 = dFdx(v_world);
 	vec3 dp2 = dFdy(v_world);

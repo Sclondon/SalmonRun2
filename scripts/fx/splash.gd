@@ -48,6 +48,12 @@ static func mesh(key: String) -> Mesh:
 		_meshes["ring"] = Props.splash_ring()
 		_meshes["drop"] = Props.droplet(rng)
 		_meshes["splat"] = Props.splat(rng)
+		var dot := SphereMesh.new()
+		dot.radius = 0.5
+		dot.height = 1.0
+		dot.radial_segments = 6
+		dot.rings = 3
+		_meshes["dot"] = dot
 	return _meshes[key]
 
 
@@ -84,6 +90,8 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		_ripples.append(node)
 	_burst("drop", int(12 * strength), 0.26, 5.0, 11.0)
 	_burst("splat", int(9 * strength), 0.34, 3.5, 8.0)
+	# and a spray of small plain dots, flung higher and wider than the rest
+	_burst("dot", int(26 * strength), 0.11, 4.0, 13.0)
 	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + 0.03))
 
 

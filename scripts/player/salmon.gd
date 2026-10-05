@@ -120,6 +120,7 @@ var _mat: ShaderMaterial
 var _wake: Wake
 var _bubbles: CPUParticles3D
 var _spray: CPUParticles3D
+var _dots: Array[CPUParticles3D] = []
 var _ai := {"hold": 0.0, "next_hop": 2.0, "plan": [0.0, 0.0, 0.0, -1]}
 
 
@@ -146,6 +147,17 @@ func setup(t: Track) -> void:
 	_bubbles.initial_velocity_min = 1.5
 	_bubbles.initial_velocity_max = 2.6
 	_bubbles.gravity = Vector3.ZERO
+	# while it swims at the surface: small white dots of spray flicked up off each shoulder
+	for side: float in [-1.0, 1.0]:
+		var dots := _particles(14, 0.42, Color(0.96, 1.0, 1.0), 0.11)
+		dots.position = Vector3(side * 0.3, 0.05, -0.5)
+		dots.emission_box_extents = Vector3(0.05, 0.03, 0.25)
+		dots.direction = Vector3(side * 0.9, 1.0, 0.3)
+		dots.spread = 22.0
+		dots.initial_velocity_min = 2.2
+		dots.initial_velocity_max = 4.6
+		dots.gravity = Vector3(0, -16, 0)
+		_dots.append(dots)
 	_spray = _particles(24, 0.3, Color(0.4, 1.0, 0.9), 0.14)
 	_spray.local_coords = true
 	_spray.gravity = Vector3(0, -6, 0)
@@ -955,6 +967,8 @@ func _update_visual(dt: float) -> void:
 	_wake.lay(s, x, clampf(speed / 30.0, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
 	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
 	_spray.emitting = state == State.AIR or state == State.GRIND
+	for dots in _dots:
+		dots.emitting = state == State.SWIM and speed > 8.0 and dive < 0.3
 
 
 # ================================================================== autopilot

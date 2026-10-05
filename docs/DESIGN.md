@@ -204,15 +204,10 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
 
 ## 6b. Water, wake and splashes
 
-- **Water** is lit as real water is (PBR), then stylised: a shiny skin of small crossing waves,
-  whose slopes are worked out per pixel, so that it mirrors the sky, turns to a mirror at a
-  low angle and catches the sun on every crest. The waves are broad and few, so that it is
-  calm to look at; a thin light line is drawn along the shoulder of each swell
-  (`water_lines`),
-  and the tops of the bigger waves break into flecks of foam: whitecaps
-  (`water_whitecaps`, more of them on the open sea). Its shape and shine can be set per stage
-  (`water_roughness`, `water_specular`, `water_wave_scale`, `water_wave_height`,
-  `water_wave_choppy`, `water_wave_speed`). Over that it keeps its toon touches:
+- **Water** is flat and painted, after an older water shader of the author's: matte colour
+  with hardly any shine, clear close to and solid blue far off, faint pale lines wandering
+  over it (`water_lines`) and drifts of flat, ragged white foam with clear water between
+  them (`water_whitecaps`, more on the open sea). Under that:
   its colour runs from shallow to deep with how much water is really
   under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
   ramps, the fish), and patches of foam drift with the current. Every stage can set any of
@@ -221,12 +216,13 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   bed.
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening
-  out behind into a V and fading, with the waves and whitecaps churned flat between them,
+  out behind into a short V (it is a fish, not a boat) and fading, with the foam cleared
+  between them, small white dots of spray flicked off the shoulders,
   and a string of bubbles when dived.
 - **Landing** throws up a splash that stays where the salmon went in: three tubes of water
   one inside the other, like the tiers of a cake (the outer wide and low, the inner narrow
   and tall), with ragged crests and water streaming down them. They shoot up and drop back,
-  with ripples across the surface and splattery drops. Its size follows how hard the landing
+  with ripples across the surface, splattery drops and a spray of small dots. Its size follows how hard the landing
   was.
 - **The salmon you play changes with its life.** On the way up it is the silver ocean adult
   at sea, the migrating adult (silver turning red) in the lower rivers, and the red and

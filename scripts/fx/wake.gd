@@ -7,8 +7,8 @@ extends Node
 const Track := preload("res://scripts/world/track.gd")
 
 ## Seconds the wake lasts, how often a new point is laid, and how many the shader takes.
-const LIFE := 1.6
-const STEP := 0.075
+const LIFE := 0.45
+const STEP := 0.025
 const POINTS := 24
 
 var track: Track
