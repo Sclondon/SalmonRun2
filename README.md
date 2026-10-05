@@ -15,19 +15,20 @@ The design (what the game is, the map, the stages, how it plays) is in
 |---|---|---|---|---|
 | A/D, ←/→ | left stick / d-pad | hold: swims to your finger | steer | spin |
 | W/S, ↑/↓ | left stick / d-pad | — | swim harder / brake | front / back flip |
-| Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap) | — |
+| Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap); dived, comes back up | — |
+| C / Ctrl | right stick click | swipe down | dive one layer under the surface (again, or swipe up, to come back) | — |
 | — | — | swipe any of 8 directions | — | one full turn that way: left / right spin, up backflip, down frontflip |
-| Shift | LT | wiggle back and forth | boost | — |
+| Shift | LT | wiggle back and forth, or draw circles | boost | — |
 | Q / E | LB / RB | draw circles | — | corkscrew (the way the finger goes round) |
 | J K L I | X Y B RT | — | — | grabs (release before landing!) |
 | Esc / P | Start | ⏸ | pause | |
 
 Touch is gestures only for now (no grabs), and the mouse counts as a finger.
-**PRACTICE** on the title screen opens a stage select (the globe with every stage listed beside
-it): pick any stage, in either direction, to swim
-it with no countdown, goal or finish (it loops, and nothing is saved). TRAINING COURSE there is
-a short, straight river with one of everything (ring slalom,
-jump rings, ramps, rails, rocks, a waterfall) that loops forever, for trying the controls.
+**PRACTICE** on the title screen uses the same globe and card as a run, without a trail: step
+through every stage with the arrows, pick the way up or the way down, and swim it with no
+countdown, goal or finish (it loops, and nothing is saved). The first entry is the TRAINING
+COURSE: a short, straight river with one of everything (ring slalom, jump rings, ramps, rails,
+rocks, a waterfall).
 
 ## The journey
 
@@ -45,10 +46,10 @@ NEW RUN opens the globe on the Open Ocean, where every run starts (press START).
 branches like Star Fox 64's map, and
 the map is that globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
 you finish a stage it shows the way you have come as a red line and the ways on as pins joined
-by dashed lines. A framed card (under the globe on a phone, beside it on a wide screen; the
+by dashed lines. A framed card (across the bottom of the screen, over the lower part of the globe; the
 layout follows `conceptArt/ui/levelSelect.png`) shows a picture of the stage in hand with its
 name, where it is, a line about it and the BACK and SWIM buttons. Look
-between the ways on with the arrows either side of the card, left / right or a tap on a
+between the ways on with the arrows either side of its name on the card, left / right or a tap on a
 pin; ways you did not earn are shown locked.
 The same globe then draws the line across to the stage you picked.
 
@@ -65,12 +66,12 @@ progress bar: so many rings, tricks on the beat, a flow, a score, or few wipeout
 | 3 | The Harbor | The Fish Farm, The Fish Ladder |
 | 3 | Coral Reef | **Neon Harbor**, Meandering River, Dry Riverbed |
 | 3 | Arctic Waters | Meandering River, **Neon Harbor** |
-| 4 | Meandering River | Rainforest Falls, Alpine Run |
-| 4 | Dry Riverbed | Alpine Run, The Home Lake (an early finish) |
-| 4 | The Fish Ladder | Alpine Run, The Home Lake (an early finish) |
+| 4 | Meandering River | Rainforest Falls, Mountain River |
+| 4 | Dry Riverbed | Mountain River, Alpine Lake (an early finish) |
+| 4 | The Fish Ladder | Mountain River, Alpine Lake (an early finish) |
 | 4 | The Fish Farm | an early ending |
 | 4 | **Neon Harbor** | **The Hatchery**, **Bamboo River** |
-| 5 | Rainforest Falls, Alpine Run | The Home Lake |
+| 5 | Rainforest Falls, Mountain River | Alpine Lake |
 | 5 | **The Hatchery** | an early ending |
 | 5 | **Bamboo River** | **The Crater Lake** |
 

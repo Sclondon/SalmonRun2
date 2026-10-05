@@ -10,11 +10,14 @@ signal bumped(reason: String)
 signal ring_collected(count: int)
 signal jumped
 signal landed(impact: float)
+## Dived under the surface (true) or came back up to it (false).
+signal dived(down: bool)
 
 enum State { IDLE, SWIM, AIR, GRIND, WIPEOUT }
 
 const Track := preload("res://scripts/world/track.gd")
 const Props := preload("res://scripts/world/props.gd")
+const Splash := preload("res://scripts/fx/splash.gd")
 
 const GRAVITY := Track.GRAVITY
 const CRUISE := 30.0
@@ -34,6 +37,16 @@ const ARC_RADIUS := 0.9
 const WASH_BACK := 40.0
 ## How far above the water counts as being in the air while wiped out.
 const AIRBORNE := 0.4
+## Swipe tricks: the two axes, how long one full turn takes on each (seconds), and how much of
+## that is the wind-up before it whips round.
+const SPIN := 0
+const FLIP := 1
+const TRICK_TIME := [0.4, 0.5]
+const TRICK_WINDUP := 0.16
+## Diving: how far under the surface the lower layer is (metres), and how long it takes to get
+## there or back.
+const DIVE_DEPTH := 1.7
+const DIVE_TIME := 0.22
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -61,13 +74,26 @@ var wipe_time := 0.0
 var invuln := 0.0
 var control := false
 var autopilot := false
+## Swimming one layer under the surface, and how far down it has got so far (0 to 1)
+var under := false
+var dive := 0.0
 
 var _yaw_v := 0.0
 var _pitch_v := 0.0
 var _roll_v := 0.0
-# degrees still to turn from swipes
-var _yaw_q := 0.0
-var _pitch_q := 0.0
+# swipe tricks, per axis: progress through the turn in hand (-1 for none), where it started,
+# which way it goes, how many more are waiting, and whether it follows straight on from one
+var _trick_t := [-1.0, -1.0]
+var _trick_from := [0.0, 0.0]
+var _trick_dir := [0.0, 0.0]
+var _trick_wait := [0.0, 0.0]
+var _trick_chained := [false, false]
+# squash and stretch (0 is at rest, + is long and thin) and the pose springs
+var _stretch := 0.0
+var _stretch_v := 0.0
+var _curl_v := 0.0
+var _bend_v := 0.0
+var _base_scale := Vector3.ONE
 var _ramp_vy := 0.0
 var _prev_surface := 0.0
 var _jump_prev := false
@@ -87,8 +113,9 @@ var _prev_vx := 0.0
 var _fish: MeshInstance3D
 var _look := "spawner"
 var _mat: ShaderMaterial
-var _wake: CPUParticles3D
-var _splash: CPUParticles3D
+var _wake: Array[CPUParticles3D] = []
+var _bow: CPUParticles3D
+var _bubbles: CPUParticles3D
 var _spray: CPUParticles3D
 var _ai := {"hold": 0.0, "next_hop": 2.0, "plan": [0.0, 0.0, 0.0, -1]}
 
@@ -102,28 +129,50 @@ func setup(t: Track) -> void:
 	_fish.material_override = _mat
 	_fish.scale = Vector3.ONE * 1.35
 	add_child(_fish)
-	_wake = _particles(40, 0.6, Color(0.85, 1.0, 0.97), 0.3, false)
-	_wake.position = Vector3(0, -0.1, 0.6)
-	_wake.emission_box_extents = Vector3(0.4, 0.05, 0.8)
-	_wake.direction = Vector3(0, 1, 0.6)
-	_wake.initial_velocity_min = 2.0
-	_wake.initial_velocity_max = 4.0
-	_splash = _particles(70, 1.0, Color(0.9, 1.0, 0.97), 0.45, true)
-	_splash.initial_velocity_min = 6.0
-	_splash.initial_velocity_max = 11.0
-	_splash.spread = 55.0
-	_spray = _particles(24, 0.3, Color(0.4, 1.0, 0.9), 0.14, false)
+	_base_scale = _fish.scale
+	# The wake: a trail of foam peeling away from each shoulder, so the two open out behind
+	# into a V the way a real wake does, and a little spray thrown up at the nose.
+	for side: float in [-1.0, 1.0]:
+		var trail := _particles(46, 0.75, Color(0.93, 1.0, 0.98), 0.4)
+		trail.position = Vector3(side * 0.34, 0.0, -0.3)
+		trail.emission_box_extents = Vector3(0.05, 0.02, 0.2)
+		trail.direction = Vector3(side, 0.05, 0.25)
+		trail.spread = 10.0
+		trail.initial_velocity_min = 3.2
+		trail.initial_velocity_max = 5.0
+		trail.damping_min = 2.5
+		trail.damping_max = 3.5
+		trail.gravity = Vector3.ZERO
+		# flat on the water
+		trail.mesh = _round(0.4, 0.2, Color(0.93, 1.0, 0.98))
+		_wake.append(trail)
+	_bow = _particles(12, 0.45, Color(0.9, 1.0, 0.97), 0.22)
+	_bow.position = Vector3(0, 0.05, -1.3)
+	_bow.emission_box_extents = Vector3(0.15, 0.05, 0.1)
+	_bow.direction = Vector3(0, 1, 0.5)
+	_bow.spread = 35.0
+	_bow.initial_velocity_min = 2.5
+	_bow.initial_velocity_max = 4.5
+	# a string of bubbles while dived
+	_bubbles = _particles(18, 0.7, Color(0.85, 0.97, 1.0), 0.18)
+	_bubbles.position = Vector3(0, 0.1, 0.4)
+	_bubbles.emission_box_extents = Vector3(0.25, 0.1, 0.5)
+	_bubbles.direction = Vector3(0, 1, 0)
+	_bubbles.spread = 20.0
+	_bubbles.initial_velocity_min = 1.5
+	_bubbles.initial_velocity_max = 2.6
+	_bubbles.gravity = Vector3.ZERO
+	_spray = _particles(24, 0.3, Color(0.4, 1.0, 0.9), 0.14)
 	_spray.local_coords = true
 	_spray.gravity = Vector3(0, -6, 0)
 	reset(Track.START_S)
 
 
-func _particles(amount: int, life: float, col: Color, size: float, one_shot: bool) -> CPUParticles3D:
+## A stream of round drops (never squares) that shrink away to nothing.
+func _particles(amount: int, life: float, col: Color, size: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = amount
 	p.lifetime = life
-	p.one_shot = one_shot
-	p.explosiveness = 1.0 if one_shot else 0.0
 	p.emitting = false
 	p.local_coords = false
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -131,17 +180,38 @@ func _particles(amount: int, life: float, col: Color, size: float, one_shot: boo
 	p.direction = Vector3(0, 1, 0)
 	p.spread = 40.0
 	p.gravity = Vector3(0, -20, 0)
-	p.scale_amount_min = 0.5
+	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.2
-	var m := BoxMesh.new()
-	m.size = Vector3.ONE * size
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0.0, 0.6))
+	shrink.add_point(Vector2(0.2, 1.0))
+	shrink.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = shrink
+	p.mesh = _round(size, size, col)
+	add_child(p)
+	return p
+
+
+func _round(width: float, height: float, col: Color) -> SphereMesh:
+	var m := SphereMesh.new()
+	m.radius = width * 0.5
+	m.height = height
+	m.radial_segments = 8
+	m.rings = 4
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = col
 	m.material = mat
-	p.mesh = m
-	add_child(p)
-	return p
+	return m
+
+
+## A splash where the salmon is (see fx/splash.gd): 1 is an ordinary landing.
+func _do_splash(strength: float) -> void:
+	if not is_inside_tree():
+		return
+	var splash := Splash.new()
+	get_parent().add_child(splash)
+	splash.start(track, self, s, x, strength)
 
 
 ## Which stage of its life the salmon is in: "ocean", "spawner" or "smolt" (see Props.salmon).
@@ -150,7 +220,8 @@ func set_look(look: String) -> void:
 		return
 	_look = look
 	_fish.mesh = Props.salmon(look)
-	_fish.scale = Vector3.ONE * (0.95 if look == "smolt" else 1.35)
+	_base_scale = Vector3.ONE * (0.95 if look == "smolt" else 1.35)
+	_fish.scale = _base_scale
 
 
 func reset(at_s: float) -> void:
@@ -169,6 +240,8 @@ func reset(at_s: float) -> void:
 	invuln = 0.0
 	_land_twist = 0.0
 	_prev_surface = y
+	under = false
+	dive = 0.0
 	state = State.IDLE
 	Sfx.set_loop("grind", false)
 
@@ -228,16 +301,20 @@ func _read_input(delta: float) -> Dictionary:
 	for i in 4:
 		if Input.is_action_pressed("grab_%d" % (i + 1)):
 			g = i
+	if Input.is_action_just_pressed("dive") and state == State.SWIM:
+		swipes.append(Vector2.UP if under else Vector2.DOWN)
 	var steer := Input.get_axis("steer_left", "steer_right")
 	if GameInput.follow:
 		steer = clampf(GameInput.follow_dx * FOLLOW_GAIN, -1.0, 1.0)
 	return {
 		"swipes": swipes,
+		# (keys and pads: one button goes down a layer, or back up)
 		"steer": steer,
 		"pitch": Input.get_axis("swim_down", "swim_up"),
 		"roll": GameInput.roll if GameInput.roll != 0.0 else Input.get_axis("roll_left", "roll_right"),
 		"jump": Input.is_action_pressed("jump"),
-		"boost": Input.is_action_pressed("boost") or GameInput.wiggling,
+		# (touch: a wiggle or a circle; in the air the circle is the corkscrew instead)
+		"boost": Input.is_action_pressed("boost") or GameInput.wiggling or GameInput.roll != 0.0,
 		"grab": g,
 	}
 
@@ -263,15 +340,19 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	if inp.jump:
 		charge = minf(charge + dt / 0.5, 1.0)
 
-	# swim straight onto the end of a bamboo rail
+	# swim straight onto the end of a bamboo rail (from the surface: dived, you pass under it)
 	for r: Dictionary in track.rails:
-		if prev_s < r.s0 and s >= r.s0 and absf(x - float(r.x0)) < 1.6:
+		if not under and prev_s < r.s0 and s >= r.s0 and absf(x - float(r.x0)) < 1.6:
 			_start_grind(r)
 			return
 
 	var surf := track.surface_y(s, x)
-	if surf < y - 0.6:
+	# a ramp is solid all the way down: coming up to one brings you back to the surface
+	if under and track.ramp_height(s + 3.0, x) > 0.0:
+		_set_under(false)
+	if surf < _prev_surface - 0.6:
 		# the surface fell away under us: end of a ramp or a waterfall lip
+		y = _prev_surface
 		vy = maxf(_ramp_vy, 2.5)
 		if released or inp.jump:
 			vy += 6.0 + 7.0 * charge
@@ -281,14 +362,34 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
 	_ramp_vy = clampf(climb, 0.0, 20.0)
-	y = surf
+	# The two layers: on the surface, or dived to one layer under it. Swiping up comes up a
+	# layer (and from the surface, jumps); swiping down goes down one.
+	dive = move_toward(dive, 1.0 if under else 0.0, dt / DIVE_TIME)
+	y = surf - DIVE_DEPTH * smoothstep(0.0, 1.0, dive)
 	_prev_surface = surf
-	if released:
+	var up := released or _swiped_up(inp)
+	if under or dive > 0.35:
+		if up:
+			_set_under(false)
+	elif released:
 		vy = 7.0 + 8.0 * charge + _ramp_vy
 		_take_off()
-	elif _swiped_up(inp):
+	elif up:
 		vy = 7.0 + 8.0 * SWIPE_JUMP + _ramp_vy
 		_take_off()
+	elif (inp.swipes as Array).has(Vector2.DOWN):
+		_set_under(true)
+
+
+## Dives one layer under the water, or comes back up to the surface.
+func _set_under(down: bool) -> void:
+	if under == down:
+		return
+	under = down
+	charge = 0.0
+	_do_splash(0.5)
+	_stretch_v += 4.0
+	dived.emit(down)
 
 
 func _swiped_up(inp: Dictionary) -> bool:
@@ -304,14 +405,57 @@ func _take_off() -> void:
 	_yaw_v = 0.0
 	_pitch_v = 0.0
 	_roll_v = 0.0
-	_yaw_q = 0.0
-	_pitch_q = 0.0
+	_trick_t = [-1.0, -1.0]
+	under = false
+	dive = 0.0
+	_trick_wait = [0.0, 0.0]
 	grabs.clear()
 	grab = -1
 	charge = 0.0
 	boosting = false
+	# the take-off pose: stretched out along the leap
+	_stretch_v += 7.0
+	_do_splash(0.55)
 	_ai_plan_trick()
 	jumped.emit()
+
+
+# ------------------------------------------------------------------ swipe tricks
+
+func _trick_busy(axis: int) -> bool:
+	return _trick_t[axis] >= 0.0 or _trick_wait[axis] != 0.0
+
+
+## Plays the swipe tricks on one axis, one full turn at a time, and returns the new angle.
+## Each turn is timed rather than turned at a steady rate, so it can have key poses: a small
+## wind-up the wrong way, a whip round, and a little overshoot that settles.
+func _run_trick(axis: int, angle: float, dt: float) -> float:
+	if _trick_t[axis] < 0.0:
+		_trick_dir[axis] = signf(_trick_wait[axis])
+		_trick_wait[axis] -= _trick_dir[axis]
+		_trick_from[axis] = angle
+		# one trick run straight into the next skips the wind-up
+		_trick_t[axis] = TRICK_WINDUP if _trick_chained[axis] else 0.0
+		# tuck in as it starts
+		_stretch_v -= 3.5
+	_trick_t[axis] += dt / TRICK_TIME[axis]
+	if _trick_t[axis] >= 1.0:
+		_trick_t[axis] = -1.0
+		_trick_chained[axis] = _trick_wait[axis] != 0.0
+		# the follow-through: open out again as it stops
+		_stretch_v += 2.5
+		return _trick_from[axis] + 360.0 * _trick_dir[axis]
+	_trick_chained[axis] = false
+	return _trick_from[axis] + 360.0 * _trick_dir[axis] * _trick_curve(_trick_t[axis])
+
+
+## How far through a turn (0 to 1) the salmon is at time `t` (0 to 1) of it.
+static func _trick_curve(t: float) -> float:
+	if t < TRICK_WINDUP:
+		return -0.04 * sin(t / TRICK_WINDUP * PI)
+	# whip round, run a little past the mark, and settle back onto it
+	var u := (t - TRICK_WINDUP) / (1.0 - TRICK_WINDUP)
+	return 1.0 - pow(1.0 - u, 2.4) + 0.045 * sin(PI * smoothstep(0.5, 1.0, u))
 
 
 func _air(dt: float, inp: Dictionary) -> void:
@@ -324,24 +468,20 @@ func _air(dt: float, inp: Dictionary) -> void:
 	_clamp_banks()
 	# each swipe is one full turn that way: sideways spins, up is a backflip, down a frontflip
 	for sw: Vector2 in inp.swipes:
-		_yaw_q -= 360.0 * sw.x
-		_pitch_q -= 360.0 * sw.y
+		_trick_wait[SPIN] -= sw.x
+		_trick_wait[FLIP] -= sw.y
 	# a held finger only steers on the water, so it doesn't spin the salmon up here
 	var spin_in := 0.0 if GameInput.follow and not autopilot else -float(inp.steer)
 	var r: Vector2
-	if _yaw_q != 0.0:
-		var step := minf(SPIN_RATE * dt, absf(_yaw_q)) * signf(_yaw_q)
-		yaw += step
-		_yaw_q -= step
+	if _trick_busy(SPIN):
+		yaw = _run_trick(SPIN, yaw, dt)
 		_yaw_v = 0.0
 	else:
 		r = _spin(yaw, _yaw_v, spin_in, SPIN_RATE, 180.0, dt)
 		yaw = r.x
 		_yaw_v = r.y
-	if _pitch_q != 0.0:
-		var step := minf(FLIP_RATE * dt, absf(_pitch_q)) * signf(_pitch_q)
-		pitch += step
-		_pitch_q -= step
+	if _trick_busy(FLIP):
+		pitch = _run_trick(FLIP, pitch, dt)
 		_pitch_v = 0.0
 	else:
 		r = _spin(pitch, _pitch_v, -float(inp.pitch), FLIP_RATE, 360.0, dt)
@@ -397,7 +537,9 @@ func _land() -> void:
 	_ramp_vy = 0.0
 	_land_twist = wrapf(yaw, -180.0, 180.0)
 	speed += 2.0
-	_splash.restart()
+	# the landing pose: squashed flat, springing back
+	_stretch_v -= clampf(impact / 2.2, 3.0, 9.0)
+	_do_splash(clampf(impact / 13.0, 0.7, 1.7))
 	landed.emit(impact)
 	if trick.points > 0:
 		trick_landed.emit(trick)
@@ -481,6 +623,8 @@ func _try_catch_rail() -> bool:
 
 func _start_grind(r: Dictionary) -> void:
 	state = State.GRIND
+	under = false
+	dive = 0.0
 	rail = r
 	rail_time = 0.0
 	vy = 0.0
@@ -490,7 +634,7 @@ func _start_grind(r: Dictionary) -> void:
 	grab = -1
 	grabs.clear()
 	charge = 0.0
-	_splash.restart()
+	_do_splash(0.6)
 	Sfx.set_loop("grind", true)
 	landed.emit(4.0)
 
@@ -518,12 +662,14 @@ func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 
 func _wipe(reason: String) -> void:
 	state = State.WIPEOUT
+	under = false
+	dive = 0.0
 	wipe_time = 0.0
 	grab = -1
 	charge = 0.0
 	boosting = false
 	Sfx.set_loop("grind", false)
-	_splash.restart()
+	_do_splash(1.5)
 	wiped_out.emit(reason)
 
 
@@ -546,6 +692,8 @@ func _wash_back(base: float) -> void:
 	vy = 0.0
 	speed = 12.0
 	state = State.SWIM
+	under = false
+	dive = 0.0
 	charge = 0.0
 	grab = -1
 	yaw = 0.0
@@ -555,7 +703,7 @@ func _wash_back(base: float) -> void:
 	_prev_surface = y
 	_ramp_vy = 0.0
 	_stumble = 0.5
-	_splash.restart()
+	_do_splash(1.1)
 	bumped.emit("WASHED BACK!")
 
 
@@ -566,7 +714,7 @@ func _bump(rock_x: float) -> void:
 	charge = 0.0
 	invuln = 0.8
 	_stumble = 0.5
-	_splash.restart()
+	_do_splash(0.9)
 	bumped.emit("ROCKED!")
 
 
@@ -603,7 +751,9 @@ func _check_hazards() -> void:
 	if invuln > 0.0 or state == State.WIPEOUT:
 		return
 	var above := y - track.water_y(s)
-	if above < 1.3 and state != State.GRIND:
+	# dived, you pass under anything that only floats (containers, ice, barrels)...
+	var floats: bool = track.cfg.get("rock_mesh", "") == "crate" or track.cfg.get("rocks_float", false)
+	if above < 1.3 and state != State.GRIND and not (dive > 0.6 and floats):
 		for r: Dictionary in track.rocks:
 			var ds: float = s - float(r.s)
 			if absf(ds) < 3.5 and Vector2(ds, x - float(r.x)).length() < float(r.r) + 0.6:
@@ -614,6 +764,9 @@ func _check_hazards() -> void:
 				return
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)
+		# ...and under the paws of a bear, but a shark comes from below
+		if dive > 0.6 and track.cfg.predator == "bear":
+			break
 		if absf(ds) < 2.8 and absf(x - float(b.x)) < 3.0 and above < 3.6 and b.node.is_swiping():
 			_wipe(track.cfg.predator_word)
 			Sfx.play("bear")
@@ -654,6 +807,8 @@ func _update_visual(dt: float) -> void:
 	match state:
 		State.IDLE, State.SWIM:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
+			# nose down on the way under, nose up on the way back
+			var tip := ((1.0 if under else 0.0) - dive) * 0.7
 			_land_twist = lerpf(_land_twist, 0.0, 1.0 - exp(-8.0 * dt))
 			if _stumble > 0.0:
 				_stumble = maxf(_stumble - dt, 0.0)
@@ -662,7 +817,7 @@ func _update_visual(dt: float) -> void:
 			var lead := -atan2(vx, maxf(speed, 10.0)) * 1.3
 			target_bend = _turn * 0.9
 			b = base * Basis(Vector3.UP, deg_to_rad(_land_twist) + lead) \
-					* Basis(Vector3.RIGHT, slope_ang + sin(_t * 5.0) * 0.05) \
+					* Basis(Vector3.RIGHT, slope_ang + sin(_t * 5.0) * 0.05 - tip) \
 					* Basis(Vector3.BACK, -vx * 0.035)
 			wag_speed = 8.0 + speed * 0.35
 			if state == State.IDLE:
@@ -699,9 +854,20 @@ func _update_visual(dt: float) -> void:
 			pos.y -= 0.2 * (1.0 - k)
 			wag_speed = 24.0 * k
 			wag_amp = 0.2 * k
+	# Squash and stretch on a spring: kicked long at take-off, flat on landing, tucked as a
+	# trick starts, and left to ring a little each time (the follow-through).
+	_stretch_v += (-260.0 * _stretch - 15.0 * _stretch_v) * dt
+	_stretch = clampf(_stretch + _stretch_v * dt, -0.36, 0.5)
+	_fish.scale = _base_scale * Vector3(1.0 - 0.45 * _stretch, 1.0 - 0.45 * _stretch, 1.0 + _stretch)
+	if state == State.SWIM:
+		pos.y += minf(_stretch, 0.0) * 0.9
 	transform = Transform3D(b.orthonormalized(), pos)
-	_curl = lerpf(_curl, target_curl, 1.0 - exp(-12.0 * dt))
-	_bend = lerpf(_bend, target_bend, 1.0 - exp(-12.0 * dt))
+	# The body follows its pose on springs too, so the tail lags the turn and swings past
+	# when it stops.
+	_curl_v += (210.0 * (target_curl - _curl) - 13.0 * _curl_v) * dt
+	_curl += _curl_v * dt
+	_bend_v += (210.0 * (target_bend - _bend) - 13.0 * _bend_v) * dt
+	_bend += _bend_v * dt
 	_wag_phase += dt * wag_speed
 	_mat.set_shader_parameter("wag_phase", _wag_phase)
 	_mat.set_shader_parameter("wag_amp", wag_amp)
@@ -709,7 +875,10 @@ func _update_visual(dt: float) -> void:
 	_mat.set_shader_parameter("bend", _bend)
 	var blink := invuln > 0.0 and fmod(_t, 0.2) < 0.1
 	_mat.set_shader_parameter("flash", 0.6 if blink else (0.35 if boosting else 0.0))
-	_wake.emitting = state == State.SWIM and speed > 5.0
+	for trail in _wake:
+		trail.emitting = state == State.SWIM and speed > 5.0 and dive < 0.3
+	_bow.emitting = state == State.SWIM and speed > 12.0 and dive < 0.3
+	_bubbles.emitting = state == State.SWIM and dive > 0.5
 	_spray.emitting = state == State.AIR or state == State.GRIND
 
 

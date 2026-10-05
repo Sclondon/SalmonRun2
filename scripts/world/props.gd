@@ -165,16 +165,18 @@ static func salmon(look := "spawner") -> ArrayMesh:
 	mb.tri(t1, notch, Vector3(0.0, -0.46, 1.40), fin, Vector3.RIGHT)
 	mb.tri(t0, notch, t1, fin, Vector3.RIGHT)
 	# dorsal, adipose, anal fins
-	mb.tri(Vector3(0.0, 0.47, -0.35), Vector3(0.0, 0.82, -0.05), Vector3(0.0, 0.45, 0.15), dark_red, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, 0.3, 0.55), Vector3(0.0, 0.43, 0.7), Vector3(0.0, 0.26, 0.72), dark_red, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, -0.28, 0.45), Vector3(0.0, -0.46, 0.64), Vector3(0.0, -0.18, 0.7), fin, Vector3.RIGHT)
+	# (each one is rooted inside the body, so none of them floats clear of it)
+	mb.tri(Vector3(0.0, 0.32, -0.44), Vector3(0.0, 0.84, -0.10), Vector3(0.0, 0.32, 0.22), dark_red, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.84, -0.10), Vector3(0.0, 0.62, 0.20), Vector3(0.0, 0.32, 0.22), dark_red, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.14, 0.50), Vector3(0.0, 0.40, 0.70), Vector3(0.0, 0.08, 0.74), dark_red, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.14, 0.42), Vector3(0.0, -0.46, 0.64), Vector3(0.0, -0.06, 0.72), fin, Vector3.RIGHT)
 	# kype (the hooked jaw males grow for the spawning run)
 	if not silver:
 		mb.tri(Vector3(0.0, -0.04, -1.18), Vector3(0.0, -0.16, -1.3), Vector3(0.0, -0.12, -1.02), jaw, Vector3.RIGHT)
 	for sx: float in [-1.0, 1.0]:
 		# pectoral + pelvic fins
-		mb.tri(Vector3(sx * 0.24, -0.18, -0.55), Vector3(sx * 0.62, -0.4, -0.28), Vector3(sx * 0.24, -0.27, -0.25), fin, Vector3.UP)
-		mb.tri(Vector3(sx * 0.14, -0.33, 0.2), Vector3(sx * 0.34, -0.5, 0.42), Vector3(sx * 0.12, -0.3, 0.42), fin, Vector3.UP)
+		mb.tri(Vector3(sx * 0.16, -0.16, -0.56), Vector3(sx * 0.62, -0.4, -0.28), Vector3(sx * 0.16, -0.24, -0.25), fin, Vector3.UP)
+		mb.tri(Vector3(sx * 0.1, -0.22, 0.2), Vector3(sx * 0.34, -0.5, 0.42), Vector3(sx * 0.08, -0.2, 0.42), fin, Vector3.UP)
 		# eye
 		var e := Vector3(sx * 0.205, 0.1, -0.82)
 		mb.quad(e + Vector3(0, 0.07, -0.06), e + Vector3(0, 0.07, 0.06), e + Vector3(0, -0.06, 0.06), e + Vector3(0, -0.06, -0.06), Color(0.95, 0.85, 0.3), Vector3(sx, 0, 0))
@@ -860,4 +862,56 @@ static func lantern(rng: RandomNumberGenerator) -> ArrayMesh:
 	box(mb, Vector3(0.0, 1.4, 0.0), Vector3(0.8, 0.14, 0.8), stone)
 	box(mb, Vector3(0.0, 1.75, 0.0), Vector3(0.5, 0.5, 0.5), glow(Color(1.0, 0.7, 0.3), 0.85))
 	frustum(mb, Vector3(0.0, 2.0, 0.0), Vector3(0.0, 2.5, 0.0), 0.66, 0.06, 4, stone, false)
+	return mb.build()
+
+
+# ------------------------------------------------------------------ splashes
+
+const WATER_WHITE := Color(0.96, 1.0, 1.0)
+const WATER_BLUE := Color(0.62, 0.9, 0.98)
+
+
+## A ring of `count` columns of water round a circle of radius 1, each 1 high and leaning out a
+## little, for a landing splash (the node is scaled to size). `thick` is their width, as a
+## share of the radius of the ring.
+static func splash_columns(count: int, thick: float, rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	for i in count:
+		var a := TAU * (i + rng.randf_range(-0.25, 0.25)) / count
+		var out := Vector3(cos(a), 0.0, sin(a))
+		var h := rng.randf_range(0.65, 1.0)
+		var base := out * rng.randf_range(0.92, 1.08)
+		var mid := base + out * 0.12 + Vector3(0.0, h * 0.6, 0.0)
+		var tip := base + out * 0.3 + Vector3(0.0, h, 0.0)
+		frustum(mb, base + Vector3(0.0, -0.05, 0.0), mid, thick, thick * 0.8, 5, WATER_BLUE, false)
+		frustum(mb, mid, tip, thick * 0.8, thick * 0.12, 5, WATER_WHITE, true)
+	return mb.build()
+
+
+## A flat ring lying on the water (outer radius 1), for the ripples that spread from a splash.
+static func splash_ring() -> ArrayMesh:
+	var mb := MB.new()
+	var seg := 20
+	for i in seg:
+		var a0 := TAU * i / seg
+		var a1 := TAU * (i + 1) / seg
+		var d0 := Vector3(cos(a0), 0.0, sin(a0))
+		var d1 := Vector3(cos(a1), 0.0, sin(a1))
+		mb.quad(d0 * 0.84, d1 * 0.84, d1, d0, WATER_WHITE, Vector3.UP)
+	return mb.build()
+
+
+## A drop of water: round, a little lumpy, never square.
+static func droplet(rng: RandomNumberGenerator, lumpy := 0.25) -> ArrayMesh:
+	var mb := MB.new()
+	blob(mb, Vector3.ZERO, Vector3(0.5, 0.5, 0.5), rng, WATER_WHITE, 6, 4, lumpy, 0.02)
+	return mb.build()
+
+
+## A splat: a drop flung flat, with a tail.
+static func splat(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mb := MB.new()
+	blob(mb, Vector3.ZERO, Vector3(0.5, 0.3, 0.42), rng, WATER_WHITE, 6, 3, 0.3, 0.02)
+	blob(mb, Vector3(-0.5, 0.05, 0.0), Vector3(0.28, 0.16, 0.2), rng, WATER_BLUE, 5, 3, 0.3, 0.02)
+	blob(mb, Vector3(-0.85, 0.1, 0.05), Vector3(0.13, 0.1, 0.1), rng, WATER_WHITE, 4, 2, 0.2, 0.02)
 	return mb.build()

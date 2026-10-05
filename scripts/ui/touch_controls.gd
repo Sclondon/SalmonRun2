@@ -1,7 +1,8 @@
 extends Control
 ## Gesture controls for phones and tablets (the mouse works too, as an emulated finger):
 ## hold a finger down and the salmon swims towards it, wiggle it back and forth to boost, swipe up
-## to jump, and in the air swipe any way to spin or flip that way or draw circles to corkscrew.
+## to jump and down to dive under the surface (up again to come back), and in the air swipe
+## any way to spin or flip that way or draw circles to corkscrew.
 ## Gestures are handed to the salmon through
 ## the GameInput autoload.
 
@@ -16,6 +17,9 @@ const HOLD_TIME := 0.1
 ## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
 const SWIPE_DIST := 70.0
 const SWIPE_WINDOW := 0.16
+## ...in a straight line: its direction may turn no more than this (radians) on the way. The
+## start of a circle covers ground just as fast as a swipe, and only its curve tells them apart.
+const SWIPE_STRAIGHT := 0.45
 ## Circles corkscrew (in the air): the finger's direction has to turn CIRCLE_ON radians (about
 ## half a loop) within CIRCLE_WINDOW seconds to start, and keep turning to keep going.
 const CIRCLE_WINDOW := 0.5
@@ -137,13 +141,15 @@ func _track_circle() -> void:
 	_head_pos = _pos
 
 
-## How far (radians, signed) the finger's direction has turned in the last CIRCLE_WINDOW seconds.
-func _turned() -> float:
+## How far (radians, signed) the finger's direction has turned in the last `window` seconds.
+func _turned(window := CIRCLE_WINDOW) -> float:
 	var now := _now()
 	while not _turns.is_empty() and now - float(_turns[0][0]) > CIRCLE_WINDOW:
 		_turns.pop_front()
 	var sum := 0.0
 	for s: Array in _turns:
+		if now - float(s[0]) > window:
+			continue
 		sum += float(s[1])
 	return sum
 
@@ -160,14 +166,15 @@ func _track_swipe() -> void:
 	if not _armed:
 		_armed = d.length() < need * 0.4
 		return
-	# a curving stroke is part of a circle, and a wiggle is a wiggle: neither is a swipe
-	if d.length() < need or GameInput.roll != 0.0 or GameInput.wiggling or absf(_turned()) > 1.5:
+	# a curving stroke is the start of a circle, and a wiggle is a wiggle: neither is a swipe
+	if d.length() < need or GameInput.roll != 0.0 or GameInput.wiggling or absf(_turned(SWIPE_WINDOW)) > SWIPE_STRAIGHT:
 		return
 	# 8-way: each axis counts if it carries a fair share of the stroke
 	var n := d.normalized()
 	var dir := Vector2(signf(n.x) if absf(n.x) > 0.38 else 0.0, signf(n.y) if absf(n.y) > 0.38 else 0.0)
-	if player and not player.in_air() and dir != Vector2.UP:
-		# on the water only a straight swipe up means anything; sideways is just steering
+	if player and not player.in_air() and dir != Vector2.UP and dir != Vector2.DOWN:
+		# on the water only straight up (jump, or come up) and straight down (dive) mean
+		# anything; sideways is just steering
 		return
 	_armed = false
 	_flash = 0.35

@@ -65,28 +65,29 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 | 3 | The Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
 | 3 | Coral Reef | off Okinawa | Neon Harbor, Meandering River, Dry Riverbed | collect 14 rings |
 | 3 | Arctic Waters | Bering Strait | Meandering River, Neon Harbor | collect 12 rings |
-| 4 | Meandering River | inland of Seattle | Rainforest Falls, Alpine Run | score 70K |
-| 4 | Dry Riverbed | near Bend, Oregon | Alpine Run, The Home Lake | collect 12 rings |
-| 4 | The Fish Ladder | Seattle | Alpine Run, The Home Lake | 6 tricks on the beat |
+| 4 | Meandering River | inland of Seattle | Rainforest Falls, Mountain River | score 70K |
+| 4 | Dry Riverbed | near Bend, Oregon | Mountain River, Alpine Lake | collect 12 rings |
+| 4 | The Fish Ladder | Seattle | Mountain River, Alpine Lake | 6 tricks on the beat |
 | 4 | The Fish Farm | north Puget Sound | early ending | |
 | 4 | Neon Harbor (Japan) | Tokyo Bay | The Hatchery, Bamboo River | score 60K |
-| 5 | Rainforest Falls | Mount Rainier | The Home Lake | |
-| 5 | Alpine Run | Mount Rainier | The Home Lake | |
+| 5 | Rainforest Falls | Mount Rainier | Alpine Lake | |
+| 5 | Mountain River | Mount Rainier | Alpine Lake | |
 | 5 | Bamboo River (Japan) | Hokkaido | The Crater Lake | |
 | 5 | The Hatchery (Japan) | north Honshu | early ending | |
-| 6 | The Home Lake | Mount Rainier | ending | |
+| 6 | Alpine Lake | Mount Rainier | ending | |
 | 6 | The Crater Lake (Japan) | Hokkaido | ending | |
 
 Notes:
-- The Home Lake can be reached a step early from Dry Riverbed or The Fish Ladder.
-- The Crater Lake and The Hatchery play exactly like The Home Lake and The Fish Farm; only
+- Alpine Lake can be reached a step early from Dry Riverbed or The Fish Ladder.
+- The Crater Lake and The Hatchery play exactly like Alpine Lake and The Fish Farm; only
   the scenery differs. Neon Harbor shares The Harbor's look in different light but has its
   own course.
 - The way down retraces the stages the run came up through.
 
 ## 4. Stages
 
-A stage is a river-shaped course about 2.4 to 3.4 km long (roughly 55 to 95 seconds),
+A stage is a river-shaped course about 2.4 to 3.4 km long (roughly 55 to 95 seconds) and
+19 to 28 m wide (the Open Ocean is 140 m),
 generated from one entry in `scripts/world/levels.gd`. An entry sets the course (length,
 width, slope, how much it bends, what it is made of, how often waterfalls come), the scenery
 (bank shape and colours, a table of dressing rules), and the sky, fog, light and water.
@@ -106,7 +107,7 @@ width, slope, how much it bends, what it is made of, how often waterfalls come),
 
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
-| Open Ocean | night, moon, buoys, ships far off | flat, open | shark | drifting containers as hazards |
+| Open Ocean | night, moon, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water (five times a river), long empty stretches, no rock fields |
 | Shallow Sea | bright reef between sandbars | flat | shark | |
 | Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open | shark | |
 | Coastline | golden-hour river mouth, beaches, palms | barely climbs | shark | |
@@ -119,11 +120,11 @@ width, slope, how much it bends, what it is made of, how often waterfalls come),
 | The Fish Farm | net pens on a grey lake | flat, open | none | short; feed barrels are the only obstacles |
 | Neon Harbor | The Harbor under pink city light | barely climbs | shark | |
 | Rainforest Falls | temperate rainforest: big conifers, ferns, mist | climbs | bear | the training course borrows its look |
-| Alpine Run | granite gorge; gold larches in autumn, snow in spring | steepest | bear | most waterfalls and rocks |
+| Mountain River | granite gorge; gold larches in autumn, snow in spring | steepest | bear | most waterfalls and rocks |
 | Bamboo River | Japanese mountain stream: bamboo, torii, lanterns | climbs | bear | red maples in autumn, cherry blossom in spring |
 | The Hatchery | The Fish Farm with bamboo ashore | flat, open | none | |
-| The Home Lake | wide calm lake ringed by peaks | flat, open | none | ramps, rails and rings only |
-| The Crater Lake | The Home Lake with maples and torii | flat, open | none | |
+| Alpine Lake | wide calm lake ringed by peaks | flat, open | none | ramps, rails and rings only |
+| The Crater Lake | Alpine Lake with maples and torii | flat, open | none | |
 
 Seasons are part of each entry: the base settings are autumn (the way up), and a `spring`
 block replaces whatever changes on the way down.
@@ -138,15 +139,29 @@ avoid rocks, ride ramps and leap falls. They are company only.
 | Gesture | On the water | In the air |
 |---|---|---|
 | Hold | the salmon swims to under your finger | |
-| Swipe up | full jump (also hops off a rail) | backflip |
+| Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
+| Swipe down | dive one layer under the surface | frontflip |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
 | Wiggle back and forth | boost | |
-| Circles | | corkscrew, the way the finger goes round |
+| Circles | boost | corkscrew, the way the finger goes round |
 
 Touch has no grabs yet.
 
 **Keyboard / gamepad** keep the fuller set: steer, swim harder or brake, hold-and-release
 jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
+
+### The two layers
+
+The salmon swims in one of two layers: on the surface, or **dived** one layer (1.7 m) under
+it. Swiping down dives; swiping up comes back up (and from the surface, jumps). Steering and
+speed are the same in both.
+
+- Dived, you pass under rails, under anything that only floats (containers, ice, feed
+  barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
+  comes from below.
+- Rings and rails are on the surface, and a ramp is solid all the way down: coming up to one
+  brings you back to the surface.
+- Nothing is built for the lower layer yet. It is there to design levels round.
 
 ## 6. Scoring
 
@@ -159,6 +174,23 @@ jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 - **Rings** are 250 points and some boost each. Tricks also refill boost.
 - **Ranks** D to S at 35K / 70K / 110K / 160K, scaled so shorter stages are judged fairly.
 - **Wipeout:** about one second out of control, then a moment of invulnerability.
+
+## 6b. Water, wake and splashes
+
+- **Water** is toon water: its colour runs from shallow to deep with how much water is really
+  under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
+  ramps, the fish), and patches of foam drift with the current. Every stage can set any of
+  its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
+- **Open sea** stages have a floor of rolling hills far below (`floor`), instead of a river
+  bed.
+- **The wake** is two trails of foam peeling off the shoulders into a V, with spray at the
+  nose, and a string of bubbles when dived. All drops are round.
+- **Landing** throws up a splash after The Wind Waker: three rings of columns of water, each
+  wider and lower than the last, ripples across the surface and splattery drops. Its size
+  follows how hard the landing was.
+- **The salmon** animates on key poses: stretched long at take-off, squashed on landing,
+  tucked as a trick starts. A swipe trick winds up the wrong way, whips round and runs a
+  little past the mark before settling, and the body and tail follow on springs.
 
 ## 7. Music
 
@@ -189,18 +221,22 @@ hurricanes. It turns to face the stage in hand and never zooms.
   ones are grey.
 - **Ways on that are too close to tell apart** (the Rainier and Puget Sound groups) are
   fanned out round your pin.
-- **The card** shows a picture of the stage in hand, its name, coordinates, a one-line
-  description, and two buttons (BACK and START or SWIM). Arrows either side step between
-  the ways on. It sits under the globe on a phone, covering a little of the bottom of the
-  Earth, and beside it on a wide screen. The arrangement follows
+- **The card** is a page from a school encyclopedia: cream paper with a gold rule inside the
+  border. A running head gives the stage, the season and the coordinates; under it are a
+  mounted picture of the stage in hand, its name with an arrow either side to step between
+  the ways on, a "Did you know?" fact about the salmon at that point of its life (the adult
+  on the way up, the young on the way down), and two buttons (BACK and START or SWIM). It
+  sits across the bottom of the screen, over the lower part of the Earth, on a phone and a
+  desktop alike, with the top of the Earth always on the screen. The arrangement follows
   `conceptArt/ui/levelSelect.png`.
 - **Between stages** the same globe draws the red line across to the next one.
 
 ## 9. Other modes and tools
 
-- **Practice:** a stage select (the globe with every stage listed beside it). Any stage, in
-  either direction, with no countdown, goal or finish; it loops and nothing is saved. Also
-  the **training course**: a short straight river with one of everything.
+- **Practice:** the same globe and card as a run, with no trail. Step through every stage with
+  the arrows, choose the way up or down, and swim it with no countdown, goal or finish; it
+  loops and nothing is saved. Its first entry is the **training course**: a short straight
+  river with one of everything.
 - **Tester mode** (Options): start a run on any stage, and skip to the end of a stage with
   its goal met or missed.
 - **Options:** music and SFX volume, and the retro filter in four sliders (pixel size,

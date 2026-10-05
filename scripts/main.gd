@@ -18,7 +18,7 @@ const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const Globe := preload("res://scripts/ui/globe.gd")
 
-const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      WIGGLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
+const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
 enum Phase { TITLE, COUNTDOWN, RACE, FINISHED, CUTSCENE }
 
@@ -96,20 +96,10 @@ var _ways: Array[int] = []
 ## ...and the ones that stayed shut because the stage's goal was missed
 var _shut: Array[int] = []
 var _travel_go: Button
-var _map_down := false
-var _map_title: Label
-var _map_start: Button
-var _map_flip: Button
-var _map_note: Label
 var _pause_quit: Button
-## The stage the map is pointing at
-var _map_at := 0
-var _map_globe: Globe
 var _travel_globe: Globe
 ## The stage the run has just come from (-1 at the start of one), for the line on the globe
 var _from := -1
-var _levels: Control
-var _level_buttons: Array[Button] = []
 var _travel: Control
 var _pv_wrap: Control
 var _pv_buttons: HBoxContainer
@@ -117,6 +107,11 @@ var _pv_arrows: Array[Button] = []
 ## Tester mode: the stage NEW RUN will start on, the pause menu's skip buttons, and a goal
 ## result forced by them (1 met, -1 missed, 0 as played)
 var _start_at := 0
+## The globe is being used to pick a stage to practise (-1 in _start_at is the training
+## course), and whether that is on the way down
+var _practising := false
+var _practice_down := false
+var _pv_way: Button
 var _skip_buttons: Array[Button] = []
 var _forced_goal := 0
 ## Cutscenes: the captions, what happens afterwards, the clock, and the scene's own widgets
@@ -140,8 +135,8 @@ var _pv_image: TextureRect
 var _pv_name: Label
 var _pv_line: Label
 var _pv_where: Label
-## The half of the practice map the stage list sits in
-var _map_side: Control
+var _pv_kicker: Label
+var _pv_ask: Label
 var _busy := false
 
 var _autotest_dir := ""
@@ -203,7 +198,7 @@ func _ready() -> void:
 	_menus.layer = 5
 	add_child(_menus)
 	_build_menus()
-	_build_levels()
+	_build_globe()
 	_level = Save.level
 	_down = Save.down
 
@@ -214,6 +209,7 @@ func _ready() -> void:
 	p.ring_collected.connect(_on_ring)
 	p.jumped.connect(_on_jump)
 	p.landed.connect(_on_land)
+	p.dived.connect(func(_down: bool) -> void: _sfx("splash", 1.4, -8.0))
 	Music.beat.connect(_on_beat)
 	_enter_title()
 
@@ -319,6 +315,8 @@ func _start_race(test := false) -> void:
 		hud.visible = false
 		_travel_go.visible = true
 		_pv_buttons.visible = false
+		_pv_way.visible = false
+		_travel_globe.show_all = false
 		_travel_globe.stop_choosing()
 		var stage := Levels.RAINFOREST if drill else _level
 		var done: Array[int] = []
@@ -546,7 +544,7 @@ func _quit_from_pause() -> void:
 	var down := _down
 	_enter_title()
 	if practice:
-		_open_levels(stage, down)
+		_open_practice(-1 if _drill else stage, down)
 
 
 ## From the results screen: on to the next stage, by way of the globe when there is a way on
@@ -567,6 +565,9 @@ func _continue() -> void:
 	_travel_globe.choose(_route, _level, _ways, _shut)
 	_preview(_ways[0])
 	_starting = false
+	_practising = false
+	_pv_way.visible = false
+	_travel_globe.show_all = false
 	_travel_go.text = "SWIM"
 	_travel_go.visible = true
 	_pv_buttons.visible = true
@@ -589,6 +590,9 @@ func _open_run() -> void:
 	_travel_globe.show_path([], -1, Levels.START)
 	_preview(Levels.START)
 	_starting = true
+	_practising = false
+	_pv_way.visible = false
+	_travel_globe.show_all = false
 	_travel_go.text = "START"
 	_travel_go.visible = true
 	_pv_buttons.visible = true
@@ -598,6 +602,15 @@ func _open_run() -> void:
 
 ## The big button on the globe: begin the run, or swim the way that is highlighted.
 func _go() -> void:
+	if _practising:
+		_practising = false
+		_drill = _start_at == -1
+		if not _drill:
+			_level = _start_at
+			_down = _practice_down
+		_from = -1
+		_start_race(true)
+		return
 	if _starting:
 		# (a tester may have picked a later stage: the run then begins as if it had come the
 		# usual way to it)
@@ -614,13 +627,20 @@ func _take_way(id: int) -> void:
 	_start_level(id, false)
 
 
-## The little window beside the globe: what a stage looks like, and a line about it.
+## The card beside the globe: what a stage looks like, where it is, and a fact about the
+## salmon at that point of its life.
 func _preview(id: int, line := "") -> void:
 	var stage: Dictionary = Levels.LIST[id]
 	_pv_name.text = stage.name
 	var at: Vector2 = stage.at
 	_pv_where.text = "%.1f°%s  %.1f°%s" % [absf(at.x), "N" if at.x >= 0.0 else "S", absf(at.y), "E" if at.y >= 0.0 else "W"]
-	_pv_line.text = line if line != "" else str(stage.tagline)
+	# a true thing about the salmon at this point: the adult on the way up, the young on the
+	# way back down
+	var down := _practice_down if _practising else _down
+	var fact: String = Levels.DOWN_FACTS[int(stage.tier)] if down else str(stage.fact)
+	_pv_line.text = line if line != "" else fact
+	_pv_ask.text = "Did you know?" if line == "" else "Practice"
+	_pv_kicker.text = "TRAINING" if line != "" else "STAGE %d: %s" % [int(stage.tier) + 1, "SPRING, SEAWARD" if down else "AUTUMN, HOMEWARD"]
 	var path := "res://textures/previews/%s.png" % str(stage.name).to_lower().replace(" ", "_")
 	_pv_image.texture = load(path) if ResourceLoader.exists(path) else null
 
@@ -638,13 +658,18 @@ func _apply_filter() -> void:
 ## The arrows on the globe card: the next way on, or (tester mode, before a run) the next
 ## stage to start from.
 func _step_way(dir: int) -> void:
-	if not (_starting and Save.tester):
+	if not ((_starting and Save.tester) or _practising):
 		_travel_globe.step(dir)
 		return
 	var order: Array[int] = []
+	if _practising:
+		order.append(-1)  # the training course
 	for tier in Levels.tiers():
 		order.append_array(Levels.on_tier(tier))
 	_start_at = order[posmod(order.find(_start_at) + dir, order.size())]
+	if _practising:
+		_show_practice_stage()
+		return
 	var path := Levels.path_to(_start_at)
 	var from := path[path.size() - 2] if path.size() > 1 else -1
 	path.resize(path.size() - 1)
@@ -683,7 +708,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pause_game()
 	elif _travel.visible and _pv_buttons.visible:
 		_globe_back()
-	elif _howto.visible or _options.visible or _levels.visible:
+	elif _howto.visible or _options.visible:
 		_close_sub_panel()
 
 
@@ -828,7 +853,7 @@ func _build_menus() -> void:
 	_title_sub = UI.label("", 34, UI.TEAL, 10)
 	col.add_child(_title_sub)
 	col.add_child(UI.button("NEW RUN", _open_run))
-	col.add_child(UI.button("PRACTICE", func() -> void: _open_levels()))
+	col.add_child(UI.button("PRACTICE", func() -> void: _open_practice(_level, false)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))
@@ -1092,80 +1117,10 @@ func _show_summary() -> void:
 	_show(_summary)
 
 
-const MAP_NODE := Vector2(110, 54)
-
-
-## The practice map: a globe with every stage pinned on it, and the stages listed beside it
-## one row per step of the journey. Point at a stage and the globe turns to it, drawing the
-## way there, and the stages it leads on to light up; pick it to practise that stage.
-## (A run has no stage list: it starts at the ocean and picks its way on the travel globe.)
-func _build_levels() -> void:
-	_levels = _panel_root()
-	# the globe scene fills the screen behind the list, which keeps to the right of it
-	_map_globe = Globe.new()
-	_map_globe.show_all = true
-	_levels.add_child(_map_globe)
-	var lp := _centered_panel(_levels, Vector2(0, 0))
-	_map_side = lp.get_parent()
-	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 8)
-	lp.add_child(lv)
-	_map_title = UI.label("", 30, UI.GOLD, 8)
-	_map_title.add_theme_font_override("font", UI.serif())
-	lv.add_child(_map_title)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 8)
-	lv.add_child(list)
-	list.add_child(UI.label("NAVY: NORTH AMERICA        RED: THE JAPAN ROUTE (SPLITS OFF AT STEP 4)", 17, UI.PAPER, 6))
-	_level_buttons.resize(Levels.LIST.size())
-	for tier in Levels.tiers():
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		list.add_child(row)
-		var n := UI.label("%d" % (tier + 1), 30, UI.CORAL, 8)
-		n.custom_minimum_size.x = 30
-		row.add_child(n)
-		for id: int in Levels.on_tier(tier):
-			var japan: bool = Levels.LIST[id].get("route", "") == "japan"
-			if japan and row.get_child_count() > 1 and not row.has_meta("split"):
-				# a little gap where the two routes part
-				row.set_meta("split", true)
-				var gap := Control.new()
-				gap.custom_minimum_size.x = 14
-				row.add_child(gap)
-			var b := UI.button("", func() -> void: _map_pick(id))
-			if japan:
-				for colour: String in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
-					b.add_theme_color_override(colour, UI.RED)
-			b.custom_minimum_size = MAP_NODE
-			b.add_theme_font_size_override("font_size", 13)
-			b.focus_entered.connect(_map_point.bind(id))
-			b.mouse_entered.connect(_map_point.bind(id))
-			row.add_child(b)
-			_level_buttons[id] = b
-	_map_note = UI.label("", 17, UI.OCHRE, 6)
-	_map_note.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_map_note.custom_minimum_size = Vector2(700, 46)
-	list.add_child(_map_note)
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 20)
-	lv.add_child(row2)
-	_map_start = UI.button("TRAINING COURSE", func() -> void: _map_pick(-1))
-	row2.add_child(_map_start)
-	_map_flip = UI.button("", func() -> void:
-		_map_down = not _map_down
-		_refresh_map())
-	_map_flip.custom_minimum_size.x = 300
-	row2.add_child(_map_flip)
-	row2.add_child(UI.button("BACK", _close_sub_panel))
-	# three across have to fit beside the globe
-	for b: Button in row2.get_children():
-		b.custom_minimum_size.x = 150
-		b.add_theme_font_size_override("font_size", 20)
-	# The travel screen, shown between stages: the red line crosses the globe to the next one.
-	# On the way up it is also where you choose which way to go.
+## The globe scene: the map, the level select and the travel screen in one.
+func _build_globe() -> void:
 	# It is the whole screen, laid out after conceptArt/ui/levelSelect.png: the globe, and
-	# under it (beside it on a wide screen) one framed card holding a picture of the stage in
+	# over the lower part of it one framed card holding a picture of the stage in
 	# hand, arrows either side to look at the other ways on, its name, a line about it and two
 	# buttons.
 	_travel = _panel_root()
@@ -1175,177 +1130,197 @@ func _build_levels() -> void:
 	_pv_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_travel.add_child(_pv_wrap)
 	_pv_card = PanelContainer.new()
-	# (the usual navy plate, with a little more room round the edge)
-	var frame := UI.card(Color(UI.NAVY, 0.96), UI.PAPER, 2, 10)
-	frame.set_content_margin_all(14)
+	# a page out of a school encyclopedia: cream paper with an ink border, and a gold rule
+	# with a red diamond at each corner drawn just inside it
+	var frame := UI.card(UI.PAPER, UI.INK, 2, 6)
+	frame.set_content_margin_all(17)
 	_pv_card.add_theme_stylebox_override("panel", frame)
+	_pv_card.draw.connect(func() -> void:
+		var inner := Rect2(Vector2(8, 8), _pv_card.size - Vector2(16, 16))
+		_pv_card.draw_rect(inner, UI.OCHRE, false, 1.5)
+		for corner: Vector2 in [inner.position, Vector2(inner.end.x, inner.position.y), inner.end, Vector2(inner.position.x, inner.end.y)]:
+			_pv_card.draw_colored_polygon(_diamond(corner, 5.0), UI.RED))
 	_pv_wrap.add_child(_pv_card)
 	var pv := VBoxContainer.new()
-	pv.add_theme_constant_override("separation", 8)
+	pv.add_theme_constant_override("separation", 7)
 	_pv_card.add_child(pv)
-	# the picture, in a thin white frame
+	# the running head: which stage and season on the left, where on Earth on the right
+	var head := PanelContainer.new()
+	var head_frame := UI.flat(UI.NAVY, Color.TRANSPARENT, 0, 2)
+	head_frame.content_margin_left = 10
+	head_frame.content_margin_right = 10
+	head_frame.content_margin_top = 2
+	head_frame.content_margin_bottom = 2
+	head.add_theme_stylebox_override("panel", head_frame)
+	pv.add_child(head)
+	var head_row := HBoxContainer.new()
+	head.add_child(head_row)
+	_pv_kicker = UI.label("", 13, UI.PAPER, 0)
+	_pv_kicker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head_row.add_child(_pv_kicker)
+	_pv_where = UI.label("", 13, UI.GOLD, 0)
+	head_row.add_child(_pv_where)
+	# the picture, mounted like a plate: an ink line, a paper mat, the picture
 	var window := PanelContainer.new()
-	var window_frame := UI.flat(Color.TRANSPARENT, UI.PAPER, 2, 4)
-	window_frame.set_content_margin_all(3)
+	var window_frame := UI.flat(UI.PAPER, UI.INK, 2, 2)
+	window_frame.set_content_margin_all(5)
 	window.add_theme_stylebox_override("panel", window_frame)
 	pv.add_child(window)
 	_pv_image = TextureRect.new()
-	_pv_image.custom_minimum_size = Vector2(416, 234)
+	_pv_image.custom_minimum_size = Vector2(416, 176)
 	_pv_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_pv_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_pv_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	window.add_child(_pv_image)
-	# its name in a box of its own, with where on Earth it is alongside
+	# its name as the caption, with the arrows to the other ways on either side of it. They
+	# are drawn here rather than from a picture: navy discs with a paper chevron, that turn
+	# gold while pressed (not under the pointer: on a phone that would leave the last one
+	# tapped lit)
 	var title := HBoxContainer.new()
-	title.add_theme_constant_override("separation", 12)
+	title.add_theme_constant_override("separation", 6)
 	pv.add_child(title)
-	_pv_name = UI.label("", 28, UI.GOLD, 0)
+	_pv_name = UI.label("", 23, UI.INK, 0)
 	_pv_name.add_theme_font_override("font", UI.serif())
-	title.add_child(_pv_name)
-	_pv_where = UI.label("", 16, UI.TEAL, 0)
-	_pv_where.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	title.add_child(_pv_where)
-	_pv_line = UI.label("", 17, UI.PAPER, 0)
+	_pv_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pv_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for dir: int in [-1, 1]:
+		var arrow := Button.new()
+		arrow.flat = true
+		arrow.focus_mode = Control.FOCUS_NONE
+		arrow.custom_minimum_size = Vector2(44, 44)
+		arrow.pressed.connect(func() -> void:
+			Sfx.play("ui", 1.5, -6.0)
+			_step_way(dir))
+		arrow.draw.connect(func() -> void:
+			var c := Vector2(22, 22)
+			var down := arrow.is_pressed()
+			arrow.draw_circle(c, 21.0, UI.INK)
+			arrow.draw_circle(c, 19.0, UI.GOLD if down else UI.NAVY)
+			arrow.draw_arc(c, 15.5, 0.0, TAU, 40, UI.INK if down else UI.OCHRE, 1.0, true)
+			var tip := c + Vector2(6.0 * dir, 0.0)
+			var back := c + Vector2(-4.0 * dir, 0.0)
+			arrow.draw_polyline(PackedVector2Array([back + Vector2(0, -8), tip, back + Vector2(0, 8)]), UI.INK if down else UI.PAPER, 3.5, true))
+		title.add_child(arrow)
+		_pv_arrows.append(arrow)
+		if dir == -1:
+			title.add_child(_pv_name)
+	# a rule with a diamond in the middle, as under a chapter heading
+	var rule := Control.new()
+	rule.custom_minimum_size = Vector2(0, 9)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rule.draw.connect(func() -> void:
+		var mid := rule.size * 0.5
+		rule.draw_line(Vector2(0, mid.y), Vector2(mid.x - 10, mid.y), UI.OCHRE, 1.5)
+		rule.draw_line(Vector2(mid.x + 10, mid.y), Vector2(rule.size.x, mid.y), UI.OCHRE, 1.5)
+		rule.draw_colored_polygon(_diamond(mid, 4.5), UI.RED))
+	pv.add_child(rule)
+	# the fact, under the heading every school CD-ROM gave it
+	var fact := VBoxContainer.new()
+	fact.add_theme_constant_override("separation", 0)
+	pv.add_child(fact)
+	_pv_ask = UI.label("", 15, UI.RED, 0)
+	_pv_ask.add_theme_font_override("font", UI.italic())
+	fact.add_child(_pv_ask)
+	_pv_line = UI.label("", 15, UI.INK, 0)
 	_pv_line.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_pv_line.custom_minimum_size = Vector2(416, 44)
-	pv.add_child(_pv_line)
+	fact.add_child(_pv_line)
 	_pv_buttons = HBoxContainer.new()
 	_pv_buttons.add_theme_constant_override("separation", 12)
 	pv.add_child(_pv_buttons)
 	_travel_back = UI.button("BACK", _globe_back)
 	_travel_go = UI.button("", _go)
+	# (on paper, a paper button wants to be a shade darker to stand off it)
+	var manila := UI.card(Color(0.88, 0.83, 0.71), UI.INK, 2, 8)
 	for b: Button in [_travel_back, _travel_go]:
-		b.custom_minimum_size = Vector2(120, 54)
+		b.custom_minimum_size = Vector2(120, 50)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_stylebox_override("normal", manila)
 		_pv_buttons.add_child(b)
-	# the arrows sit across the card's edges, level with the bottom of the picture
-	# drawn here rather than from a picture: round paper buttons with a chevron, like the
-	# rest of the buttons, that turn gold under the pointer
-	for dir: int in [-1, 1]:
-		var arrow := Button.new()
-		arrow.flat = true
-		arrow.focus_mode = Control.FOCUS_NONE
-		arrow.custom_minimum_size = Vector2(60, 60)
-		arrow.size = Vector2(60, 60)
-		arrow.pressed.connect(func() -> void:
-			Sfx.play("ui", 1.5, -6.0)
-			_step_way(dir))
-		arrow.draw.connect(func() -> void:
-			var c := Vector2(30, 30)
-			arrow.draw_circle(c + Vector2(0, 4), 27.0, Color(0.0, 0.02, 0.08, 0.4))
-			arrow.draw_circle(c, 27.0, UI.INK)
-			arrow.draw_circle(c, 24.0, UI.GOLD if arrow.is_hovered() or arrow.button_pressed else UI.PAPER)
-			var tip := c + Vector2(9.0 * dir, 0.0)
-			var back := c + Vector2(-6.0 * dir, 0.0)
-			arrow.draw_polyline(PackedVector2Array([back + Vector2(0, -11), tip, back + Vector2(0, 11)]), UI.INK, 5.0, true))
-		arrow.mouse_entered.connect(arrow.queue_redraw)
-		arrow.mouse_exited.connect(arrow.queue_redraw)
-		_pv_wrap.add_child(arrow)
-		_pv_arrows.append(arrow)
+	# practice only: which leg of the journey to swim the stage on
+	_pv_way = UI.button("", func() -> void:
+		_practice_down = not _practice_down
+		_show_practice_stage())
+	_pv_way.add_theme_font_size_override("font_size", 20)
+	_pv_way.add_theme_stylebox_override("normal", manila)
+	_pv_way.custom_minimum_size.y = 40
+	_pv_way.visible = false
+	pv.add_child(_pv_way)
 	_travel_globe.chosen.connect(_take_way)
 	_travel_globe.pointed.connect(_preview)
 
 
-## Where the globe sits in each globe scene. On a tall screen it is the concept art as drawn:
-## the globe above, the card across the bottom. On a wide one the card stands beside it.
+## Where the globe sits in each globe scene, after the concept art: the Earth behind, and the
+## card across the bottom over the lower part of it. The same on a phone and on a desktop.
 func _layout_globes() -> void:
 	var area := _travel.size
 	var tall := area.y > area.x
-	_map_globe.anchor = Vector2(0.5, 0.16) if tall else Vector2(0.155, 0.5)
-	_map_globe.radius = 0.4 if tall else 0.27
-	_map_side.anchor_left = 0.0 if tall else 0.31
-	_map_side.offset_left = 0.0
-	# the card: as wide as the screen allows when it is underneath
 	var card := _pv_card.get_combined_minimum_size()
 	_pv_card.size = card
-	var k := clampf((area.x - 90.0) / card.x, 1.0, 2.6) if tall else 1.0
+	# the card: as wide as a phone allows, and a little over half the height of a wide screen
+	var k := clampf((area.x - 90.0) / card.x, 1.0, 2.6) if tall else clampf(area.y * 0.5 / card.y, 0.6, 2.6)
 	_pv_wrap.scale = Vector2(k, k)
 	_travel_globe.ui_scale = maxf(k * 0.8, 1.0)
-	_map_globe.ui_scale = 1.7 if tall else 1.0
 	_pv_wrap.size = card
+	_pv_wrap.position = Vector2((area.x - card.x * k) * 0.5, area.y - card.y * k - (60.0 if tall else 20.0))
+	var top := _pv_wrap.position.y
 	if tall:
-		_pv_wrap.position = Vector2((area.x - card.x * k) * 0.5, area.y - card.y * k - 60.0)
-		# the globe fills what is left above, and the card covers just a little of the bottom
-		# of it
-		var top := _pv_wrap.position.y
-		var r := minf(area.x * 0.48, (top - 30.0) / 1.8)
+		# the globe is as big as the screen is wide, and the card comes up over the bottom
+		# quarter of it
+		var r := minf(area.x * 0.53, (top - 16.0) / 1.5)
 		_travel_globe.radius = r / area.x
-		_travel_globe.anchor = Vector2(0.5, (top - r * 0.8) / area.y)
+		_travel_globe.anchor = Vector2(0.5, (top - r * 0.5) / area.y)
 	else:
-		_pv_wrap.position = Vector2(56.0, (area.y - card.y) * 0.5)
-		_travel_globe.anchor = Vector2(0.68, 0.5)
-		_travel_globe.radius = 0.36
-	var level := 14.0 + 117.0 - 30.0  # halfway down the picture
-	_pv_arrows[0].position = Vector2(-30.0, level)
-	_pv_arrows[1].position = Vector2(card.x - 30.0, level)
-	var several := _travel_globe.choices.size() > 1 or (_starting and Save.tester)
+		# the Earth is as big as leaves its top on the screen and the stage in hand (the
+		# middle of the globe) in the clear above the card
+		var middle := top - 40.0
+		_travel_globe.radius = (middle - 18.0) / area.y
+		_travel_globe.anchor = Vector2(0.5, middle / area.y)
+	var several := _travel_globe.choices.size() > 1 or (_starting and Save.tester) or _practising
 	for arrow in _pv_arrows:
-		arrow.visible = several
+		# (kept in the row when there is one way only, so that the card stays the same height)
+		arrow.modulate.a = 1.0 if several else 0.0
+		arrow.disabled = not several
 
 
 ## BACK on the globe: to the title before a run has started, to the results after a stage.
 func _globe_back() -> void:
 	_travel_globe.stop_choosing()
-	_show(_title if _starting else _results)
+	_show(_title if _starting or _practising else _results)
+	_practising = false
 
 
-## Turns the map's globe to a stage, draws the last hop of the way there, and lights up the
-## stages it leads on to.
-func _map_point(id: int) -> void:
-	_map_at = id
-	var path := Levels.path_from_top(id) if _map_down else Levels.path_to(id)
-	var from := path[path.size() - 2] if path.size() > 1 else -1
-	path.resize(path.size() - 1)
-	# heading up, a stage leads to its "next"; heading down, to whatever leads up to it
-	var onward := Levels.before(id) if _map_down else Levels.next_of(id)
-	_map_globe.onward = onward
-	_map_globe.show_path(path, from, id, 0.7)
-	for i in _level_buttons.size():
-		_level_buttons[i].modulate = Color.WHITE if i == id or onward.has(i) else Color(1, 1, 1, 0.6)
-	var names := PackedStringArray()
-	for o in onward:
-		names.append(Levels.LIST[o].name)
-	if onward.is_empty():
-		_map_note.text = "THE OPEN OCEAN: THE END OF THE WAY DOWN" if _map_down else "THE SPAWNING GROUNDS: THE END OF THE WAY UP"
-	elif _map_down:
-		_map_note.text = "LEADS DOWN TO: %s (THE WAY YOU CAME UP)" % " / ".join(names)
-	elif onward.size() == 1:
-		_map_note.text = "LEADS TO: %s" % names[0]
-	else:
-		var goal := Levels.objective_text(id)
-		_map_note.text = "LEADS TO: %s.  %s TO OPEN: %s" % [names[0], goal, " / ".join(names.slice(1))]
+## PRACTICE: the same globe and card as a run, to pick any stage (or the training course)
+## with the arrows. It shows no trail, since nothing has been swum.
+func _open_practice(at: int, down: bool) -> void:
+	_practising = true
+	_starting = false
+	_start_at = at
+	_practice_down = down
+	_travel_globe.stop_choosing()
+	_travel_globe.show_all = true
+	_travel_globe.look_at_stage(Levels.RAINFOREST if at == -1 else at)
+	_show_practice_stage()
+	_travel_go.text = "PRACTISE"
+	_travel_go.visible = true
+	_pv_buttons.visible = true
+	hud.visible = false
+	_show(_travel)
+	_travel_go.grab_focus()
 
 
-func _refresh_map() -> void:
-	_map_title.text = "PRACTICE  //  %s" % ("SPRING, DOWNSTREAM" if _map_down else "AUTUMN, UPSTREAM")
-	_map_flip.text = "SHOW THE WAY UP" if _map_down else "SHOW THE WAY BACK DOWN"
-	for i in _level_buttons.size():
-		var key := i + (100 if _map_down else 0)
-		var best := "%s (%s)" % [Hud.fmt(Save.best(key)), Save.rank(key)] if Save.best(key) > 0 else "-"
-		_level_buttons[i].text = "%s\n%s" % [Levels.LIST[i].name, best]
-	_map_point(_map_at)
+func _show_practice_stage() -> void:
+	var stage := Levels.RAINFOREST if _start_at == -1 else _start_at
+	_travel_globe.show_path([], -1, stage, 0.6)
+	_preview(stage, "ONE OF EVERYTHING, FOR TRYING THE CONTROLS" if _start_at == -1 else "")
+	if _start_at == -1:
+		_pv_name.text = "TRAINING COURSE"
+	_pv_way.visible = _start_at != -1
+	_pv_way.text = "SPRING: THE WAY DOWN" if _practice_down else "AUTUMN: THE WAY UP"
 
 
-## A stage picked on the practice map (-1 is the training course).
-func _map_pick(id: int) -> void:
-	_drill = id == -1
-	if id != -1:
-		_level = id
-		_down = _map_down
-	_from = -1
-	_start_race(true)
-
-
-## `at` and `down` say which stage and leg the map opens on (the journey's by default).
-func _open_levels(at := -1, down := _down) -> void:
-	if at == -1:
-		at = _level
-	_map_at = at
-	_map_down = down
-	_map_globe.look_at_stage(at)
-	_refresh_map()
-	_show(_levels)
-	_level_buttons[at].grab_focus()
+func _diamond(at: Vector2, r: float) -> PackedVector2Array:
+	return PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
 
 
 func _panel_root() -> Control:

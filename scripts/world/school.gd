@@ -57,7 +57,8 @@ func scatter() -> void:
 func _place(f: Dictionary, at_s: float) -> void:
 	f.s = clampf(at_s, 4.0, track.length - 8.0)
 	var lim := track.width(f.s) * 0.5 - 2.0
-	f.lane = _rng.randf_range(-lim, lim)
+	# near the player, so they are company even where the water is very wide
+	f.lane = clampf(player.x + _rng.randf_range(-13.0, 13.0), -lim, lim)
 	f.x = f.lane
 	f.y = track.surface_y(f.s, f.x)
 	f.vy = 0.0

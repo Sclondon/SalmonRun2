@@ -11,6 +11,8 @@ extends RefCounted
 ## spring:  settings that change on the way back down. The run up is late summer and autumn
 ##          (August to November); the young go to sea in spring.
 ## at:      where on Earth it is, as (latitude, longitude), for the globe.
+## fact:    a true thing about a salmon at this point of the run home, shown on the level
+##          select. (On the way back down the facts are about the young: see DOWN_FACTS.)
 ## tier:    which step of the journey it is (its row on the map, and its tune); order is its
 ##          place along that row.
 ## route:   "japan" for the stages of the Japan route, which splits off at step 4; the rest are
@@ -18,6 +20,12 @@ extends RefCounted
 ## like:    borrow every setting of another stage (by name), replacing only what is listed.
 ## next:    the stages it leads to heading upstream. The first is the default; the others are
 ##          more advanced routes, opened by meeting this stage's objective.
+## spacing: how much open water there is between one piece of the course and the next (1 is
+##          the usual 45 to 80 m).
+## floor:   open sea only: how far down the sea floor is (metres); it replaces the river bed
+##          and banks with a sheet of hills way below the water.
+## water_*: any setting of the water shader (see shaders/water.gdshader), e.g. water_deep,
+##          water_foam_amount, water_depth_range, water_rim_width.
 ## kinds:   what the course is made of ("ramps", "rails", "rocks", "rings", "predators").
 ## scatter: [mesh, chance, nearest, farthest, smallest, biggest, sink, mode] dressing rules;
 ##          mode "bank" sits on the bank, "water" floats, "far" is a backdrop every 40 m.
@@ -29,13 +37,16 @@ const LIST: Array[Dictionary] = [
 		"next": ["SHALLOW SEA", "OCEAN TRENCH"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "SOMETHING IS CALLING YOU HOME",
+		"fact": "A SOCKEYE SPENDS ABOUT TWO YEARS FEEDING AT SEA BEFORE IT TURNS FOR HOME.",
 		"seed": 4101, "length": 2600.0,
-		"width": 27.0, "slope": 0.0, "curve": 0.3,
-		"kinds": ["ramps", "rings", "rocks", "predators", "ramps", "rails"],
+		# the gentlest start: open water five times the width of a river, long empty stretches, and almost
+		# nothing to hit (no rock fields; a pair of sharks now and then)
+		"width": 140.0, "slope": 0.0, "curve": 0.3, "spacing": 2.2,
+		"kinds": ["rings", "ramps", "rings", "rails", "ramps", "rings", "ramps", "predators"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.06, 0.14), Color(0.02, 0.05, 0.12), Color(0.02, 0.05, 0.12)],
-		"bed": Color(0.02, 0.07, 0.15), "cliff": Color(0.3, 0.35, 0.42),
+		"bed": Color(0.1, 0.24, 0.4), "cliff": Color(0.3, 0.35, 0.42),
 		"sea_from": 0.8, "markers": [Color(0.9, 0.2, 0.15), Color(1.0, 0.5, 0.2)],
 		"rock": Color(0.75, 0.32, 0.15), "rock_cap": Color(0.75, 0.32, 0.15), "rock_mesh": "crate",
 		"ramp": Color(0.05, 0.25, 0.45), "ramp_top": Color(0.75, 0.93, 1.0),
@@ -54,6 +65,8 @@ const LIST: Array[Dictionary] = [
 		"light": Color(0.65, 0.8, 1.0), "light_energy": 0.9,
 		"water_deep": Color(0.01, 0.06, 0.18), "water_shallow": Color(0.04, 0.24, 0.42),
 		"water_beat": Color(0.2, 0.7, 1.0), "swell": 3.0,
+		# deep blue water over a floor of hills far below
+		"floor": 46.0, "water_depth_range": 26.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.14,
 		"motes": Color(0.4, 0.9, 1.0),
 	},
 	{
@@ -61,6 +74,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["COASTLINE", "THE HARBOR"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "WARM WATER, BRIGHT REEF",
+		"fact": "AT SEA A SALMON IS SILVER: DARK ABOVE AND PALE BELOW, HARD TO SPOT FROM EITHER SIDE.",
 		"seed": 5202, "length": 2800.0,
 		"width": 26.0, "slope": 0.0, "curve": 0.5,
 		"kinds": ["rings", "rocks", "ramps", "rails", "predators", "ramps"],
@@ -97,6 +111,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["THE FISH LADDER", "DRY RIVERBED"],
 		"objective": {"type": "clean", "n": 2},
 		"tagline": "YOU CAN SMELL THE RIVER FROM HERE",
+		"fact": "CLOSE TO SHORE, SCENT LEADS A SALMON BACK TO THE VERY STREAM WHERE IT HATCHED.",
 		"seed": 6303, "length": 3000.0,
 		"width": 25.0, "slope": 0.004, "curve": 0.7, "uphill": true,
 		"kinds": ["ramps", "rails", "rocks", "rings", "predators", "rails"],
@@ -133,9 +148,10 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "RAINFOREST FALLS", "at": Vector2(47.0, -122.05), "tier": 4, "order": 0, "salt": false,
-		"next": ["THE HOME LAKE"],
+		"next": ["ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "MOSS, MIST AND GIANT CEDARS. LEAP THE FALLS",
+		"fact": "A SALMON CAN LEAP A WATERFALL AROUND TWO METRES HIGH.",
 		"seed": 1987, "length": 3400.0,
 		"width": 24.0, "slope": 0.03, "curve": 1.0,
 		"kinds": ["ramps", "rails", "rocks", "rings", "ramps", "rails"],
@@ -175,10 +191,11 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.85, 1.0, 0.8),
 	},
 	{
-		"name": "ALPINE RUN", "at": Vector2(46.9, -121.4), "tier": 4, "order": 1, "salt": false,
-		"next": ["THE HOME LAKE"],
+		"name": "MOUNTAIN RIVER", "at": Vector2(46.9, -121.4), "tier": 4, "order": 1, "salt": false,
+		"next": ["ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "COLD, FAST AND STEEP",
+		"fact": "MALES GROW A HOOKED JAW, THE KYPE, TO FIGHT FOR A PLACE TO SPAWN.",
 		"seed": 7405, "length": 3200.0,
 		"width": 21.0, "slope": 0.045, "curve": 1.15,
 		"kinds": ["rocks", "ramps", "rails", "rocks", "rings", "ramps"],
@@ -228,9 +245,10 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 1.0, 1.0),
 	},
 	{
-		"name": "THE HOME LAKE", "at": Vector2(46.55, -121.75), "tier": 5, "order": 0, "salt": false,
+		"name": "ALPINE LAKE", "at": Vector2(46.55, -121.75), "tier": 5, "order": 0, "salt": false,
 		"ending": "HOME AT LAST. SPAWNED!",
 		"tagline": "WHERE IT ALL BEGAN",
+		"fact": "THE FEMALE DIGS A NEST IN THE GRAVEL WITH HER TAIL. IT IS CALLED A REDD.",
 		"seed": 8506, "length": 2400.0,
 		"width": 28.0, "slope": 0.0, "curve": 0.3,
 		"kinds": ["rings", "ramps", "rails", "ramps", "rings", "rails"],
@@ -288,13 +306,14 @@ const LIST: Array[Dictionary] = [
 		"next": ["MEANDERING RIVER", "NEON HARBOR"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "PACK ICE UNDER THE NORTHERN LIGHTS",
+		"fact": "SALMON NEED COLD WATER, AND ARE TURNING UP FURTHER NORTH AS THE SEAS WARM.",
 		"seed": 5909, "length": 2800.0,
 		"width": 25.0, "slope": 0.0, "curve": 0.6,
 		"kinds": ["rocks", "ramps", "rings", "predators", "rocks", "rails"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.08, 0.14), Color(0.02, 0.07, 0.12), Color(0.02, 0.07, 0.12)],
-		"bed": Color(0.02, 0.09, 0.15), "cliff": Color(0.3, 0.35, 0.42),
+		"bed": Color(0.1, 0.3, 0.36), "cliff": Color(0.3, 0.35, 0.42),
 		"sea_from": 0.8, "markers": [Color(0.9, 0.2, 0.15), Color(0.4, 1.0, 0.7)],
 		"rock": Color(0.78, 0.9, 1.0), "rock_cap": Color(1.0, 1.0, 1.0),
 		"ramp": Color(0.6, 0.8, 0.95), "ramp_top": Color(0.92, 0.97, 1.0),
@@ -312,6 +331,7 @@ const LIST: Array[Dictionary] = [
 		"light": Color(0.7, 0.95, 0.9), "light_energy": 0.95,
 		"water_deep": Color(0.01, 0.1, 0.16), "water_shallow": Color(0.1, 0.4, 0.44),
 		"water_beat": Color(0.3, 1.0, 0.7), "swell": 1.6,
+		"floor": 38.0, "water_depth_range": 22.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.2,
 		"motes": Color(0.9, 1.0, 1.0),
 	},
 	{
@@ -319,6 +339,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["THE FISH FARM", "THE FISH LADDER"],
 		"objective": {"type": "score", "n": 60000},
 		"tagline": "QUAYS, CRANES AND SODIUM LIGHT",
+		"fact": "WHERE RIVER MEETS SEA, A SALMON'S BODY READJUSTS FROM SALT WATER TO FRESH.",
 		"seed": 6910, "length": 3000.0,
 		"width": 22.0, "slope": 0.004, "curve": 0.5, "uphill": true,
 		"kinds": ["rails", "rocks", "ramps", "rails", "rings", "predators"],
@@ -351,9 +372,10 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "THE FISH LADDER", "at": Vector2(47.67, -122.4), "tier": 3, "order": 2, "salt": false,
-		"next": ["ALPINE RUN", "THE HOME LAKE"],
+		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "on_beat", "n": 6},
 		"tagline": "A DAM IN THE WAY. ONE STEP AT A TIME",
+		"fact": "A FISH LADDER IS A STAIRCASE OF POOLS THAT LETS SALMON CLIMB PAST A DAM.",
 		"seed": 7911, "length": 3000.0,
 		"width": 20.0, "slope": 0.03, "curve": 0.25, "uphill": true,
 		"kinds": ["ramps", "rings", "rails", "rocks", "rings", "ramps"],
@@ -389,6 +411,7 @@ const LIST: Array[Dictionary] = [
 		"name": "THE FISH FARM", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false, "farm": true,
 		"ending": "SPAWNED... IN A FISH FARM",
 		"tagline": "THE SHORT WAY: NOT HOME, BUT THERE ARE PELLETS",
+		"fact": "MOST ATLANTIC SALMON SOLD AS FOOD IS FARMED, RAISED IN NET PENS LIKE THESE.",
 		"seed": 8912, "length": 2400.0,
 		"width": 26.0, "slope": 0.0, "curve": 0.3,
 		"kinds": ["rings", "ramps", "rocks", "rails", "rings", "ramps"],
@@ -426,13 +449,14 @@ const LIST: Array[Dictionary] = [
 		"next": ["CORAL REEF", "ARCTIC WATERS"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "NOTHING BUT DARK WATER AND LIVING LIGHT",
+		"fact": "SALMON ARE THOUGHT TO FIND THEIR WAY ACROSS OPEN OCEAN BY THE EARTH'S MAGNETIC FIELD.",
 		"seed": 5313, "length": 2800.0,
 		"width": 26.0, "slope": 0.0, "curve": 0.4,
 		"kinds": ["rings", "rocks", "predators", "ramps", "rails", "rings"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.02, 0.06), Color(0.01, 0.01, 0.05), Color(0.01, 0.01, 0.05)],
-		"bed": Color(0.02, 0.02, 0.07), "cliff": Color(0.2, 0.2, 0.28),
+		"bed": Color(0.1, 0.08, 0.26), "cliff": Color(0.2, 0.2, 0.28),
 		"sea_from": 0.8, "markers": [Color(0.3, 0.2, 0.6), Color(0.3, 1.0, 0.9)],
 		"rock": Color(0.16, 0.14, 0.24), "rock_cap": Color(0.3, 1.0, 0.9, 0.3),
 		"ramp": Color(0.14, 0.12, 0.22), "ramp_top": Color(0.4, 0.3, 0.7),
@@ -450,6 +474,7 @@ const LIST: Array[Dictionary] = [
 		"light": Color(0.5, 0.6, 1.0), "light_energy": 0.7,
 		"water_deep": Color(0.0, 0.01, 0.08), "water_shallow": Color(0.04, 0.1, 0.3),
 		"water_beat": Color(0.3, 1.0, 0.9), "swell": 2.5,
+		"floor": 90.0, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
 		"motes": Color(0.3, 1.0, 0.9),
 	},
 	{
@@ -457,6 +482,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["NEON HARBOR", "MEANDERING RIVER", "DRY RIVERBED"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "A GARDEN UNDER GLASS",
+		"fact": "SOME SALMON RANGE THOUSANDS OF MILES ACROSS THE NORTH PACIFIC BEFORE THEY RETURN.",
 		"seed": 6314, "length": 3000.0,
 		"width": 25.0, "slope": 0.0, "curve": 0.9,
 		"kinds": ["rocks", "rings", "ramps", "rocks", "predators", "rails"],
@@ -481,6 +507,8 @@ const LIST: Array[Dictionary] = [
 		"light": Color(1.0, 0.9, 0.85), "light_energy": 1.25,
 		"water_deep": Color(0.05, 0.5, 0.6), "water_shallow": Color(0.45, 0.95, 0.85),
 		"water_beat": Color(1.0, 0.6, 0.8), "swell": 1.0,
+		# clear water over white sand a few metres down
+		"floor": 6.0, "water_depth_range": 9.0, "water_alpha_shallow": 0.3, "water_alpha_deep": 0.7, "water_foam_amount": 0.12,
 		"motes": Color(1.0, 0.8, 0.9),
 	},
 	{
@@ -488,6 +516,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["THE CRATER LAKE"],
 		"objective": {"type": "flow", "n": 4},
 		"tagline": "A MOUNTAIN STREAM UNDER BAMBOO AND RED MAPLES",
+		"fact": "JAPAN HAS A SALMON OF ITS OWN: THE MASU, FOUND ONLY IN THE WESTERN PACIFIC.",
 		"seed": 7315, "length": 3200.0,
 		"width": 21.0, "slope": 0.035, "curve": 1.1, "uphill": true,
 		"kinds": ["rails", "rocks", "ramps", "rings", "rails", "ramps"],
@@ -531,9 +560,10 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "MEANDERING RIVER", "at": Vector2(47.55, -121.8), "tier": 3, "order": 0, "salt": false,
-		"next": ["RAINFOREST FALLS", "ALPINE RUN"],
+		"next": ["RAINFOREST FALLS", "MOUNTAIN RIVER"],
 		"objective": {"type": "score", "n": 70000},
 		"tagline": "FARMLAND, BIG SKY AND SLOW BENDS",
+		"fact": "ONCE A SALMON REACHES FRESH WATER IT STOPS FEEDING. THE REST IS DONE ON RESERVES.",
 		"seed": 8316, "length": 3200.0,
 		"width": 26.0, "slope": 0.012, "curve": 1.5, "uphill": true,
 		"kinds": ["ramps", "rails", "rings", "rocks", "ramps", "rings"],
@@ -582,9 +612,10 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "DRY RIVERBED", "at": Vector2(44.05, -121.3), "tier": 3, "order": 1, "salt": false,
-		"next": ["ALPINE RUN", "THE HOME LAKE"],
+		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "A THREAD OF WATER THROUGH RED ROCK",
+		"fact": "LOW, WARM WATER CAN STOP A RUN: SALMON HOLD IN DEEP POOLS AND WAIT FOR RAIN.",
 		"seed": 8317, "length": 3000.0,
 		"width": 19.0, "slope": 0.02, "curve": 1.2, "uphill": true,
 		"kinds": ["rocks", "ramps", "rings", "rocks", "rails", "ramps"],
@@ -635,6 +666,7 @@ const LIST: Array[Dictionary] = [
 		"next": ["THE HATCHERY", "BAMBOO RIVER"],
 		"objective": {"type": "score", "n": 60000},
 		"tagline": "A PORT CITY THAT NEVER GOES DARK",
+		"fact": "JAPAN'S HATCHERIES RELEASE MORE THAN A BILLION YOUNG CHUM SALMON EVERY YEAR.",
 		"seed": 6920,
 		# the same quays and cranes, under pink and violet city light instead of sodium orange
 		"sky_top": Color(0.04, 0.02, 0.12), "sky_horizon": Color(0.9, 0.3, 0.62),
@@ -646,10 +678,11 @@ const LIST: Array[Dictionary] = [
 		"rock": Color(0.8, 0.25, 0.55), "rock_cap": Color(0.8, 0.25, 0.55),
 	},
 	{
-		"name": "THE CRATER LAKE", "like": "THE HOME LAKE", "at": Vector2(42.75, 141.35), "tier": 5, "order": 2,
+		"name": "THE CRATER LAKE", "like": "ALPINE LAKE", "at": Vector2(42.75, 141.35), "tier": 5, "order": 2,
 		"route": "japan", "salt": false,
 		"ending": "HOME AT LAST. SPAWNED!",
 		"tagline": "STILL WATER IN AN OLD VOLCANO",
+		"fact": "AFTER SPAWNING BOTH PARENTS DIE, AND THEIR BODIES FEED THE RIVER.",
 		"arch": Color(0.72, 0.16, 0.12),
 		"scatter": [
 			["pine", 0.5, 66.0, 120.0, 0.9, 1.6, -0.5, "bank"],
@@ -678,6 +711,7 @@ const LIST: Array[Dictionary] = [
 		"route": "japan", "salt": false,
 		"ending": "SPAWNED... IN A HATCHERY",
 		"tagline": "NEAT PENS, CLEAN WATER, NO WAY OUT",
+		"fact": "A HATCHERY TAKES EGGS FROM RETURNING ADULTS AND RAISES THE YOUNG FOR RELEASE.",
 		"markers": [Color(0.85, 0.2, 0.15), Color(1.0, 0.9, 0.8)],
 		"scatter": [
 			["pen", 0.1, 8.0, 54.0, 1.0, 1.7, 0.0, "water"],
@@ -693,6 +727,17 @@ const LIST: Array[Dictionary] = [
 
 ## Where a run starts, and the stage the training course borrows its look from.
 const START := 0
+
+## A true thing about a young salmon at each step of the way down, from the open ocean (step
+## 1) back to the lake (step 6). From the National Park Service's account of the life cycle.
+const DOWN_FACTS := [
+	"SOME SALMON STAY AT SEA EIGHTEEN MONTHS, OTHERS AS LONG AS EIGHT YEARS.",
+	"OUT AT SEA, A YOUNG SALMON DOES LITTLE BUT FEED AND GROW.",
+	"ESTUARIES, AT THE MOUTH OF THE RIVER, ARE CRUCIAL TO THE SURVIVAL OF YOUNG SMOLTS.",
+	"HEADING FOR THE SEA, A YOUNG SALMON'S SCALES GROW AND TURN SILVER: IT IS NOW A SMOLT.",
+	"AT NIGHT, TO AVOID PREDATORS, SMALL FRY LET THE RIVER CARRY THEM DOWNSTREAM TAIL FIRST.",
+	"YOUNG SOCKEYE SPEND A YEAR OR TWO IN A LAKE BEFORE THEY LEAVE FOR THE SEA.",
+]
 const RAINFOREST := 3
 
 

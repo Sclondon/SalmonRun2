@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c1gjhkdlr1ayo"
-path="res://.godot/imported/the_home_lake.png-c0fc1b61c4b65b176ec39178eccae7bc.ctex"
+uid="uid://vp155tlcocx4"
+path="res://.godot/imported/mountain_river.png-63f5bc39e9a68f05fbd4ffa996e0bd09.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/the_home_lake.png"
-dest_files=["res://.godot/imported/the_home_lake.png-c0fc1b61c4b65b176ec39178eccae7bc.ctex"]
+source_file="res://textures/previews/mountain_river.png"
+dest_files=["res://.godot/imported/mountain_river.png-63f5bc39e9a68f05fbd4ffa996e0bd09.ctex"]
 
 [params]
 

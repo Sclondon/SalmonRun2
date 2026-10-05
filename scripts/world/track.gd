@@ -85,9 +85,10 @@ func _make_materials() -> void:
 	mat_foliage.set_shader_parameter("wind", 1.0)
 	mat_water = ShaderMaterial.new()
 	mat_water.shader = preload("res://shaders/water.gdshader")
-	mat_water.set_shader_parameter("deep_color", cfg.water_deep)
-	mat_water.set_shader_parameter("shallow_color", cfg.water_shallow)
-	mat_water.set_shader_parameter("beat_color", cfg.water_beat)
+	# any "water_<name>" in the stage's settings sets the water shader's <name>
+	for key: String in cfg:
+		if key.begins_with("water_"):
+			mat_water.set_shader_parameter(key.trim_prefix("water_"), cfg[key])
 	mat_water.set_shader_parameter("swell", cfg.swell)
 	# upstream, the river runs towards you
 	mat_water.set_shader_parameter("flow", -0.6 if uphill() else 0.6)
@@ -232,6 +233,8 @@ func _plan_features() -> void:
 	var kinds: Array = cfg.kinds
 	var falls_every: float = cfg.falls_every
 	var last := ""
+	var room := lane_room()
+	var shift := 0.0
 	while s < length - 320.0:
 		var kind: String
 		if falls_every > 0.0 and since_fall > falls_every:
@@ -242,6 +245,7 @@ func _plan_features() -> void:
 				kind = kinds[(kinds.find(kind) + 1) % kinds.size()]
 		last = kind
 		var used := 0.0
+		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size()}
 		match kind:
 			"falls", "bear_falls":
 				used = _plan_falls(s, kind == "bear_falls")
@@ -256,10 +260,35 @@ func _plan_features() -> void:
 				used = _plan_ring_trail(s)
 			"predators":
 				used = _plan_predators(s)
-		var gap := _rng.randf_range(45.0, 80.0)
+		if room > 0.0:
+			shift = clampf(shift + _rng.randf_range(-36.0, 36.0), -room, room)
+			_slide(from, shift)
+		var gap := _rng.randf_range(45.0, 80.0) * float(cfg.get("spacing", 1.0))
 		s += used + gap
 		since_fall += used + gap
 	finish_s = length - 150.0
+
+
+## How far the pieces of a very wide course can be moved off its middle (0 on a river).
+func lane_room() -> float:
+	return maxf(float(cfg.width) * 0.5 - 16.0, 0.0)
+
+
+## Every piece is laid out round the middle of the course, as a river needs. On open water
+## far wider than a river, each piece is then slid sideways as a whole (so a trail of rings
+## stays a trail), never too far from the last one to swim to.
+func _slide(from: Dictionary, shift: float) -> void:
+	for i in range(int(from.ramps), ramps.size()):
+		ramps[i].x = float(ramps[i].x) + shift
+	for i in range(int(from.rocks), rocks.size()):
+		rocks[i].x = float(rocks[i].x) + shift
+	for i in range(int(from.rings), rings.size()):
+		rings[i].x = float(rings[i].x) + shift
+	for i in range(int(from.bears), bears.size()):
+		bears[i].x = float(bears[i].x) + shift
+	for i in range(int(from.rails), rails.size()):
+		rails[i].x0 = float(rails[i].x0) + shift
+		rails[i].x1 = float(rails[i].x1) + shift
 
 
 ## Fixed layout, in the order you'd want to learn things: steer, jump, ramps, a rail,
@@ -484,6 +513,8 @@ func _build_centreline() -> void:
 # ================================================================== meshes
 
 func _build_chunks() -> void:
+	if cfg.has("floor"):
+		_build_floor()
 	var chunks := int(ceil(float(n - 1) / CHUNK))
 	for c in chunks:
 		var i0 := c * CHUNK
@@ -493,9 +524,51 @@ func _build_chunks() -> void:
 		for i in range(i0, i1):
 			_ground_strip(ground, i)
 			_water_strip(water, i)
-		_add_mesh(ground.build(), mat_world)
+		if not ground.is_empty():
+			_add_mesh(ground.build(), mat_world)
 		var wm := _add_mesh(water.build(), mat_water)
 		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## How far below the water the sea floor is at a point (rolling hills, never breaking the
+## surface).
+func _floor_depth(s: float, x: float) -> float:
+	var deep: float = cfg.floor
+	var hills := _noise.get_noise_2d(s * 0.011, x * 0.011 + 300.0) * 0.4 + _noise.get_noise_2d(s * 0.04 + 50.0, x * 0.04) * 0.12
+	return maxf(deep * (1.0 + hills), deep * 0.35)
+
+
+## The sea floor of an open-water stage: a coarse sheet of hills far wider than the course,
+## way down under the water.
+func _build_floor() -> void:
+	var cell := 16.0
+	var half := float(cfg.width) * 0.5 + 180.0
+	var across := int(ceil(half * 2.0 / cell))
+	var along := int(cell / STEP)
+	var base: Color = cfg.bed
+	var rows_per_mesh := 12
+	var row := 0
+	var mb := MB.new()
+	var i := 0
+	while i + along < n:
+		var sa := i * STEP
+		var sb := (i + along) * STEP
+		for j in across:
+			var x0 := -half + j * cell
+			var x1 := x0 + cell
+			var d: Array[float] = [_floor_depth(sa, x0), _floor_depth(sa, x1), _floor_depth(sb, x1), _floor_depth(sb, x0)]
+			# lighter on the rises, darker in the hollows
+			var lift: float = 1.0 - ((d[0] + d[2]) * 0.5) / float(cfg.floor)
+			var col := Props.vary(base.lightened(clampf(lift * 0.5, 0.0, 0.3)) if lift > 0.0 else base.darkened(clampf(-lift * 0.6, 0.0, 0.4)), _rng, 0.03)
+			mb.quad(point(sa, x0, water_y(sa) - d[0]), point(sa, x1, water_y(sa) - d[1]),
+					point(sb, x1, water_y(sb) - d[2]), point(sb, x0, water_y(sb) - d[3]), col, Vector3.UP)
+		row += 1
+		if row % rows_per_mesh == 0:
+			_add_mesh(mb.build(), mat_world)
+			mb = MB.new()
+		i += along
+	if not mb.is_empty():
+		_add_mesh(mb.build(), mat_world)
 
 
 func _add_mesh(mesh: Mesh, mat: Material) -> MeshInstance3D:
@@ -511,6 +584,9 @@ const BED_D := [-1.2, -2.6, -3.0, -2.6, -1.2]
 
 
 func _ground_strip(mb: MB, i: int) -> void:
+	# open sea has no river bed or banks: its floor is built on its own, far below
+	if cfg.has("floor"):
+		return
 	var sa := i * STEP
 	var sb := (i + 1) * STEP
 	var cliff := absf(pts[i + 1].y - pts[i].y) > 2.0
@@ -544,7 +620,11 @@ func _water_strip(mb: MB, i: int) -> void:
 	var hint := Vector3.UP + forward(sa) * 0.6
 	var ha := width(sa) * 0.5 + 0.8
 	var hb := width(sb) * 0.5 + 0.8
-	var ca := Color(_rapid_amount(sa), 0.0, 0.0)
+	# A river's water is mapped bank to bank, with foam along its edges. Open water far wider
+	# than a river keeps the same size of ripple (so the mapping repeats) and has no edges.
+	var wide := float(cfg.width) > 40.0
+	var repeat := (ha * 2.0 / 26.8) if wide else 1.0
+	var ca := Color(_rapid_amount(sa), 1.0 if wide else 0.0, 0.0)
 	for j in 4:
 		var xa0: float = BED_X[j]
 		var xa1: float = BED_X[j + 1]
@@ -552,8 +632,8 @@ func _water_strip(mb: MB, i: int) -> void:
 		var b := point(sa, xa1 * ha, water_y(sa))
 		var c := point(sb, xa1 * hb, water_y(sb))
 		var d := point(sb, xa0 * hb, water_y(sb))
-		var u0 := (xa0 + 1.0) * 0.5
-		var u1 := (xa1 + 1.0) * 0.5
+		var u0 := 0.5 + xa0 * 0.5 * repeat
+		var u1 := 0.5 + xa1 * 0.5 * repeat
 		mb.quad(a, b, c, d, ca, hint, Vector2(u0, sa), Vector2(u1, sa), Vector2(u1, sb), Vector2(u0, sb))
 	if not cfg.has("sea_from"):
 		return
@@ -568,8 +648,8 @@ func _water_strip(mb: MB, i: int) -> void:
 			var b := point(sa, side * (width(sa) * 0.5 + dist), water_y(sa))
 			var c := point(sb, side * (width(sb) * 0.5 + dist), water_y(sb))
 			var d := point(sb, side * (width(sb) * 0.5 + prev), water_y(sb))
-			var ua := 0.5 + side * (0.5 + prev * 0.04)
-			var ub := 0.5 + side * (0.5 + dist * 0.04)
+			var ua := 0.5 + side * (0.5 * repeat + prev * 0.04)
+			var ub := 0.5 + side * (0.5 * repeat + dist * 0.04)
 			mb.quad(a, b, c, d, open, hint, Vector2(ua, sa), Vector2(ub, sa), Vector2(ub, sb), Vector2(ua, sb))
 			prev = dist
 
