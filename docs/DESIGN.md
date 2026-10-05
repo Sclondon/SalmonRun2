@@ -145,6 +145,7 @@ avoid rocks, ride ramps and leap falls. They are company only.
 | Drag | a stick under the thumb: drag to one side of where your finger came down and the salmon steers that way, harder the further you drag, for as long as you hold it there (until it meets the bank). Where on the screen you touch makes no difference | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
 | Swipe down | dive one layer deeper | frontflip |
+| Swipe left / right | dash 3 m that way | spin |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
 | Wiggle back and forth | boost | |
 | Circles | boost | corkscrew, the way the finger goes round |
@@ -281,6 +282,11 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 ## 9. Other modes and tools
 
+- **Water lab:** on the title menu. The salmon swims a stage by itself under a panel of
+  sliders and colour pickers for the water shader (colour, surface, foam, wake), which change
+  the water as you watch. The arrows change stage, HIDE folds the panel away, COPY puts the
+  changed values on the clipboard as text, and RESET goes back to each stage's own water.
+  What is set is kept in the save and used in play on every stage until RESET.
 - **Field guide:** on the title menu. A page of the same encyclopedia with a model on it that
   turns slowly (drag to turn it yourself), its name and scientific name, how big it really
   is and a fact. The arrows step through the sockeye at each of six stages of its life (fry,

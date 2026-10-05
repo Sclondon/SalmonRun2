@@ -8,6 +8,8 @@ const Track := preload("res://scripts/world/track.gd")
 
 ## Seconds the wake lasts, how often a new point is laid, and how many the shader takes.
 const LIFE := 0.45
+## (as set in the water lab)
+static var life := LIFE
 const STEP := 0.025
 const POINTS := 24
 
@@ -31,7 +33,7 @@ func lay(s: float, x: float, strength: float, delta: float) -> void:
 	elif _since >= STEP or _trail.is_empty() or (_trail[-1] as Array).is_empty():
 		_since = 0.0
 		_trail.append([s, x, _clock])
-	while not _trail.is_empty() and ((_trail[0] as Array).is_empty() or _clock - float(_trail[0][2]) > LIFE):
+	while not _trail.is_empty() and ((_trail[0] as Array).is_empty() or _clock - float(_trail[0][2]) > life):
 		_trail.pop_front()
 	while _trail.size() > POINTS - 1:
 		_trail.pop_front()
@@ -68,4 +70,4 @@ func _send(s: float, x: float, strength: float) -> void:
 	mat.set_shader_parameter("wake_pts", pts)
 	mat.set_shader_parameter("wake_count", count)
 	mat.set_shader_parameter("wake_span", Vector2(first - 6.0, last + 2.0))
-	mat.set_shader_parameter("wake_life", LIFE)
+	mat.set_shader_parameter("wake_life", life)

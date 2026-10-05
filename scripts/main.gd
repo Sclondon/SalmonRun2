@@ -18,6 +18,8 @@ const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const Globe := preload("res://scripts/ui/globe.gd")
 const ModelViewer := preload("res://scripts/ui/model_viewer.gd")
+const WaterLab := preload("res://scripts/ui/water_lab.gd")
+const Wake := preload("res://scripts/fx/wake.gd")
 
 const PRACTICE_HINT := "DRAG: STEER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
@@ -71,6 +73,9 @@ var _title_sub: Label
 var _howto: Control
 var _options: Control
 var _guide: Control
+var _lab: Control
+var _lab_view: WaterLab
+var _lab_stage := 0
 var _pause: Control
 var _results: Control
 var _loading: Label
@@ -155,6 +160,9 @@ var _autotest_done := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# what was set by hand in the water lab last time
+	Track.water_overrides = Save.water
+	Wake.life = Save.water.get("wake_life", Wake.LIFE)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)
@@ -876,6 +884,7 @@ func _build_menus() -> void:
 	col.add_child(UI.button("NEW RUN", _open_run))
 	col.add_child(UI.button("PRACTICE", func() -> void: _open_practice(_level, false)))
 	col.add_child(UI.button("FIELD GUIDE", func() -> void: _open_sub_panel(_guide)))
+	col.add_child(UI.button("WATER LAB", func() -> void: _open_lab(_lab_stage)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))
@@ -919,6 +928,15 @@ func _build_menus() -> void:
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)
 	hv.add_child(UI.button("BACK", _close_sub_panel))
+
+	# --- the water lab: sliders for the water, over a stage swum on autopilot
+	_lab = _panel_root()
+	_lab_view = WaterLab.new()
+	_lab_view.closed.connect(func() -> void:
+		Save.store()
+		_enter_title())
+	_lab_view.stage_stepped.connect(func(dir: int) -> void: _open_lab(posmod(_lab_stage + dir, Levels.LIST.size())))
+	_lab.add_child(_lab_view)
 
 	# --- the field guide: the models, to look at
 	_guide = _panel_root()
@@ -1427,6 +1445,23 @@ func _focus_first(node: Node) -> bool:
 		if _focus_first(child):
 			return true
 	return false
+
+
+## The water lab: the salmon swims the stage by itself, seen from behind as in play, under
+## the panel of sliders.
+func _open_lab(stage: int) -> void:
+	_lab_stage = stage
+	world.set_course(stage, false, false)
+	var p := world.player
+	p.reset(Track.START_S)
+	p.autopilot = true
+	p.control = false
+	p.go()
+	world.camera.mode = ChaseCam.Mode.FOLLOW
+	world.camera.snap()
+	_lab_view.track = world.track
+	_lab_view.set_stage(Levels.LIST[stage].name)
+	_show(_lab)
 
 
 func _open_sub_panel(panel: Control) -> void:

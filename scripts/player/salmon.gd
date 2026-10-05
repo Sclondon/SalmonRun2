@@ -48,6 +48,9 @@ const TRICK_WINDUP := 0.16
 ## Diving: how long it takes to get down a layer or back up one. (How many layers there are and
 ## how far apart is the stage's business: see Track.layers.)
 const DIVE_TIME := 0.22
+## A swipe to one side on the water dashes this far across (metres), in this long.
+const DASH := 3.0
+const DASH_TIME := 0.13
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -81,6 +84,7 @@ var under := false
 var layer := 0
 var dive := 0.0
 var _current_wait := 0.0
+var _dash := 0.0
 
 var _yaw_v := 0.0
 var _pitch_v := 0.0
@@ -346,6 +350,16 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	var prev_s := s
 	s += speed * dt
 	x += vx * dt
+	# a swipe to one side is a dash: one place over, at once
+	for swipe: Vector2 in inp.swipes:
+		if swipe == Vector2.LEFT or swipe == Vector2.RIGHT:
+			_dash = swipe.x * DASH
+			_stretch_v += 5.0
+			Sfx.play("jump", 1.5, -8.0)
+	if _dash != 0.0:
+		var hop := signf(_dash) * minf(absf(_dash), DASH / DASH_TIME * dt)
+		x += hop
+		_dash -= hop
 	_clamp_banks()
 	if inp.jump:
 		charge = minf(charge + dt / 0.5, 1.0)

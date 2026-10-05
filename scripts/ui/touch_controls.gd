@@ -180,9 +180,9 @@ func _track_swipe() -> void:
 	# 8-way: each axis counts if it carries a fair share of the stroke
 	var n := d.normalized()
 	var dir := Vector2(signf(n.x) if absf(n.x) > 0.38 else 0.0, signf(n.y) if absf(n.y) > 0.38 else 0.0)
-	if player and not player.in_air() and dir != Vector2.UP and dir != Vector2.DOWN:
-		# on the water only straight up (jump, or come up) and straight down (dive) mean
-		# anything; sideways is just steering
+	if player and not player.in_air() and dir not in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+		# on the water only straight up (jump, or come up), straight down (dive) and straight
+		# to one side (a dash that way) mean anything
 		return
 	_armed = false
 	_flash = 0.35

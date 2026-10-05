@@ -65,6 +65,12 @@ var bears: Array = []        # {s, x, node}
 var mat_world: ShaderMaterial
 var mat_foliage: ShaderMaterial
 var mat_water: ShaderMaterial
+## Settings of the water changed by hand in the water lab (ui/water_lab.gd): uniform -> value.
+static var water_overrides := {}
+## Every setting the lab can change (cleared before a stage's own are applied).
+const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "ripple",
+		"roughness", "specular", "wave_height", "wave_scale", "wave_choppy", "wave_speed", "lines", "sparkle",
+		"whitecaps", "foam_amount", "foam_scale", "edge_foam", "rim_width", "rim_ragged", "wake_spread", "wake_width"]
 
 var _rng := RandomNumberGenerator.new()
 var _noise := FastNoiseLite.new()
@@ -104,6 +110,14 @@ func _make_materials() -> void:
 	mat_foliage.set_shader_parameter("wind", 1.0)
 	mat_water = ShaderMaterial.new()
 	mat_water.shader = preload("res://shaders/water.gdshader")
+	apply_water()
+
+
+## Sets the water to what the stage asks for, and then to anything changed by hand in the
+## water lab (water_overrides), which is used on every stage.
+func apply_water() -> void:
+	for key: String in WATER_KEYS:
+		mat_water.set_shader_parameter(key, null)
 	# any "water_<name>" in the stage's settings sets the water shader's <name>
 	for key: String in cfg:
 		if key.begins_with("water_"):
@@ -113,6 +127,9 @@ func _make_materials() -> void:
 	mat_water.set_shader_parameter("across", 26.8 if float(cfg.width) > 40.0 else float(cfg.width) + 1.6)
 	# upstream, the river runs towards you
 	mat_water.set_shader_parameter("flow", -0.6 if uphill() else 0.6)
+	for key: String in water_overrides:
+		if key != "wake_life":
+			mat_water.set_shader_parameter(key, water_overrides[key])
 
 
 # ================================================================== queries

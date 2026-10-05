@@ -20,6 +20,8 @@ var wobble := 0.5
 var vignette := 0.4
 ## Shows the testing shortcuts: start a run on any stage, and skip to the end of one
 var tester := false
+## Settings of the water changed by hand in the water lab: uniform -> value.
+var water := {}
 
 
 func _ready() -> void:
@@ -41,6 +43,7 @@ func _ready() -> void:
 	wobble = cfg.get_value("settings", "wobble", wobble)
 	vignette = cfg.get_value("settings", "vignette", vignette)
 	tester = cfg.get_value("settings", "tester", false)
+	water = cfg.get_value("settings", "water", {})
 
 
 func store() -> void:
@@ -55,6 +58,7 @@ func store() -> void:
 	cfg.set_value("settings", "wobble", wobble)
 	cfg.set_value("settings", "vignette", vignette)
 	cfg.set_value("settings", "tester", tester)
+	cfg.set_value("settings", "water", water)
 	cfg.save(PATH)
 
 
