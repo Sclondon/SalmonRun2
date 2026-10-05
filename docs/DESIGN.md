@@ -145,7 +145,7 @@ avoid rocks, ride ramps and leap falls. They are company only.
 | Drag | a stick under the thumb: drag to one side of where your finger came down and the salmon steers that way, harder the further you drag, for as long as you hold it there (until it meets the bank). Where on the screen you touch makes no difference | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
 | Swipe down | dive one layer deeper | frontflip |
-| Swipe left / right | dash 3 m that way | spin |
+| Hard flick left / right | dash 3 m that way (it takes a fast, flat flick well past the reach of the stick, so that turning does not set it off) | spin |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
 | Wiggle back and forth | boost | |
 | Circles | boost | corkscrew, the way the finger goes round |

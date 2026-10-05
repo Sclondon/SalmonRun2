@@ -21,6 +21,8 @@ const STICK_DEAD := 0.12
 ## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
 const SWIPE_DIST := 70.0
 const SWIPE_WINDOW := 0.16
+## ...but a sideways dash on the water takes a much longer flick in that time.
+const DASH_DIST := 190.0
 ## ...in a straight line: its direction may turn no more than this (radians) on the way. The
 ## start of a circle covers ground just as fast as a swipe, and only its curve tells them apart.
 const SWIPE_STRAIGHT := 0.45
@@ -180,9 +182,14 @@ func _track_swipe() -> void:
 	# 8-way: each axis counts if it carries a fair share of the stroke
 	var n := d.normalized()
 	var dir := Vector2(signf(n.x) if absf(n.x) > 0.38 else 0.0, signf(n.y) if absf(n.y) > 0.38 else 0.0)
-	if player and not player.in_air() and dir not in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+	var on_water: bool = player != null and not player.in_air()
+	if on_water and dir not in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 		# on the water only straight up (jump, or come up), straight down (dive) and straight
 		# to one side (a dash that way) mean anything
+		return
+	# A dash has to be meant: a hard, flat flick well past the reach of the steering stick, or
+	# every turn would set one off.
+	if on_water and dir.y == 0.0 and (d.length() < DASH_DIST * _k() or absf(n.y) > 0.22):
 		return
 	_armed = false
 	_flash = 0.35
