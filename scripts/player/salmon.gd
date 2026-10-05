@@ -203,7 +203,9 @@ func set_look(look: String) -> void:
 		return
 	_look = look
 	_fish.mesh = Props.salmon(look)
-	_base_scale = Vector3.ONE * (0.95 if look == "smolt" else 1.35)
+	# (the young are smaller, though not as small as they really are, or they would be lost
+	# on the screen)
+	_base_scale = Vector3.ONE * 1.35 * maxf(Props.salmon_size(look), 0.62)
 	_fish.scale = _base_scale
 
 

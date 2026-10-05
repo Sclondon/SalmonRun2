@@ -34,6 +34,7 @@ extends RefCounted
 ##          other side is open water.
 ## murk:    how thick the water is when you are under it (fog density; 0.016 if not given).
 ## rock_word: what a bump into one of the stage's obstacles is called ("ROCKED!").
+## meander: how much the course bends from side to side (1 if not given).
 ## water_*: any setting of the water shader (see shaders/water.gdshader), e.g. water_deep,
 ##          water_foam_amount, water_depth_range, water_rim_width.
 ## kinds:   what the course is made of ("ramps", "rails", "rocks", "rings", "predators").
@@ -59,7 +60,7 @@ const LIST: Array[Dictionary] = [
 		# boost rings and drifts of sea nettles
 		"deep": ["currents", "surge", "launch", "jellies"],
 		# the one place deep enough to dive more than once: three layers under the surface
-		"layers": 3, "layer_depth": 2.6,
+		"layers": 3, "layer_depth": 3.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.06, 0.14), Color(0.02, 0.05, 0.12), Color(0.02, 0.05, 0.12)],
@@ -99,7 +100,7 @@ const LIST: Array[Dictionary] = [
 		"width": 90.0, "slope": 0.0, "curve": 0.4, "spacing": 1.4,
 		"kinds": ["rings", "rocks", "ramps", "rails", "rocks", "predators", "ramps"],
 		# two layers down, over a floor not far under them
-		"layers": 2, "layer_depth": 1.8,
+		"layers": 2, "layer_depth": 2.6,
 		"deep": ["surge", "jellies", "currents", "jellies", "launch"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
@@ -131,8 +132,8 @@ const LIST: Array[Dictionary] = [
 		"light": Color(1.0, 0.96, 0.88), "light_energy": 1.15,
 		"water_deep": Color(0.02, 0.15, 0.26), "water_shallow": Color(0.1, 0.42, 0.48),
 		"water_beat": Color(0.5, 1.0, 0.9), "swell": 2.0,
-		# clear enough to see the floor, a dozen metres down
-		"floor": 12.0, "water_depth_range": 14.0, "water_alpha_shallow": 0.35, "water_alpha_deep": 0.72, "water_foam_amount": 0.14,
+		# clear enough to see the floor, some way down
+		"floor": 17.0, "water_depth_range": 16.0, "water_alpha_shallow": 0.35, "water_alpha_deep": 0.72, "water_foam_amount": 0.14,
 		"motes": Color(0.8, 1.0, 0.95),
 	},
 	{
@@ -409,7 +410,7 @@ const LIST: Array[Dictionary] = [
 		"tagline": "A DAM IN THE WAY. ONE STEP AT A TIME",
 		"fact": "A FISH LADDER IS A STAIRCASE OF POOLS THAT LETS SALMON CLIMB PAST A DAM.",
 		"seed": 7911, "length": 3000.0,
-		"width": 17.0, "slope": 0.03, "curve": 0.25, "uphill": true,
+		"meander": 0.35, "width": 17.0, "slope": 0.03, "curve": 0.25, "uphill": true,
 		"kinds": ["ramps", "rings", "rails", "rocks", "rings", "ramps"],
 		"falls_every": 170.0, "predator": "", "predator_word": "",
 		"profile": [[-0.5, -1.2, 0, 0], [0.5, 3.0, 0, 0], [5.0, 3.2, 0, 0], [9.0, 7.0, 0.5, 1.0],
@@ -484,7 +485,7 @@ const LIST: Array[Dictionary] = [
 		"fact": "SALMON ARE THOUGHT TO FIND THEIR WAY ACROSS OPEN OCEAN BY THE EARTH'S MAGNETIC FIELD.",
 		"seed": 5313, "length": 2800.0,
 		"width": 110.0, "slope": 0.0, "curve": 0.4, "spacing": 1.5,
-		"layers": 3, "layer_depth": 2.6,
+		"layers": 3, "layer_depth": 3.6,
 		"deep": ["jellies", "currents", "surge", "jellies", "launch"],
 		"kinds": ["rings", "rocks", "predators", "ramps", "rails", "rings"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",

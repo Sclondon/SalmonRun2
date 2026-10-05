@@ -107,26 +107,78 @@ static func blade(mb: MB, base: Vector3, dir: Vector3, length: float, width: flo
 
 # ------------------------------------------------------------------ the salmon
 
-## look: "spawner" is the red and green of a sockeye come home to breed, "ocean" the bright
-## silver it wears at sea, and "smolt" the silver of a young fish heading out for the first time.
+## The sockeye at each stage of its life, youngest first. For each: the colours of its back,
+## sides, belly, head, fins and jaw; how slim it is (1 is the full-grown fish); how big its
+## head and eyes are for its body; how much of a hump and of a hooked jaw (kype) it has; whether
+## it wears the dark bars of a parr; and how long it is beside a full-grown adult.
+const SALMON_LOOKS := {
+	"fry": {
+		"back": Color(0.5, 0.46, 0.3), "side": Color(0.78, 0.74, 0.56), "belly": Color(0.95, 0.9, 0.78),
+		"head": Color(0.56, 0.5, 0.34), "fin": Color(0.8, 0.76, 0.6), "jaw": Color(0.9, 0.86, 0.72),
+		"slim": 0.62, "head_size": 1.45, "hump": 0.0, "kype": 0.0, "bars": 0, "size": 0.3,
+	},
+	"parr": {
+		"back": Color(0.36, 0.38, 0.22), "side": Color(0.72, 0.7, 0.5), "belly": Color(0.95, 0.93, 0.84),
+		"head": Color(0.4, 0.42, 0.26), "fin": Color(0.66, 0.6, 0.4), "jaw": Color(0.88, 0.86, 0.72),
+		"slim": 0.76, "head_size": 1.2, "hump": 0.0, "kype": 0.0, "bars": 7, "size": 0.45,
+	},
+	"smolt": {
+		"back": Color(0.22, 0.38, 0.44), "side": Color(0.8, 0.86, 0.88), "belly": Color(0.97, 0.98, 0.98),
+		"head": Color(0.3, 0.44, 0.48), "fin": Color(0.5, 0.58, 0.62), "jaw": Color(0.88, 0.9, 0.86),
+		"slim": 0.82, "head_size": 1.08, "hump": 0.0, "kype": 0.0, "bars": 0, "size": 0.7,
+	},
+	"ocean": {
+		"back": Color(0.14, 0.28, 0.4), "side": Color(0.74, 0.8, 0.86), "belly": Color(0.96, 0.97, 0.98),
+		"head": Color(0.22, 0.36, 0.46), "fin": Color(0.4, 0.48, 0.56), "jaw": Color(0.85, 0.88, 0.8),
+		"slim": 1.0, "head_size": 1.0, "hump": 0.0, "kype": 0.0, "bars": 0, "size": 1.0,
+	},
+	"migrating": {
+		"back": Color(0.4, 0.2, 0.24), "side": Color(0.84, 0.52, 0.5), "belly": Color(0.95, 0.82, 0.78),
+		"head": Color(0.3, 0.42, 0.34), "fin": Color(0.5, 0.3, 0.3), "jaw": Color(0.85, 0.88, 0.76),
+		"slim": 1.0, "head_size": 1.0, "hump": 0.35, "kype": 0.45, "bars": 0, "size": 1.0,
+	},
+	"spawner": {
+		"back": Color(0.58, 0.07, 0.07), "side": Color(0.90, 0.14, 0.10), "belly": Color(0.98, 0.66, 0.52),
+		"head": Color(0.30, 0.50, 0.20), "fin": Color(0.62, 0.10, 0.08), "jaw": Color(0.85, 0.88, 0.72),
+		"slim": 1.0, "head_size": 1.0, "hump": 1.0, "kype": 1.0, "bars": 0, "size": 1.0,
+	},
+}
+
+
+## How long the salmon is at a stage of its life, beside a full-grown adult (1).
+static func salmon_size(look: String) -> float:
+	return float(SALMON_LOOKS[look].size)
+
+
+## A sockeye at one stage of its life: "fry", "parr", "smolt", "ocean", "migrating" or
+## "spawner" (see SALMON_LOOKS). All are built to the same length; salmon_size() is how big
+## each really is.
 static func salmon(look := "spawner") -> ArrayMesh:
 	var mb := MB.new()
+	var L: Dictionary = SALMON_LOOKS[look]
+	var slim: float = L.slim
+	var big_head: float = L.head_size
+	var hump: float = L.hump
+	var kype: float = L.kype
 	# z, half-width, half-height, y-centre (nose at -Z, which is Godot's forward)
 	var rings := [
 		[-1.20, 0.03, 0.03, -0.02],
-		[-0.95, 0.17, 0.21, 0.00],
-		[-0.55, 0.26, 0.37, 0.05],
-		[-0.10, 0.28, 0.42, 0.07],
+		[-0.95, 0.17 * big_head, 0.21 * big_head, 0.00],
+		[-0.55, 0.26, 0.37 + 0.08 * hump, 0.05 + 0.07 * hump],
+		[-0.10, 0.28, 0.42 + 0.05 * hump, 0.07 + 0.04 * hump],
 		[0.35, 0.22, 0.30, 0.03],
 		[0.72, 0.11, 0.15, 0.00],
 		[0.92, 0.05, 0.08, 0.00],
 	]
-	var silver := look != "spawner"
-	var green := Color(0.22, 0.36, 0.46) if silver else Color(0.30, 0.50, 0.20)
-	var red := Color(0.74, 0.8, 0.86) if silver else Color(0.90, 0.14, 0.10)
-	var dark_red := Color(0.14, 0.28, 0.4) if silver else Color(0.58, 0.07, 0.07)
-	var belly := Color(0.96, 0.97, 0.98) if silver else Color(0.98, 0.66, 0.52)
-	var jaw := Color(0.85, 0.88, 0.72)
+	for ring: Array in rings:
+		ring[1] *= slim
+		ring[2] *= slim
+	var back: Color = L.back
+	var side: Color = L.side
+	var belly: Color = L.belly
+	var head: Color = L.head
+	var jaw: Color = L.jaw
+	var fin: Color = L.fin
 	var sides := 8
 	for k in rings.size() - 1:
 		var ra: Array = rings[k]
@@ -141,9 +193,9 @@ static func salmon(look := "spawner") -> ArrayMesh:
 			var pb0 := Vector3(cos(a0) * rb[1], rb[3] + sin(a0) * rb[2], rb[0])
 			var pb1 := Vector3(cos(a1) * rb[1], rb[3] + sin(a1) * rb[2], rb[0])
 			var sn := sin((a0 + a1) * 0.5)
-			var col := green if zmid < -0.6 else red
+			var col := head if zmid < -0.6 else side
 			if sn > 0.6 and zmid >= -0.6:
-				col = dark_red
+				col = back
 			if sn < -0.5:
 				col = jaw if zmid < -0.6 else belly
 			mb.tri_out(pa0, pa1, pb1, col, axis)
@@ -154,34 +206,55 @@ static func salmon(look := "spawner") -> ArrayMesh:
 	for i in sides:
 		var a0 := TAU * i / sides + PI / sides
 		var a1 := TAU * (i + 1) / sides + PI / sides
-		mb.tri(tip, Vector3(cos(a0) * 0.03, -0.02 + sin(a0) * 0.03, -1.2), Vector3(cos(a1) * 0.03, -0.02 + sin(a1) * 0.03, -1.2), green, Vector3.FORWARD)
-		mb.tri(tail_end, Vector3(cos(a0) * 0.05, sin(a0) * 0.08, 0.92), Vector3(cos(a1) * 0.05, sin(a1) * 0.08, 0.92), dark_red, Vector3.BACK)
-	# forked tail
-	var fin := Color(0.4, 0.48, 0.56) if silver else Color(0.62, 0.10, 0.08)
-	var t0 := Vector3(0.0, 0.08, 0.9)
-	var t1 := Vector3(0.0, -0.08, 0.9)
+		mb.tri(tip, Vector3(cos(a0) * 0.03, -0.02 + sin(a0) * 0.03, -1.2), Vector3(cos(a1) * 0.03, -0.02 + sin(a1) * 0.03, -1.2), head, Vector3.FORWARD)
+		mb.tri(tail_end, Vector3(cos(a0) * 0.05 * slim, sin(a0) * 0.08 * slim, 0.92), Vector3(cos(a1) * 0.05 * slim, sin(a1) * 0.08 * slim, 0.92), back, Vector3.BACK)
+	# forked tail (smaller on the young)
+	var tail := lerpf(0.7, 1.0, slim)
+	var t0 := Vector3(0.0, 0.08 * slim, 0.9)
+	var t1 := Vector3(0.0, -0.08 * slim, 0.9)
 	var notch := Vector3(0.0, 0.0, 1.16)
-	mb.tri(t0, Vector3(0.0, 0.52, 1.42), notch, fin, Vector3.RIGHT)
-	mb.tri(t1, notch, Vector3(0.0, -0.46, 1.40), fin, Vector3.RIGHT)
+	mb.tri(t0, Vector3(0.0, 0.52 * tail, 1.42), notch, fin, Vector3.RIGHT)
+	mb.tri(t1, notch, Vector3(0.0, -0.46 * tail, 1.40), fin, Vector3.RIGHT)
 	mb.tri(t0, notch, t1, fin, Vector3.RIGHT)
 	# dorsal, adipose, anal fins
 	# (each one is rooted inside the body, so none of them floats clear of it)
-	mb.tri(Vector3(0.0, 0.32, -0.44), Vector3(0.0, 0.84, -0.10), Vector3(0.0, 0.32, 0.22), dark_red, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, 0.84, -0.10), Vector3(0.0, 0.62, 0.20), Vector3(0.0, 0.32, 0.22), dark_red, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, 0.14, 0.50), Vector3(0.0, 0.40, 0.70), Vector3(0.0, 0.08, 0.74), dark_red, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, -0.14, 0.42), Vector3(0.0, -0.46, 0.64), Vector3(0.0, -0.06, 0.72), fin, Vector3.RIGHT)
+	var top := 0.32 * slim + 0.1 * hump
+	mb.tri(Vector3(0.0, top, -0.44), Vector3(0.0, top + 0.52 * tail, -0.10), Vector3(0.0, top, 0.22), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, top + 0.52 * tail, -0.10), Vector3(0.0, top + 0.3 * tail, 0.20), Vector3(0.0, top, 0.22), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.14 * slim, 0.50), Vector3(0.0, 0.14 * slim + 0.26 * tail, 0.70), Vector3(0.0, 0.08 * slim, 0.74), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.14 * slim, 0.42), Vector3(0.0, -0.14 * slim - 0.32 * tail, 0.64), Vector3(0.0, -0.06 * slim, 0.72), fin, Vector3.RIGHT)
 	# kype (the hooked jaw males grow for the spawning run)
-	if not silver:
-		mb.tri(Vector3(0.0, -0.04, -1.18), Vector3(0.0, -0.16, -1.3), Vector3(0.0, -0.12, -1.02), jaw, Vector3.RIGHT)
+	if kype > 0.0:
+		mb.tri(Vector3(0.0, -0.04, -1.18), Vector3(0.0, -0.04 - 0.12 * kype, -1.18 - 0.12 * kype), Vector3(0.0, -0.12, -1.02), jaw, Vector3.RIGHT)
+	# parr marks: dark upright bars along each flank
+	var bars: int = L.bars
+	for k in bars:
+		var z := lerpf(-0.6, 0.66, float(k) / maxf(bars - 1.0, 1.0))
+		# (how wide and tall the body is there, from the rings either side)
+		var hw := 0.0
+		var hh := 0.0
+		var yc := 0.0
+		for r in rings.size() - 1:
+			if z >= float(rings[r][0]) and z <= float(rings[r + 1][0]):
+				var t := (z - float(rings[r][0])) / (float(rings[r + 1][0]) - float(rings[r][0]))
+				hw = lerpf(rings[r][1], rings[r + 1][1], t)
+				hh = lerpf(rings[r][2], rings[r + 1][2], t)
+				yc = lerpf(rings[r][3], rings[r + 1][3], t)
+		for sx: float in [-1.0, 1.0]:
+			var c := Vector3(sx * (hw * 0.93 + 0.012), yc, z)
+			var up := Vector3(0.0, hh * 0.5, 0.0)
+			var along := Vector3(0.0, 0.0, 0.045)
+			mb.quad(c + up - along, c + up + along, c - up + along, c - up - along, back.darkened(0.25), Vector3(sx, 0, 0))
 	for sx: float in [-1.0, 1.0]:
 		# pectoral + pelvic fins
-		mb.tri(Vector3(sx * 0.16, -0.16, -0.56), Vector3(sx * 0.62, -0.4, -0.28), Vector3(sx * 0.16, -0.24, -0.25), fin, Vector3.UP)
-		mb.tri(Vector3(sx * 0.1, -0.22, 0.2), Vector3(sx * 0.34, -0.5, 0.42), Vector3(sx * 0.08, -0.2, 0.42), fin, Vector3.UP)
-		# eye
-		var e := Vector3(sx * 0.205, 0.1, -0.82)
-		mb.quad(e + Vector3(0, 0.07, -0.06), e + Vector3(0, 0.07, 0.06), e + Vector3(0, -0.06, 0.06), e + Vector3(0, -0.06, -0.06), Color(0.95, 0.85, 0.3), Vector3(sx, 0, 0))
+		mb.tri(Vector3(sx * 0.16 * slim, -0.16 * slim, -0.56), Vector3(sx * (0.16 * slim + 0.46 * tail), -0.16 * slim - 0.24 * tail, -0.28), Vector3(sx * 0.16 * slim, -0.24 * slim, -0.25), fin, Vector3.UP)
+		mb.tri(Vector3(sx * 0.1 * slim, -0.22 * slim, 0.2), Vector3(sx * (0.1 * slim + 0.24 * tail), -0.22 * slim - 0.28 * tail, 0.42), Vector3(sx * 0.08 * slim, -0.2 * slim, 0.42), fin, Vector3.UP)
+		# eye (big, on the young)
+		var e := Vector3(sx * (0.205 * slim * lerpf(1.0, big_head, 0.8) + 0.002), 0.1 * slim, -0.82)
+		var es := lerpf(1.0, big_head, 1.2) * lerpf(0.85, 1.0, slim)
+		mb.quad(e + Vector3(0, 0.07, -0.06) * es, e + Vector3(0, 0.07, 0.06) * es, e + Vector3(0, -0.06, 0.06) * es, e + Vector3(0, -0.06, -0.06) * es, Color(0.95, 0.85, 0.3), Vector3(sx, 0, 0))
 		var p := e + Vector3(sx * 0.005, 0.0, 0.0)
-		mb.quad(p + Vector3(0, 0.04, -0.03), p + Vector3(0, 0.04, 0.03), p + Vector3(0, -0.03, 0.03), p + Vector3(0, -0.03, -0.03), Color(0.02, 0.02, 0.02), Vector3(sx, 0, 0))
+		mb.quad(p + Vector3(0, 0.04, -0.03) * es, p + Vector3(0, 0.04, 0.03) * es, p + Vector3(0, -0.03, 0.03) * es, p + Vector3(0, -0.03, -0.03) * es, Color(0.02, 0.02, 0.02), Vector3(sx, 0, 0))
 	return mb.build()
 
 
@@ -989,3 +1062,65 @@ static func splash_tube() -> ArrayMesh:
 			for k: int in [a, b, a + 1, a + 1, b, b + 1]:
 				st.add_index(k)
 	return st.commit()
+
+
+## A whole salmon shark, for the field guide (in the sea only its head and fin are ever seen):
+## a stout grey body, white underneath, with a tall dorsal fin, long pectorals and a crescent
+## tail. Nose at -Z, about four long.
+static func shark_whole() -> ArrayMesh:
+	var mb := MB.new()
+	var grey := Color(0.3, 0.38, 0.5)
+	var dark := Color(0.2, 0.26, 0.38)
+	var white := Color(0.93, 0.95, 0.97)
+	# z, half-width, half-height, y-centre
+	var rings := [
+		[-2.0, 0.04, 0.04, -0.05],
+		[-1.6, 0.26, 0.24, -0.02],
+		[-1.0, 0.42, 0.44, 0.02],
+		[-0.3, 0.46, 0.52, 0.04],
+		[0.5, 0.36, 0.4, 0.03],
+		[1.2, 0.18, 0.2, 0.02],
+		[1.65, 0.08, 0.09, 0.02],
+	]
+	var sides := 8
+	for k in rings.size() - 1:
+		var ra: Array = rings[k]
+		var rb: Array = rings[k + 1]
+		var axis := Vector3(0.0, (ra[3] + rb[3]) * 0.5, (ra[0] + rb[0]) * 0.5)
+		for i in sides:
+			var a0 := TAU * i / sides + PI / sides
+			var a1 := TAU * (i + 1) / sides + PI / sides
+			var pa0 := Vector3(cos(a0) * ra[1], ra[3] + sin(a0) * ra[2], ra[0])
+			var pa1 := Vector3(cos(a1) * ra[1], ra[3] + sin(a1) * ra[2], ra[0])
+			var pb0 := Vector3(cos(a0) * rb[1], rb[3] + sin(a0) * rb[2], rb[0])
+			var pb1 := Vector3(cos(a1) * rb[1], rb[3] + sin(a1) * rb[2], rb[0])
+			var sn := sin((a0 + a1) * 0.5)
+			var col := white if sn < -0.3 else (dark if sn > 0.6 else grey)
+			mb.tri_out(pa0, pa1, pb1, col, axis)
+			mb.tri_out(pa0, pb1, pb0, col, axis)
+	var nose := Vector3(0.0, -0.05, -2.08)
+	for i in sides:
+		var a0 := TAU * i / sides + PI / sides
+		var a1 := TAU * (i + 1) / sides + PI / sides
+		mb.tri(nose, Vector3(cos(a0) * 0.04, -0.05 + sin(a0) * 0.04, -2.0), Vector3(cos(a1) * 0.04, -0.05 + sin(a1) * 0.04, -2.0), grey, Vector3.FORWARD)
+	# the crescent tail, the upper lobe the longer
+	var root_up := Vector3(0.0, 0.1, 1.6)
+	var root_down := Vector3(0.0, -0.06, 1.6)
+	var notch := Vector3(0.0, 0.02, 1.86)
+	mb.tri(root_up, Vector3(0.0, 0.95, 2.2), notch, dark, Vector3.RIGHT)
+	mb.tri(root_down, notch, Vector3(0.0, -0.7, 2.1), dark, Vector3.RIGHT)
+	mb.tri(root_up, notch, root_down, dark, Vector3.RIGHT)
+	# the dorsal fin, a small second one, and one underneath
+	mb.tri(Vector3(0.0, 0.5, -0.7), Vector3(0.0, 1.25, -0.05), Vector3(0.0, 0.48, 0.2), dark, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.2, 1.05), Vector3(0.0, 0.42, 1.3), Vector3(0.0, 0.16, 1.32), dark, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.2, 0.95), Vector3(0.0, -0.44, 1.22), Vector3(0.0, -0.14, 1.26), grey, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		# long pectoral fins
+		mb.tri(Vector3(sx * 0.34, -0.2, -1.0), Vector3(sx * 1.25, -0.62, -0.25), Vector3(sx * 0.36, -0.26, -0.45), grey, Vector3.UP)
+		# the eye, the gill slits and the line of the mouth
+		var e := Vector3(sx * 0.262, 0.06, -1.58)
+		mb.quad(e + Vector3(0, 0.05, -0.05), e + Vector3(0, 0.05, 0.05), e + Vector3(0, -0.05, 0.05), e + Vector3(0, -0.05, -0.05), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+		for g in 3:
+			var c := Vector3(sx * (0.4 + 0.012 * g), 0.0, -1.12 + 0.11 * g)
+			mb.quad(c + Vector3(0, 0.17, -0.015), c + Vector3(0, 0.17, 0.015), c + Vector3(0, -0.17, 0.015), c + Vector3(0, -0.17, -0.015), dark, Vector3(sx, 0, 0))
+	return mb.build()

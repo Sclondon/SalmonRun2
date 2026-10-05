@@ -14,6 +14,10 @@ const Salmon := preload("res://scripts/player/salmon.gd")
 ## A touch has to be held this long before the salmon starts following it, so a quick
 ## swipe at the edge of the screen doesn't also yank the fish sideways.
 const HOLD_TIME := 0.1
+## Steering is a stick: a drag of STICK_REACH (canvas units, scaled by _k) to one side is full
+## left or right, and less than STICK_DEAD of that is no steering at all.
+const STICK_REACH := 80.0
+const STICK_DEAD := 0.12
 ## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
 const SWIPE_DIST := 70.0
 const SWIPE_WINDOW := 0.16
@@ -53,10 +57,9 @@ var _head := 0.0
 var _has_head := false
 var _flips: Array[float] = []  # when the finger last doubled back on itself
 var _steady_x := 0.0           # the finger's position with the wiggle smoothed out of it
-# Steering is by dragging: where the finger came down, and where across the river the salmon
-# was then. (Where on the screen it came down makes no difference.)
+# Steering is a stick whose middle is where the finger came down. (Where on the screen that
+# is makes no difference.)
 var _drag_from := 0.0
-var _fish_from := 0.0
 var _flash := 0.0
 var _flash_dir := Vector2.ZERO
 var _flash_pos := Vector2.ZERO
@@ -105,7 +108,6 @@ func _touch_down(index: int, p: Vector2) -> void:
 	_trail = [[_now(), p]]
 	_steady_x = p.x
 	_drag_from = p.x
-	_fish_from = player.x if player else 0.0
 	_turns.clear()
 	_flips.clear()
 	_head_pos = p
@@ -212,16 +214,13 @@ func _process(delta: float) -> void:
 	_held_for += delta
 	if _held_for < HOLD_TIME or player == null or camera == null or view == null:
 		return
-	# Where the salmon is on screen, and how many screen units one metre across the river is
-	var k := float(view.stretch_shrink)
-	var here := player.global_position
-	var fish_x := camera.unproject_position(here).x * k
-	var metre := (camera.unproject_position(here + player.track.right(player.s)).x * k) - fish_x
-	if metre < 1.0:
-		return
+	# A stick under the thumb: the further the finger is dragged from where it came down, the
+	# harder the salmon steers that way, for as long as it is held there.
+	var push := clampf((_steady_x - _drag_from) / (STICK_REACH * _k()), -1.0, 1.0)
+	if absf(push) < STICK_DEAD:
+		push = 0.0
 	GameInput.follow = true
-	# the salmon goes as far across the river as the finger has been dragged, and stops there
-	GameInput.follow_dx = _fish_from + (_steady_x - _drag_from) / metre - player.x
+	GameInput.follow_dx = push / Salmon.FOLLOW_GAIN
 
 
 func _draw() -> void:
@@ -229,6 +228,10 @@ func _draw() -> void:
 	var k := _k()
 	if _touch != -1:
 		var ring: Color = UI.GOLD if GameInput.wiggling or GameInput.roll != 0.0 else UI.TEAL
+		# the stick: its base where the finger came down, and the knob under the finger
+		var base := Vector2(_drag_from, _pos.y)
+		draw_arc(base, STICK_REACH * k, 0.0, TAU, 40, Color(1, 1, 1, 0.25), 3.0 * k)
+		draw_line(base, Vector2(clampf(_pos.x, base.x - STICK_REACH * k, base.x + STICK_REACH * k), base.y), Color(1, 1, 1, 0.3), 6.0 * k)
 		draw_circle(_pos, 46.0 * k, Color(ring, 0.18))
 		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.wiggling or GameInput.roll != 0.0 else 4.0) * k)
 	if _flash > 0.0:

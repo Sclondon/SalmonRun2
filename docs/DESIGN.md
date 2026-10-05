@@ -142,7 +142,7 @@ avoid rocks, ride ramps and leap falls. They are company only.
 
 | Gesture | On the water | In the air |
 |---|---|---|
-| Drag | the salmon moves across the river as far as you drag your finger, and stops there. Where on the screen you touch makes no difference: it stays in the middle of the screen | |
+| Drag | a stick under the thumb: drag to one side of where your finger came down and the salmon steers that way, harder the further you drag, for as long as you hold it there (until it meets the bank). Where on the screen you touch makes no difference | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
 | Swipe down | dive one layer deeper | frontflip |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
@@ -159,7 +159,7 @@ jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 The salmon swims on the surface or **dived** under it. Swiping down goes down a layer;
 swiping up comes up one (and from the surface, jumps). Steering and speed are the same at
 every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
-three, 2.6 m apart.
+three, 3.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
   barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
@@ -211,6 +211,13 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   and tall), with ragged crests and water streaming down them. They shoot up and drop back,
   with ripples across the surface and splattery drops. Its size follows how hard the landing
   was.
+- **The salmon you play changes with its life.** On the way up it is the silver ocean adult
+  at sea, the migrating adult (silver turning red) in the lower rivers, and the red and
+  green spawner with its humped back and hooked jaw from the upper rivers on. On the way
+  back down it is a fry in the lake, a barred parr in the rivers and a silver smolt by the
+  sea. (The young are drawn bigger than life, or they would be lost on the screen.)
+- **Every course meanders**: bends to the left and to the right, one after the other, on top
+  of whatever else the stage does (`meander` in `levels.gd`).
 - **The salmon** animates on key poses: stretched long at take-off, squashed on landing,
   tucked as a trick starts. A swipe trick winds up the wrong way, whips round and runs a
   little past the mark before settling, and the body and tail follow on springs.
@@ -256,6 +263,11 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 ## 9. Other modes and tools
 
+- **Field guide:** on the title menu. A page of the same encyclopedia with a model on it that
+  turns slowly (drag to turn it yourself), its name and scientific name, how big it really
+  is and a fact. The arrows step through the sockeye at each of six stages of its life (fry,
+  parr, smolt, ocean adult, migrating adult, spawner) and then the sea nettle, a deep-sea
+  jellyfish, the salmon shark and the brown bear.
 - **Practice:** the same globe and card as a run, with no trail. Step through every stage with
   the arrows, choose the way up or down, and swim it with no countdown, goal or finish; it
   loops and nothing is saved. Its first entry is the **training course**: a short straight

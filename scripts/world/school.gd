@@ -43,7 +43,7 @@ func set_look(look: String) -> void:
 	_look = look
 	var mesh := Props.salmon(look)
 	for f: Dictionary in _fish:
-		f.size = (0.95 if look == "smolt" else 1.35) * _rng.randf_range(0.75, 1.05)
+		f.size = 1.35 * maxf(Props.salmon_size(look), 0.62) * _rng.randf_range(0.75, 1.05)
 		(f.node as MeshInstance3D).mesh = mesh
 		(f.node as MeshInstance3D).scale = Vector3.ONE * float(f.size)
 

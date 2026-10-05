@@ -13,7 +13,7 @@ The design (what the game is, the map, the stages, how it plays) is in
 
 | Keyboard | Gamepad | Touch | On the water | In the air |
 |---|---|---|---|---|
-| A/D, ←/→ | left stick / d-pad | drag: moves as far as you drag | steer | spin |
+| A/D, ←/→ | left stick / d-pad | drag: a stick under the thumb, steers for as long as it is held over | steer | spin |
 | W/S, ↑/↓ | left stick / d-pad | — | swim harder / brake | front / back flip |
 | Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap); dived, comes back up | — |
 | C / Ctrl | right stick click | swipe down | dive one layer deeper (jump, or swipe up, comes back up one). The Open Ocean has three layers, with currents to ride, boost rings and sea nettles down there | — |

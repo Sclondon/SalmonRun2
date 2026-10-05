@@ -108,18 +108,19 @@ func _make_environment() -> void:
 	add_child(sun)
 
 
-## The salmon changes with its life: silver at sea, red and green once it reaches fresh water
-## to spawn, and a small silver smolt on the way back down.
+## The salmon changes with its life. On the way up: silver at sea, turning as it enters fresh
+## water, and the red and green of a spawner by the upper river. On the way back down, the
+## young: a fry in the lake, a barred parr in the river, a silver smolt by the sea.
 func _dress_player(level: int, down: bool) -> void:
+	var stage: Dictionary = Levels.LIST[level]
+	var tier := int(stage.tier)
+	var look := "ocean"
 	if down:
-		player.set_look("smolt")
-		school.set_look("smolt")
-	elif not Levels.LIST[level].salt:
-		player.set_look("spawner")
-		school.set_look("spawner")
-	else:
-		player.set_look("ocean")
-		school.set_look("ocean")
+		look = "fry" if tier >= 5 else ("parr" if tier >= 3 else "smolt")
+	elif not stage.salt:
+		look = "spawner" if tier >= 4 else "migrating"
+	player.set_look(look)
+	school.set_look(look)
 
 
 ## Sky, fog and light for the level that was just built.

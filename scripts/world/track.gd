@@ -18,6 +18,10 @@ const START_S := 30.0
 const RAIL_H := 1.2
 ## Metres between the knots an ocean current winds through.
 const CURRENT_KNOT := 26.0
+## Every course meanders: metres from one bend to the left to the next, and how sharply it
+## turns at the middle of a bend (radians per metre).
+const MEANDER := 250.0
+const MEANDER_TURN := 0.012
 ## A current that ends at the surface throws the salmon into the air: how fast it is going
 ## along the course by then, and how fast upwards.
 const LAUNCH_SPEED := 46.0
@@ -662,7 +666,10 @@ func _build_centreline() -> void:
 		widths[i] = _width_rule(s)
 		var curv := _noise.get_noise_1d(s * 0.0035 + 10.0) * 0.012 + _noise.get_noise_1d(s * 0.013 + 50.0) * 0.004
 		curv -= h * 0.0025
-		h += curv * STEP * _calm(s) * (0.3 if test else float(cfg.curve))
+		# and it meanders: bends to the left and to the right, one after the other, all the
+		# way along
+		var bend := sin(s * TAU / MEANDER + float(int(cfg.seed) % 100) * 0.063) * MEANDER_TURN
+		h += (curv * (0.3 if test else float(cfg.curve)) + bend * (0.3 if test else float(cfg.get("meander", 1.0)))) * STEP * _calm(s)
 		pos += Vector3(sin(h), 0.0, -cos(h)) * STEP
 		var down := -1.0 if uphill() else 1.0
 		pos.y -= _slope(s) * STEP * down

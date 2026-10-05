@@ -17,6 +17,7 @@ const TitleLogo := preload("res://scripts/ui/title_logo.gd")
 const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const Globe := preload("res://scripts/ui/globe.gd")
+const ModelViewer := preload("res://scripts/ui/model_viewer.gd")
 
 const PRACTICE_HINT := "DRAG: STEER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
@@ -69,6 +70,7 @@ var _title: Control
 var _title_sub: Label
 var _howto: Control
 var _options: Control
+var _guide: Control
 var _pause: Control
 var _results: Control
 var _loading: Label
@@ -874,6 +876,7 @@ func _build_menus() -> void:
 	col = _title_menu
 	col.add_child(UI.button("NEW RUN", _open_run))
 	col.add_child(UI.button("PRACTICE", func() -> void: _open_practice(_level, false)))
+	col.add_child(UI.button("FIELD GUIDE", func() -> void: _open_sub_panel(_guide)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))
@@ -917,6 +920,12 @@ func _build_menus() -> void:
 	tips.custom_minimum_size.x = 840
 	hv.add_child(tips)
 	hv.add_child(UI.button("BACK", _close_sub_panel))
+
+	# --- the field guide: the models, to look at
+	_guide = _panel_root()
+	var viewer := ModelViewer.new()
+	viewer.closed.connect(_close_sub_panel)
+	_guide.add_child(viewer)
 
 	# --- options
 	_options = _panel_root()
