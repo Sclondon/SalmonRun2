@@ -25,10 +25,11 @@ Reference for the life cycle:
 A run is the whole life cycle, so every stage on it is swum twice.
 
 1. **Spawning migration** (late summer into autumn, upstream). The adult swims from the
-   Open Ocean to a spawning ground. It is silver at sea and turns red and green in fresh
-   water. From the coast on, the water climbs.
+   Open Ocean to a spawning ground. It is silver at sea, turns as it enters fresh water,
+   and is red and green by the upper rivers. From the coast on, the water climbs.
 2. **Seaward migration** (spring, downstream). The adults spawn and die; you swim the same
-   stages back to the ocean as one of their young, a small silver smolt. The rivers fall
+   stages back to the ocean as one of their young: a fry in the lake, a barred parr in the
+   rivers, a silver smolt by the sea. The rivers fall
    away again and the scenery is in its spring colours.
 
 Reaching the ocean ends the run. Best scores are kept per stage and per direction.
@@ -86,8 +87,8 @@ Notes:
 
 ## 4. Stages
 
-A stage is a river-shaped course about 2.4 to 3.4 km long (roughly 55 to 95 seconds) and
-19 to 28 m wide (the Open Ocean is 140 m),
+A stage is a course about 2.4 to 3.4 km long (roughly 55 to 95 seconds): open water 70 to
+140 m wide at sea, a river 16 to 21 m wide inland, a lake or harbour 22 to 28 m. It is
 generated from one entry in `scripts/world/levels.gd`. An entry sets the course (length,
 width, slope, how much it bends, what it is made of, how often waterfalls come), the scenery
 (bank shape and colours, a table of dressing rules), and the sky, fog, light and water.
@@ -102,6 +103,9 @@ width, slope, how much it bends, what it is made of, how often waterfalls come),
 | Rings | Trails to collect: points and boost. |
 | Predators | Sharks at sea, bears in rivers. They strike on every other beat; jump them or steer wide. |
 | Waterfalls | Going up: a wall 2.6 to 4 m high to leap, or be washed back 40 m. Going down: a drop of 9 to 20 m to launch off. |
+| Currents, boost rings, sea nettles | Under the sea stages only: see "The layers under the water". |
+
+There is a gate over the finish and none at the start.
 
 **The stages at a glance**
 
@@ -111,8 +115,8 @@ are 16 to 21 m between their banks.
 
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
-| Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight; three layers to dive |
-| Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | strings of crab-pot floats (dive under them) |
+| Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
+| Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
 | Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, three layers to dive | shark | currents, boost rings and sea nettles below |
 | Coastline | golden-hour sea, 70 m wide, with the beach and palms along one side only and open water on the other | barely climbs | shark | |
 | The Harbor | quays, cranes, sodium light | barely climbs | shark | |
@@ -159,8 +163,8 @@ jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 
 The salmon swims on the surface or **dived** under it. Swiping down goes down a layer;
 swiping up comes up one (and from the surface, jumps). Steering and speed are the same at
-every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has six and the Ocean Trench
-three, 3.6 m apart.
+every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
+six and the Ocean Trench three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
   barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
@@ -170,7 +174,8 @@ three, 3.6 m apart.
   colour of the water, shafts of light slant down from the surface, the distance goes murky
   and the music is muffled. Bubbles come up from the deep and specks hang in the water.
 
-What is under the Open Ocean is laid out on its own, whatever is on the surface above it
+What is under the sea stages with layers (Open Ocean, Shallow Sea, Ocean Trench) is laid out
+on its own along a trail of its own, whatever is on the surface above it
 (`deep` in `levels.gd`):
 
 - **Ocean currents** are rails under the water that wind about, from side to side and between
@@ -213,8 +218,9 @@ What is under the Open Ocean is laid out on its own, whatever is on the surface 
   under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
   ramps, the fish), and patches of foam drift with the current. Every stage can set any of
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
-- **Open sea** stages have a floor of rolling hills far below (`floor`), instead of a river
-  bed.
+- **Open sea** stages have a floor of rolling hills below (`floor`) instead of a river bed:
+  in sight in the Shallow Sea and the Coral Reef, and not drawn at all under the Open Ocean.
+  From underneath, the surface is a bright ceiling that hides the sky.
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening
   out behind into a short V (it is a fish, not a boat) and fading, with the foam cleared
@@ -326,6 +332,11 @@ and the music and sound effects are synthesized offline by scripts in the projec
 | The salmon: movement, tricks, hazards, autopilot | `scripts/player/salmon.gd` |
 | The other salmon | `scripts/world/school.gd` |
 | Predators | `scripts/world/bear.gd` |
+| Camera | `scripts/world/chase_camera.gd` |
+| Splash and wake | `scripts/fx/splash.gd`, `scripts/fx/wake.gd` (the wake is drawn in `shaders/water.gdshader`) |
+| Water, underwater view, currents | `shaders/water.gdshader`, `shaders/post.gdshader`, `shaders/current.gdshader` |
+| Scoring and timing grades | `scripts/game/score.gd` |
+| Water lab, field guide | `scripts/ui/water_lab.gd`, `scripts/ui/model_viewer.gd` |
 | Touch gestures | `scripts/ui/touch_controls.gd`, `scripts/autoload/game_input.gd` |
 | Globe | `scripts/ui/globe.gd`, `shaders/globe.gdshader` |
 | Music and the beat clock | `scripts/autoload/music.gd`, `scripts/audio/` |
@@ -347,7 +358,13 @@ Things that are true of the build today and likely to matter for the next round 
   and the open-water stages really play differently.
 - **Touch cannot grab**, so the highest-scoring tricks are keyboard and
   gamepad only.
-- **The smolt plays exactly like the adult**, only smaller.
+- **The young play exactly like the adult**, only smaller.
+- **The water lab sets one water for every stage.** Values per stage have to be written into
+  `levels.gd` by hand from what SAVE gives.
+- **Nothing is designed for the dash yet**, and a fast first stroke of a turn or a boost
+  wiggle can still set one off.
+- **The download is about 19 MB** (10 MB of it the engine, 7 MB music). Each push to `main`
+  rebuilds the public site, and GitHub fails builds that come too close together.
 - **Stages around Mount Rainier and Puget Sound are a few miles apart**, so their pins are
   fanned out rather than shown in place.
 - **Phone performance and feel are lightly tested.** Most checks have been scripted runs on
