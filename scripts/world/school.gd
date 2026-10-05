@@ -91,7 +91,8 @@ func _process(delta: float) -> void:
 		var vx := clampf((want - x) * 1.5, -9.0, 9.0)
 		x = clampf(x + vx * dt, -lim, lim)
 		var surf := track.surface_y(s, x)
-		var on_water := y <= surf + 0.05 and vy <= 0.0
+		# (a generous margin: going downhill the surface drops away a little every frame)
+		var on_water := y <= surf + 0.4 and vy <= 0.0
 		if on_water:
 			# climbing a ramp carries its lift into the air, like the player
 			vy = clampf((surf - y) / dt, 0.0, 14.0) if surf > y else 0.0

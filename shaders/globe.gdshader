@@ -13,7 +13,7 @@ uniform vec2 center = vec2(200.0);
 uniform float globe_radius = 170.0;
 // How big the picture's pixels are drawn.
 uniform float pixel = 3.0;
-// How close the camera is (1 is the whole globe in view): thins the clouds out up close.
+// How close the view is (kept at 1: the globe does not zoom).
 uniform float zoom = 1.0;
 uniform vec3 space : source_color = vec3(0.012, 0.016, 0.045);
 uniform vec3 air : source_color = vec3(0.4, 0.75, 1.0);

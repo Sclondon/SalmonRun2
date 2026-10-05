@@ -12,8 +12,14 @@ var level := 0
 var down := false
 var music_volume := 0.8
 var sfx_volume := 0.9
-## Phones render at a lower resolution by default (bigger pixels, much cheaper)
-var pixel_scale := 4 if is_mobile() else 3
+## The retro filter. Phones render at a lower resolution by default (bigger pixels, much
+## cheaper); the rest are 0 to 1: colour banding and dither, PS1 vertex wobble, dark corners.
+var pixel_scale := 3 if is_mobile() else 2
+var dither := 0.5
+var wobble := 0.5
+var vignette := 0.4
+## Shows the testing shortcuts: start a run on any stage, and skip to the end of one
+var tester := false
 
 
 func _ready() -> void:
@@ -29,7 +35,12 @@ func _ready() -> void:
 	down = cfg.get_value("score", "down", false)
 	music_volume = cfg.get_value("settings", "music", 0.8)
 	sfx_volume = cfg.get_value("settings", "sfx", 0.9)
-	pixel_scale = cfg.get_value("settings", "pixel_scale", pixel_scale)
+	# ("pixel_size", not the old "pixel_scale": the default got gentler, so old saves take it up)
+	pixel_scale = cfg.get_value("settings", "pixel_size", pixel_scale)
+	dither = cfg.get_value("settings", "dither", dither)
+	wobble = cfg.get_value("settings", "wobble", wobble)
+	vignette = cfg.get_value("settings", "vignette", vignette)
+	tester = cfg.get_value("settings", "tester", false)
 
 
 func store() -> void:
@@ -39,7 +50,11 @@ func store() -> void:
 	cfg.set_value("score", "down", down)
 	cfg.set_value("settings", "music", music_volume)
 	cfg.set_value("settings", "sfx", sfx_volume)
-	cfg.set_value("settings", "pixel_scale", pixel_scale)
+	cfg.set_value("settings", "pixel_size", pixel_scale)
+	cfg.set_value("settings", "dither", dither)
+	cfg.set_value("settings", "wobble", wobble)
+	cfg.set_value("settings", "vignette", vignette)
+	cfg.set_value("settings", "tester", tester)
 	cfg.save(PATH)
 
 

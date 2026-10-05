@@ -6,6 +6,9 @@ jungle / drum & bass soundtrack. SSX-style tricks, waterfalls, rails, sharks and
 
 Godot **4.7**, Forward+. Open `project.godot` and press F5.
 
+The design (what the game is, the map, the stages, how it plays) is in
+[docs/DESIGN.md](docs/DESIGN.md).
+
 ## Controls
 
 | Keyboard | Gamepad | Touch | On the water | In the air |
@@ -14,12 +17,12 @@ Godot **4.7**, Forward+. Open `project.godot` and press F5.
 | W/S, ↑/↓ | left stick / d-pad | — | swim harder / brake | front / back flip |
 | Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap) | — |
 | — | — | swipe any of 8 directions | — | one full turn that way: left / right spin, up backflip, down frontflip |
-| Shift | LT | draw little circles | boost | — |
-| Q / E | LB / RB | — | — | corkscrew |
+| Shift | LT | wiggle back and forth | boost | — |
+| Q / E | LB / RB | draw circles | — | corkscrew (the way the finger goes round) |
 | J K L I | X Y B RT | — | — | grabs (release before landing!) |
 | Esc / P | Start | ⏸ | pause | |
 
-Touch is gestures only for now (no corkscrew or grabs), and the mouse counts as a finger.
+Touch is gestures only for now (no grabs), and the mouse counts as a finger.
 **PRACTICE** on the title screen opens a stage select (the globe with every stage listed beside
 it): pick any stage, in either direction, to swim
 it with no countdown, goal or finish (it loops, and nothing is saved). TRAINING COURSE there is
@@ -42,8 +45,11 @@ NEW RUN opens the globe on the Open Ocean, where every run starts (press START).
 branches like Star Fox 64's map, and
 the map is that globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
 you finish a stage it shows the way you have come as a red line and the ways on as pins joined
-by dashed lines, with a little window showing the stage in hand. Look
-between them with left / right or a tap, then swim; ways you did not earn are shown locked.
+by dashed lines. A framed card (under the globe on a phone, beside it on a wide screen; the
+layout follows `conceptArt/ui/levelSelect.png`) shows a picture of the stage in hand with its
+name, where it is, a line about it and the BACK and SWIM buttons. Look
+between the ways on with the arrows either side of the card, left / right or a tap on a
+pin; ways you did not earn are shown locked.
 The same globe then draws the line across to the stage you picked.
 
 Each stage lists the stages it leads to (`next` in `levels.gd`). The first is the default way
@@ -75,8 +81,8 @@ ending (the default way on from its harbor) and a home lake at the end of the fu
 
 The pins are real places: the open ocean in the mid Pacific, the Bering Sea, the Mariana
 Trench, a reef off Okinawa, the British Columbia coast, Puget Sound and the rivers behind it, Bend in Oregon and
-Mount Rainier; then Tokyo Bay and Hokkaido. Stages can be oceans or a few miles apart, so the globe zooms in
-until the stage in hand and its neighbours are clear of each other.
+Mount Rainier; then Tokyo Bay and Hokkaido. The globe only turns, it never zooms: where ways on
+are only a few miles apart, their pins are fanned out round the one you are at.
 The way back down retraces the stages you came up through.
 
 Each stage is one entry in `scripts/world/levels.gd` (tier, route, goal, course shape, what it
@@ -136,6 +142,15 @@ Tweak a course with its `length`, `seed` and `kinds` in `levels.gd`.
 The UI is styled after 1990s educational software and science books: Libre Baskerville for
 headings and Jost for everything else (both SIL OFL, licences in `fonts/`), navy plates, cream
 paper buttons and a few primary colours, all defined in `scripts/ui/ui_kit.gd`.
+
+**Tester mode** (a button in Options) is for trying later stages in a normal run: on the NEW
+RUN screen the arrows step through every stage so a run can begin anywhere (as if it had got
+there the usual way), and the pause menu gains SKIP buttons that end the stage at once with
+its goal met or missed.
+
+Options has the retro filter in four pieces, each with its own slider: pixel size, colour
+dither, vertex wobble and dark corners (all the way left turns a piece off). Options is on the
+pause menu too, so they can be tuned while looking at the game.
 
 The stage pictures beside the globe are screenshots in `textures/previews/`. After changing
 how a stage looks, retake them (this one needs a window, not `--headless`):

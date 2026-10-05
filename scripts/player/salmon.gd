@@ -32,6 +32,8 @@ const SWIPE_JUMP := 1.0
 const ARC_RADIUS := 0.9
 ## How far downstream you are swept when you fail to clear a waterfall (room for a run-up).
 const WASH_BACK := 40.0
+## How far above the water counts as being in the air while wiped out.
+const AIRBORNE := 0.4
 const GRAB_NAMES := ["Fin Grab", "Tail Tweak", "Gill Slap", "Dorsal Stale"]
 # body pose per grab: [curl, bend]
 const GRAB_POSES := [[0.7, 0.0], [0.0, 0.8], [-0.6, 0.0], [0.0, -0.8]]
@@ -233,9 +235,9 @@ func _read_input(delta: float) -> Dictionary:
 		"swipes": swipes,
 		"steer": steer,
 		"pitch": Input.get_axis("swim_down", "swim_up"),
-		"roll": Input.get_axis("roll_left", "roll_right"),
+		"roll": GameInput.roll if GameInput.roll != 0.0 else Input.get_axis("roll_left", "roll_right"),
 		"jump": Input.is_action_pressed("jump"),
-		"boost": Input.is_action_pressed("boost") or GameInput.circling,
+		"boost": Input.is_action_pressed("boost") or GameInput.wiggling,
 		"grab": g,
 	}
 
@@ -576,7 +578,11 @@ func _wipeout(dt: float) -> void:
 	vx *= exp(-2.0 * dt)
 	_clamp_banks()
 	var surf := track.water_y(s)
-	if y > surf + 0.01:
+	# Only properly airborne counts as falling (knocked out of a jump, or over a waterfall).
+	# Where the river runs downhill the surface drops away a little every frame, and treating
+	# that as "in the air" meant the salmon never touched down to recover: it stayed wiped out
+	# for the whole of a rapid, longer the lower the frame rate.
+	if y > surf + AIRBORNE:
 		vy -= GRAVITY * dt
 		y = maxf(y + vy * dt, surf)
 	else:

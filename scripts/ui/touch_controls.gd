@@ -1,8 +1,8 @@
 extends Control
 ## Gesture controls for phones and tablets (the mouse works too, as an emulated finger):
-## hold a finger down and the salmon swims towards it, draw little circles to boost, swipe up
-## to jump, and swipe in any
-## direction in the air to spin or flip that way. Gestures are handed to the salmon through
+## hold a finger down and the salmon swims towards it, wiggle it back and forth to boost, swipe up
+## to jump, and in the air swipe any way to spin or flip that way or draw circles to corkscrew.
+## Gestures are handed to the salmon through
 ## the GameInput autoload.
 
 signal pause_pressed
@@ -16,11 +16,16 @@ const HOLD_TIME := 0.1
 ## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
 const SWIPE_DIST := 70.0
 const SWIPE_WINDOW := 0.16
-## Little circles boost: the finger's direction has to turn CIRCLE_ON radians (about three
-## quarters of a loop) within CIRCLE_WINDOW seconds to start, and keep turning to keep going.
-const CIRCLE_WINDOW := 0.7
-const CIRCLE_ON := 4.7
-const CIRCLE_KEEP := 2.2
+## Circles corkscrew (in the air): the finger's direction has to turn CIRCLE_ON radians (about
+## half a loop) within CIRCLE_WINDOW seconds to start, and keep turning to keep going.
+const CIRCLE_WINDOW := 0.5
+const CIRCLE_ON := 3.0
+const CIRCLE_KEEP := 1.5
+## Wiggling boosts: the finger has to double back WIGGLE_ON times within WIGGLE_WINDOW seconds
+## to start, and keep doubling back to keep going.
+const WIGGLE_WINDOW := 0.6
+const WIGGLE_ON := 3
+const WIGGLE_KEEP := 1
 const PAUSE_RADIUS := 36.0
 
 var player: Salmon
@@ -42,6 +47,8 @@ var _turns: Array = []  # [time, radians the finger's direction turned] samples
 var _head_pos := Vector2.ZERO
 var _head := 0.0
 var _has_head := false
+var _flips: Array[float] = []  # when the finger last doubled back on itself
+var _steady_x := 0.0           # the finger's position with the wiggle smoothed out of it
 var _flash := 0.0
 var _flash_dir := Vector2.ZERO
 var _flash_pos := Vector2.ZERO
@@ -88,7 +95,9 @@ func _touch_down(index: int, p: Vector2) -> void:
 	_held_for = 0.0
 	_armed = true
 	_trail = [[_now(), p]]
+	_steady_x = p.x
 	_turns.clear()
+	_flips.clear()
 	_head_pos = p
 	_has_head = false
 	queue_redraw()
@@ -98,7 +107,9 @@ func _release() -> void:
 	_touch = -1
 	_trail.clear()
 	_turns.clear()
-	GameInput.circling = false
+	_flips.clear()
+	GameInput.roll = 0.0
+	GameInput.wiggling = false
 	GameInput.follow = false
 	GameInput.follow_dx = 0.0
 	queue_redraw()
@@ -116,9 +127,11 @@ func _track_circle() -> void:
 	var a := d.angle()
 	if _has_head:
 		var turn := wrapf(a - _head, -PI, PI)
-		# scrubbing back and forth is a reversal, not a turn
+		# doubling back is a wiggle, not part of a turn
 		if absf(turn) < 2.4:
 			_turns.append([_now(), turn])
+		else:
+			_flips.append(_now())
 	_head = a
 	_has_head = true
 	_head_pos = _pos
@@ -147,8 +160,8 @@ func _track_swipe() -> void:
 	if not _armed:
 		_armed = d.length() < need * 0.4
 		return
-	# a curving stroke is part of a circle, not a swipe
-	if d.length() < need or GameInput.circling or absf(_turned()) > 1.5:
+	# a curving stroke is part of a circle, and a wiggle is a wiggle: neither is a swipe
+	if d.length() < need or GameInput.roll != 0.0 or GameInput.wiggling or absf(_turned()) > 1.5:
 		return
 	# 8-way: each axis counts if it carries a fair share of the stroke
 	var n := d.normalized()
@@ -169,10 +182,20 @@ func _process(delta: float) -> void:
 		queue_redraw()
 	if _touch == -1:
 		return
-	var circling := absf(_turned()) > (CIRCLE_KEEP if GameInput.circling else CIRCLE_ON)
-	if circling != GameInput.circling:
-		GameInput.circling = circling
+	# circles: a corkscrew, turning the way the finger goes round
+	var turned := _turned()
+	var roll := signf(turned) if absf(turned) > (CIRCLE_KEEP if GameInput.roll != 0.0 else CIRCLE_ON) else 0.0
+	# wiggles: boost
+	var now := _now()
+	while not _flips.is_empty() and now - _flips[0] > WIGGLE_WINDOW:
+		_flips.pop_front()
+	var wiggling := _flips.size() >= (WIGGLE_KEEP if GameInput.wiggling else WIGGLE_ON)
+	if roll != GameInput.roll or wiggling != GameInput.wiggling:
+		GameInput.roll = roll
+		GameInput.wiggling = wiggling
 		queue_redraw()
+	# the salmon follows the middle of a wiggle, not every stroke of it
+	_steady_x = lerpf(_steady_x, _pos.x, 1.0 - exp(-delta * (5.0 if wiggling else 40.0)))
 	_held_for += delta
 	if _held_for < HOLD_TIME or player == null or camera == null or view == null:
 		return
@@ -184,16 +207,16 @@ func _process(delta: float) -> void:
 	if metre < 1.0:
 		return
 	GameInput.follow = true
-	GameInput.follow_dx = (_pos.x - fish_x) / metre
+	GameInput.follow_dx = (_steady_x - fish_x) / metre
 
 
 func _draw() -> void:
 	var font := UI.font()
 	var k := _k()
 	if _touch != -1:
-		var ring: Color = UI.GOLD if GameInput.circling else UI.TEAL
+		var ring: Color = UI.GOLD if GameInput.wiggling or GameInput.roll != 0.0 else UI.TEAL
 		draw_circle(_pos, 46.0 * k, Color(ring, 0.18))
-		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.circling else 4.0) * k)
+		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.wiggling or GameInput.roll != 0.0 else 4.0) * k)
 	if _flash > 0.0:
 		var a := clampf(_flash / 0.35, 0.0, 1.0)
 		var tip := _flash_pos + _flash_dir * 90.0 * k

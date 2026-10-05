@@ -18,9 +18,43 @@ const Songs := preload("res://scripts/audio/songs.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const Globe := preload("res://scripts/ui/globe.gd")
 
-const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      LITTLE CIRCLES: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP THAT WAY      JUMP UP THE WATERFALL"
+const PRACTICE_HINT := "HOLD: SWIM TO YOUR FINGER      SWIPE UP: JUMP      WIGGLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
-enum Phase { TITLE, COUNTDOWN, RACE, FINISHED }
+enum Phase { TITLE, COUNTDOWN, RACE, FINISHED, CUTSCENE }
+
+## How long each caption of a cutscene stays up.
+const CAPTION_TIME := 3.4
+## Before a run: the call home.
+const INTRO := [
+	"THE NORTH PACIFIC. TWO YEARS AT SEA.",
+	"YOU HAVE GROWN FAT AND SILVER ON THE OPEN OCEAN.",
+	"NOW SOMETHING IS CALLING YOU BACK:",
+	"THE RIVER WHERE YOU HATCHED.",
+	"SWIM HOME.",
+]
+## The end of the way up, at a home lake...
+const SPAWNING := [
+	"HOME. THE WATER YOU WERE BORN IN.",
+	"SHE DIGS A NEST IN THE GRAVEL: A REDD.",
+	"THE EGGS ARE LAID. BOTH PARENTS DIE HERE,",
+	"AND THEIR BODIES FEED THE RIVER.",
+	"IN SPRING, THEIR YOUNG SWIM FOR THE SEA.",
+]
+## ...or at a fish farm.
+const FARMED := [
+	"NOT HOME. A PEN, AND PELLETS.",
+	"THE EGGS ARE TAKEN AND RAISED IN TRAYS.",
+	"IT IS NOT THE RIVER, BUT IT IS A BEGINNING.",
+	"IN SPRING, THE YOUNG ARE LET GO TO THE SEA.",
+]
+## The end of the run: the young reach the ocean.
+const OUTRO := [
+	"THE OPEN OCEAN AT LAST.",
+	"SMALL, SILVER AND HUNGRY.",
+	"TWO YEARS OF FEEDING LIE AHEAD.",
+	"AND THEN, ONE AUTUMN,",
+	"SOMETHING WILL CALL IT HOME.",
+]
 
 var phase := Phase.TITLE
 var world: World
@@ -77,7 +111,26 @@ var _from := -1
 var _levels: Control
 var _level_buttons: Array[Button] = []
 var _travel: Control
-var _travel_label: Label
+var _pv_wrap: Control
+var _pv_buttons: HBoxContainer
+var _pv_arrows: Array[Button] = []
+## Tester mode: the stage NEW RUN will start on, the pause menu's skip buttons, and a goal
+## result forced by them (1 met, -1 missed, 0 as played)
+var _start_at := 0
+var _skip_buttons: Array[Button] = []
+var _forced_goal := 0
+## Cutscenes: the captions, what happens afterwards, the clock, and the scene's own widgets
+var _cut_lines: Array = []
+var _cut_done: Callable
+var _cut_t := 0.0
+var _cut: Control
+var _cut_caption: Label
+## NEW RUN has just been started from the ocean: play the intro before the first countdown
+var _intro_due := false
+## Every stage finished on this run, for the page at the end: {name, down, score, rank}
+var _log: Array[Dictionary] = []
+var _summary: Control
+var _summary_labels := {}
 var _travel_back: Button
 ## NEW RUN is waiting on its START button (rather than a way on being chosen)
 var _starting := false
@@ -119,10 +172,11 @@ func _ready() -> void:
 	_container = SubViewportContainer.new()
 	_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_container.stretch = true
-	_container.stretch_shrink = Save.pixel_scale
+	_apply_filter()
 	var post := ShaderMaterial.new()
 	post.shader = preload("res://shaders/post.gdshader")
 	_container.material = post
+	_apply_filter()
 	add_child(_container)
 	var vp := SubViewport.new()
 	_container.add_child(vp)
@@ -220,9 +274,10 @@ func _start_level(index: int, down: bool, from := -99) -> void:
 
 
 ## A fresh run from one stage of the map.
-func _start_journey(index: int, down: bool) -> void:
-	_route.clear()
+func _start_journey(index: int, down: bool, route: Array[int] = []) -> void:
+	_route = route.duplicate()
 	_journey = 0
+	_log.clear()
 	_start_level(index, down, -1)
 
 
@@ -245,6 +300,8 @@ func _has_objective() -> bool:
 
 
 func _objective_met() -> bool:
+	if _forced_goal != 0:
+		return _forced_goal > 0 and _has_objective()
 	if not _has_objective():
 		return false
 	var o: Dictionary = Levels.LIST[_level].objective
@@ -259,13 +316,9 @@ func _start_race(test := false) -> void:
 	if not world.has_course(_level, drill, _down):
 		# building a level takes a moment: say where we're going, then let that frame draw first
 		_busy = true
-		if test:
-			_travel_label.text = "PRACTICE"
-		else:
-			_travel_label.text = _leg_name(_down)
 		hud.visible = false
-		_travel_go.visible = false
-		_travel_back.visible = false
+		_travel_go.visible = true
+		_pv_buttons.visible = false
 		_travel_globe.stop_choosing()
 		var stage := Levels.RAINFOREST if drill else _level
 		var done: Array[int] = []
@@ -292,6 +345,7 @@ func _start_race(test := false) -> void:
 	hud.visible = true
 	hud.set_best(0 if test else Save.best(_key()))
 	score.reset()
+	_forced_goal = 0
 	race_time = 0.0
 	_finish_timer = -1.0
 	var p := world.player
@@ -302,6 +356,18 @@ func _start_race(test := false) -> void:
 	world.camera.mode = ChaseCam.Mode.FOLLOW
 	world.camera.snap()
 	Music.set_filter(20000.0)
+	if _intro_due and not test and _autotest_dir == "":
+		_intro_due = false
+		_cutscene(INTRO, _begin_stage.bind(test, drill))
+	else:
+		_begin_stage(test, drill)
+
+
+## The stage proper: its tune from the top, then the countdown (practice just starts).
+func _begin_stage(test: bool, drill: bool) -> void:
+	var p := world.player
+	hud.visible = true
+	_show(null)
 	Music.play_race(Levels.LIST[Levels.RAINFOREST if drill else _level].tier)
 	phase = Phase.COUNTDOWN
 	if not test:
@@ -310,6 +376,58 @@ func _start_race(test := false) -> void:
 		# no countdown, no finish line: just swim
 		phase = Phase.RACE
 		p.control = not p.autopilot
+		p.go()
+
+
+# ================================================================== cutscenes
+
+## Plays a few captions over the stage that is loaded, filmed by the title screen's roving
+## camera with the salmon swimming on its own, then calls `done`. Any press skips it.
+func _cutscene(lines: Array, done: Callable) -> void:
+	_cut_lines = lines
+	_cut_done = done
+	_cut_t = 0.0
+	phase = Phase.CUTSCENE
+	get_tree().paused = false
+	hud.visible = false
+	_cut_caption.text = ""
+	_show(_cut)
+	var p := world.player
+	p.reset(Track.START_S)
+	p.autopilot = true
+	p.control = false
+	p.go()
+	world.track.reset_rings()
+	world.camera.mode = ChaseCam.Mode.CINEMA
+	world.camera.snap()
+
+
+func _end_cutscene() -> void:
+	if phase != Phase.CUTSCENE:
+		return
+	phase = Phase.TITLE
+	var p := world.player
+	p.reset(Track.START_S)
+	p.autopilot = _autotest_dir != ""
+	world.track.reset_rings()
+	world.camera.mode = ChaseCam.Mode.FOLLOW
+	world.camera.snap()
+	_cut_done.call()
+
+
+func _run_cutscene(delta: float) -> void:
+	_cut_t += delta
+	var index := int(_cut_t / CAPTION_TIME)
+	if index >= _cut_lines.size():
+		_end_cutscene()
+		return
+	# each caption fades in, holds and fades out
+	var at := fmod(_cut_t, CAPTION_TIME)
+	_cut_caption.text = _cut_lines[index]
+	_cut_caption.modulate.a = minf(smoothstep(0.0, 0.5, at), 1.0 - smoothstep(CAPTION_TIME - 0.5, CAPTION_TIME, at))
+	var p := world.player
+	if p.s > world.track.finish_s + 60.0:
+		p.reset(Track.START_S)
 		p.go()
 
 
@@ -354,6 +472,7 @@ func _show_results() -> void:
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.parent.postMessage({ type: 'PLAYER_DIED', score: %d }, '*')" % score.score, true)
 	_journey += score.score
+	_log.append({"name": Levels.LIST[_level].name, "down": _down, "score": score.score, "rank": rank})
 	var l: Dictionary = _results_labels
 	var stage: Dictionary = Levels.LIST[_level]
 	var title := "%s CLEARED" % stage.name
@@ -366,8 +485,9 @@ func _show_results() -> void:
 	if _down:
 		_next = Levels.prev_down(_level, _route)
 		if _next == -1:
-			title = "THE OPEN OCEAN. THE CYCLE BEGINS AGAIN"
-			route = "TWO YEARS AT SEA, THEN THE LONG SWIM HOME"
+			title = "THE OPEN OCEAN"
+			next_text = "CONTINUE"
+			route = "THE YOUNG HAVE REACHED THE SEA"
 	else:
 		if _route.is_empty() or _route[-1] != _level:
 			_route.append(_level)
@@ -393,18 +513,24 @@ func _show_results() -> void:
 	(l.title as Label).text = title
 	(l.route as Label).text = route
 	(l.route as Label).visible = route != ""
-	(l.next as Button).visible = _next != -1 or not _ways.is_empty()
+	(l.route as Label).add_theme_color_override("font_color", Color(0.12, 0.45, 0.22) if route.begins_with("GOAL MET") else UI.RED)
+	hud.visible = false
+	(l.leg as Label).text = "FIELD REPORT   ·   %s" % _leg_name(_down)
 	(l.next as Button).text = next_text
-	(l.rank as Label).text = rank
+	l.rank_text = rank
+	(l.stamp as Control).queue_redraw()
+	(l.journey as Label).text = "THE RUN SO FAR   %s" % Hud.fmt(_journey)
 	(l.score as Label).text = Hud.fmt(score.score)
 	(l.best as Label).text = "NEW BEST!" if new_best else "BEST  %s" % Hud.fmt(Save.best(_key()))
+	(l.keys as Label).text = "TIME\nTRICKS\nON THE BEAT\nBEST TRICK\nBEST FLOW\nRINGS\nWIPEOUTS"
 	(l.stats as Label).text = "\n".join([
-		"JOURNEY SO FAR   %s" % Hud.fmt(_journey),
-		"TIME   %s" % Hud.fmt_time(race_time),
-		"TRICKS   %d      ON BEAT   %d" % [score.tricks, score.on_beats],
-		"BEST TRICK   %s  (%s)" % [score.best_trick.to_upper() if score.best_trick != "" else "-", Hud.fmt(score.best_trick_pts)],
-		"BEST FLOW   x%d" % score.best_flow,
-		"RINGS   %d      WIPEOUTS   %d" % [score.rings, score.wipeouts],
+		Hud.fmt_time(race_time),
+		str(score.tricks),
+		str(score.on_beats),
+		"%s  (%s)" % [score.best_trick.to_upper(), Hud.fmt(score.best_trick_pts)] if score.best_trick != "" else "-",
+		"x%d" % score.best_flow,
+		str(score.rings),
+		str(score.wipeouts),
 	])
 	_show(_results)
 	if _autotest_dir != "":
@@ -427,16 +553,23 @@ func _quit_from_pause() -> void:
 ## to pick (the way up), straight there otherwise.
 func _continue() -> void:
 	if _ways.is_empty():
-		_start_level(_next, _next_down)
+		if _next == -1:
+			# the young have reached the ocean: the end of the run
+			_cutscene(OUTRO, _show_summary)
+		elif _next_down and not _down:
+			# the end of the way up: spawning, then the next generation sets off
+			var farm: bool = Levels.settings(_level).get("farm", false)
+			_cutscene(FARMED if farm else SPAWNING, _start_level.bind(_next, true))
+		else:
+			_start_level(_next, _next_down)
 		return
-	_travel_label.text = "WHICH WAY?" if _ways.size() > 1 else "ONWARD"
 	_travel_globe.look_at_stage(_level)
 	_travel_globe.choose(_route, _level, _ways, _shut)
 	_preview(_ways[0])
 	_starting = false
 	_travel_go.text = "SWIM"
 	_travel_go.visible = true
-	_travel_back.visible = false
+	_pv_buttons.visible = true
 	hud.visible = false
 	_show(_travel)
 	_travel_go.grab_focus()
@@ -450,15 +583,15 @@ func _open_run() -> void:
 	_level = Levels.START
 	_down = false
 	_from = -1
-	_travel_label.text = "THE RUN HOME"
 	_travel_globe.stop_choosing()
+	_start_at = Levels.START
 	_travel_globe.look_at_stage(Levels.START)
 	_travel_globe.show_path([], -1, Levels.START)
 	_preview(Levels.START)
 	_starting = true
 	_travel_go.text = "START"
 	_travel_go.visible = true
-	_travel_back.visible = true
+	_pv_buttons.visible = true
 	_show(_travel)
 	_travel_go.grab_focus()
 
@@ -466,7 +599,13 @@ func _open_run() -> void:
 ## The big button on the globe: begin the run, or swim the way that is highlighted.
 func _go() -> void:
 	if _starting:
-		_start_journey(Levels.START, false)
+		# (a tester may have picked a later stage: the run then begins as if it had come the
+		# usual way to it)
+		var before := Levels.path_to(_start_at)
+		before.resize(before.size() - 1)
+		# the story opens every run that begins where the story does
+		_intro_due = _start_at == Levels.START
+		_start_journey(_start_at, false, before)
 	else:
 		_take_way(_travel_globe.choices[_travel_globe.choice])
 
@@ -480,16 +619,52 @@ func _preview(id: int, line := "") -> void:
 	var stage: Dictionary = Levels.LIST[id]
 	_pv_name.text = stage.name
 	var at: Vector2 = stage.at
-	_pv_where.text = "STEP %d   ·   %.1f°%s  %.1f°%s" % [int(stage.tier) + 1, absf(at.x), "N" if at.x >= 0.0 else "S", absf(at.y), "E" if at.y >= 0.0 else "W"]
+	_pv_where.text = "%.1f°%s  %.1f°%s" % [absf(at.x), "N" if at.x >= 0.0 else "S", absf(at.y), "E" if at.y >= 0.0 else "W"]
 	_pv_line.text = line if line != "" else str(stage.tagline)
 	var path := "res://textures/previews/%s.png" % str(stage.name).to_lower().replace(" ", "_")
 	_pv_image.texture = load(path) if ResourceLoader.exists(path) else null
+
+
+## Pushes the picture options (Save) to the low-res view, its post-process and the wobble.
+func _apply_filter() -> void:
+	_container.stretch_shrink = Save.pixel_scale
+	var post := _container.material as ShaderMaterial
+	if post:
+		post.set_shader_parameter("dither", Save.dither)
+		post.set_shader_parameter("vignette", Save.vignette * 0.5)
+	RenderingServer.global_shader_parameter_set("psx_wobble", Save.wobble)
+
+
+## The arrows on the globe card: the next way on, or (tester mode, before a run) the next
+## stage to start from.
+func _step_way(dir: int) -> void:
+	if not (_starting and Save.tester):
+		_travel_globe.step(dir)
+		return
+	var order: Array[int] = []
+	for tier in Levels.tiers():
+		order.append_array(Levels.on_tier(tier))
+	_start_at = order[posmod(order.find(_start_at) + dir, order.size())]
+	var path := Levels.path_to(_start_at)
+	var from := path[path.size() - 2] if path.size() > 1 else -1
+	path.resize(path.size() - 1)
+	_travel_globe.show_path(path, from, _start_at, 0.6)
+	_preview(_start_at)
+
+
+## Tester mode: finish the stage now, as if its goal had been met or missed.
+func _skip_stage(met: bool) -> void:
+	_forced_goal = 1 if met else -1
+	_resume()
+	_finish()
 
 
 func _pause_game() -> void:
 	get_tree().paused = true
 	Music.set_filter(700.0)
 	_pause_quit.text = "BACK TO THE MAP" if _test_mode else "QUIT TO TITLE"
+	for b in _skip_buttons:
+		b.visible = Save.tester and not _test_mode
 	_show(_pause)
 
 
@@ -506,11 +681,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		_resume()
 	elif phase == Phase.RACE:
 		_pause_game()
-	elif _howto.visible or _options.visible or _levels.visible or (_travel.visible and _travel_back.visible):
+	elif _travel.visible and _pv_buttons.visible:
+		_globe_back()
+	elif _howto.visible or _options.visible or _levels.visible:
 		_close_sub_panel()
 
 
 func _input(event: InputEvent) -> void:
+	# any press skips a cutscene (once it has had a moment, so the press that began it doesn't)
+	if phase == Phase.CUTSCENE and _cut_t > 0.6 and event.is_pressed() and not event.is_echo() \
+			and (event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton or event is InputEventScreenTouch):
+		_end_cutscene()
+		get_viewport().set_input_as_handled()
+		return
 	# Show the on-screen controls for whichever the player is actually using
 	if event is InputEventScreenTouch:
 		_use_touch = true
@@ -525,6 +708,8 @@ func _process(delta: float) -> void:
 	hud.set_touch_mode(_use_touch)
 	_loading.visible = not Music.is_ready
 	match phase:
+		Phase.CUTSCENE:
+			_run_cutscene(delta)
 		Phase.TITLE:
 			if p.s > world.track.finish_s + 60.0:
 				p.reset(Track.START_S)
@@ -566,7 +751,7 @@ func _process(delta: float) -> void:
 # ================================================================== events
 
 func _sfx(sound: String, pitch := 1.0, db := 0.0) -> void:
-	Sfx.play(sound, pitch, db - (14.0 if phase == Phase.TITLE else 0.0))
+	Sfx.play(sound, pitch, db - (14.0 if phase in [Phase.TITLE, Phase.CUTSCENE] else 0.0))
 
 
 func _on_trick(trick: Dictionary) -> void:
@@ -701,9 +886,26 @@ func _build_menus() -> void:
 	ov.add_child(_slider_row("SFX", Save.sfx_volume, 0.0, 1.0, 0.05, func(v: float) -> void:
 		Save.sfx_volume = v
 		Music.apply_volumes()))
+	# the retro filter, piece by piece (all the way left turns a piece off)
+	ov.add_child(UI.label("PICTURE", 22, UI.TEAL, 6))
 	ov.add_child(_slider_row("PIXEL SIZE", Save.pixel_scale, 1.0, 5.0, 1.0, func(v: float) -> void:
 		Save.pixel_scale = int(v)
-		_container.stretch_shrink = int(v)))
+		_apply_filter()))
+	ov.add_child(_slider_row("COLOUR DITHER", Save.dither, 0.0, 1.0, 0.05, func(v: float) -> void:
+		Save.dither = v
+		_apply_filter()))
+	ov.add_child(_slider_row("WOBBLE", Save.wobble, 0.0, 1.0, 0.05, func(v: float) -> void:
+		Save.wobble = v
+		_apply_filter()))
+	ov.add_child(_slider_row("DARK CORNERS", Save.vignette, 0.0, 1.0, 0.05, func(v: float) -> void:
+		Save.vignette = v
+		_apply_filter()))
+	var tester := {}
+	tester.b = UI.button("", func() -> void:
+		Save.tester = not Save.tester
+		(tester.b as Button).text = "TESTER MODE: %s" % ("ON" if Save.tester else "OFF"))
+	(tester.b as Button).text = "TESTER MODE: %s" % ("ON" if Save.tester else "OFF")
+	ov.add_child(tester.b)
 	ov.add_child(UI.button("BACK", _close_sub_panel))
 
 	# --- pause
@@ -715,46 +917,179 @@ func _build_menus() -> void:
 	pv.add_child(UI.label("PAUSED", 56, UI.GOLD, 12))
 	pv.add_child(UI.button("RESUME", _resume))
 	pv.add_child(UI.button("RESTART", func() -> void: _start_race(_test_mode)))
+	pv.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
+	# tester mode: jump to the end of the stage, with its goal met or missed
+	for met: bool in [true, false]:
+		var skip := UI.button("SKIP: GOAL MET" if met else "SKIP: GOAL MISSED", _skip_stage.bind(met))
+		skip.add_theme_font_size_override("font_size", 22)
+		pv.add_child(skip)
+		_skip_buttons.append(skip)
 	_pause_quit = UI.button("QUIT TO TITLE", _quit_from_pause)
 	pv.add_child(_pause_quit)
 
-	# --- results
+	# --- results: a field report on a sheet of paper, with the rank stamped on it
 	_results = _panel_root()
-	var rp := _centered_panel(_results, Vector2(760, 0))
-	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 8)
-	rp.add_child(rv)
-	_results_labels.title = UI.label("SPAWNED!", 48, UI.SALMON, 12)
+	var rv := _page(_results, 800)
+	var r_head := _ink("", 18, UI.TEAL.darkened(0.45))
+	_results_labels.leg = r_head
+	rv.add_child(r_head)
+	_results_labels.title = _ink("", 40, UI.INK, true)
 	rv.add_child(_results_labels.title)
+	rv.add_child(_rule())
 	var rrow := HBoxContainer.new()
-	rrow.add_theme_constant_override("separation", 30)
+	rrow.add_theme_constant_override("separation", 34)
 	rv.add_child(rrow)
-	_results_labels.rank = UI.label("A", 150, UI.CORAL, 18)
-	rrow.add_child(_results_labels.rank)
+	var stamp := Control.new()
+	stamp.custom_minimum_size = Vector2(170, 170)
+	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rrow.add_child(stamp)
+	_results_labels.stamp = stamp
+	stamp.draw.connect(func() -> void:
+		# the rank, stamped a little askew in red ink
+		stamp.draw_set_transform(Vector2(85, 85), -0.16, Vector2.ONE)
+		stamp.draw_arc(Vector2.ZERO, 76.0, 0.0, TAU, 48, UI.RED, 7.0)
+		stamp.draw_arc(Vector2.ZERO, 62.0, 0.0, TAU, 48, UI.RED, 2.5)
+		var letter: String = _results_labels.get("rank_text", "")
+		var w := UI.serif().get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x
+		stamp.draw_string(UI.serif(), Vector2(-w * 0.5, 34.0), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 96, UI.RED))
 	var rs := VBoxContainer.new()
+	rs.add_theme_constant_override("separation", 0)
 	rrow.add_child(rs)
-	rs.add_child(UI.label("SCORE", 26, UI.TEAL, 6))
-	_results_labels.score = UI.label("0", 64, Color.WHITE, 12)
+	rs.add_child(_ink("SCORE", 18, UI.TEAL.darkened(0.45)))
+	_results_labels.score = _ink("0", 60, UI.INK, true)
 	rs.add_child(_results_labels.score)
-	_results_labels.best = UI.label("", 28, UI.GOLD, 8)
+	_results_labels.best = _ink("", 22, UI.RED)
 	rs.add_child(_results_labels.best)
-	_results_labels.stats = UI.label("", 24, Color.WHITE, 6)
-	rv.add_child(_results_labels.stats)
-	_results_labels.route = UI.label("", 22, UI.OCHRE, 6)
+	_results_labels.journey = _ink("", 20, UI.INK)
+	rs.add_child(_results_labels.journey)
+	rv.add_child(_rule())
+	# the figures, as a two-column table
+	var table := HBoxContainer.new()
+	table.add_theme_constant_override("separation", 30)
+	rv.add_child(table)
+	_results_labels.keys = _ink("", 21, UI.TEAL.darkened(0.45))
+	table.add_child(_results_labels.keys)
+	_results_labels.stats = _ink("", 21, UI.INK)
+	table.add_child(_results_labels.stats)
+	_results_labels.route = _ink("", 20, UI.RED)
 	_results_labels.route.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_results_labels.route.custom_minimum_size.x = 700
+	_results_labels.route.custom_minimum_size.x = 740
 	rv.add_child(_results_labels.route)
-	var bh := GridContainer.new()
-	bh.columns = 2
-	bh.add_theme_constant_override("h_separation", 20)
-	bh.add_theme_constant_override("v_separation", 8)
+	var bh := HBoxContainer.new()
+	bh.add_theme_constant_override("separation", 14)
 	rv.add_child(bh)
 	_results_labels.next = UI.button("NEXT", _continue)
 	bh.add_child(_results_labels.next)
 	bh.add_child(UI.button("SWIM AGAIN", func() -> void:
 		_journey -= score.score
+		_log.pop_back()
 		_start_race()))
 	bh.add_child(UI.button("TITLE", _enter_title))
+	for b: Button in bh.get_children():
+		b.custom_minimum_size.x = 220
+
+	# --- the end of a run: every stage of the life cycle on one page
+	_summary = _panel_root()
+	var sv := _page(_summary, 900)
+	sv.add_child(_ink("THE LIFE CYCLE OF THE PACIFIC SALMON", 18, UI.TEAL.darkened(0.45)))
+	_summary_labels.title = _ink("A FULL TURN OF THE CYCLE", 40, UI.INK, true)
+	sv.add_child(_summary_labels.title)
+	sv.add_child(_rule())
+	var legs := HBoxContainer.new()
+	legs.add_theme_constant_override("separation", 40)
+	sv.add_child(legs)
+	for leg: String in ["up", "down"]:
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 2)
+		column.custom_minimum_size.x = 410
+		legs.add_child(column)
+		column.add_child(_ink("SEAWARD MIGRATION  ·  SPRING" if leg == "down" else "SPAWNING MIGRATION  ·  AUTUMN", 18, UI.RED))
+		_summary_labels[leg] = _ink("", 21, UI.INK)
+		column.add_child(_summary_labels[leg])
+	sv.add_child(_rule())
+	_summary_labels.total = _ink("", 34, UI.INK, true)
+	sv.add_child(_summary_labels.total)
+	_summary_labels.note = _ink("", 20, UI.TEAL.darkened(0.45))
+	sv.add_child(_summary_labels.note)
+	var sb := HBoxContainer.new()
+	sb.add_theme_constant_override("separation", 14)
+	sv.add_child(sb)
+	sb.add_child(UI.button("NEW RUN", _open_run))
+	sb.add_child(UI.button("TITLE", _enter_title))
+
+	# --- cutscenes: black bars top and bottom, and a caption on the lower one
+	_cut = _panel_root()
+	for top: bool in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = UI.INK
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE if top else Control.PRESET_BOTTOM_WIDE)
+		if top:
+			bar.offset_bottom = 84
+		else:
+			bar.offset_top = -150
+		_cut.add_child(bar)
+	_cut_caption = UI.label("", 34, UI.PAPER, 0)
+	_cut_caption.add_theme_font_override("font", UI.serif())
+	_cut_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cut_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cut_caption.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_cut_caption.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_cut_caption.offset_top = -150
+	_cut_caption.offset_left = 60
+	_cut_caption.offset_right = -60
+	_cut.add_child(_cut_caption)
+	var skip := UI.label("PRESS ANYTHING TO SKIP", 16, Color(UI.PAPER, 0.55), 0)
+	skip.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	skip.position = Vector2(-250, 30)
+	_cut.add_child(skip)
+
+
+## A sheet of cream paper in the middle of the screen, for the reports; returns the column
+## its contents go in.
+func _page(parent: Control, width: float) -> VBoxContainer:
+	var sheet := _centered_panel(parent, Vector2(width, 0))
+	var paper := UI.card(UI.PAPER, UI.INK, 3, 4)
+	paper.set_content_margin_all(26)
+	sheet.add_theme_stylebox_override("panel", paper)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
+	sheet.add_child(column)
+	return column
+
+
+## Text printed on paper: dark, with no outline.
+func _ink(text: String, size: int, col: Color, serif := false) -> Label:
+	var l := UI.label(text, size, col, 0)
+	l.add_theme_font_override("font", UI.serif() if serif else UI.font())
+	return l
+
+
+func _rule() -> ColorRect:
+	var line := ColorRect.new()
+	line.color = UI.GOLD.darkened(0.15)
+	line.custom_minimum_size.y = 3
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return line
+
+
+## The page at the end of a run: both legs stage by stage, and the total.
+func _show_summary() -> void:
+	var lines := {"up": [], "down": []}
+	var total := 0
+	for entry: Dictionary in _log:
+		total += int(entry.score)
+		(lines["down" if entry.down else "up"] as Array).append("%s   %s   %s" % [entry.rank, Hud.fmt(entry.score), entry.name])
+	(_summary_labels.up as Label).text = "\n".join(lines.up) if not (lines.up as PackedStringArray).is_empty() else "-"
+	(_summary_labels.down as Label).text = "\n".join(lines.down) if not (lines.down as PackedStringArray).is_empty() else "-"
+	(_summary_labels.total as Label).text = "TOTAL   %s" % Hud.fmt(total)
+	(_summary_labels.note as Label).text = "%d STAGES SWUM. THE YOUNG ARE AT SEA; IN TWO YEARS IT BEGINS AGAIN." % _log.size()
+	phase = Phase.TITLE
+	world.player.autopilot = true
+	world.player.go()
+	world.camera.mode = ChaseCam.Mode.CINEMA
+	hud.visible = false
+	_show(_summary)
 
 
 const MAP_NODE := Vector2(110, 54)
@@ -829,70 +1164,129 @@ func _build_levels() -> void:
 		b.add_theme_font_size_override("font_size", 20)
 	# The travel screen, shown between stages: the red line crosses the globe to the next one.
 	# On the way up it is also where you choose which way to go.
-	# It is the whole screen: the globe in space, a heading, a little window on the stage in
-	# hand, and one button.
+	# It is the whole screen, laid out after conceptArt/ui/levelSelect.png: the globe, and
+	# under it (beside it on a wide screen) one framed card holding a picture of the stage in
+	# hand, arrows either side to look at the other ways on, its name, a line about it and two
+	# buttons.
 	_travel = _panel_root()
 	_travel_globe = Globe.new()
 	_travel.add_child(_travel_globe)
-	_travel_label = UI.label("", 44, UI.TEAL, 12)
-	_travel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_travel_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_travel_label.offset_top = 22
-	_travel.add_child(_travel_label)
+	_pv_wrap = Control.new()
+	_pv_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_travel.add_child(_pv_wrap)
 	_pv_card = PanelContainer.new()
-	_travel.add_child(_pv_card)
+	# (the usual navy plate, with a little more room round the edge)
+	var frame := UI.card(Color(UI.NAVY, 0.96), UI.PAPER, 2, 10)
+	frame.set_content_margin_all(14)
+	_pv_card.add_theme_stylebox_override("panel", frame)
+	_pv_wrap.add_child(_pv_card)
 	var pv := VBoxContainer.new()
-	pv.add_theme_constant_override("separation", 4)
+	pv.add_theme_constant_override("separation", 8)
 	_pv_card.add_child(pv)
+	# the picture, in a thin white frame
+	var window := PanelContainer.new()
+	var window_frame := UI.flat(Color.TRANSPARENT, UI.PAPER, 2, 4)
+	window_frame.set_content_margin_all(3)
+	window.add_theme_stylebox_override("panel", window_frame)
+	pv.add_child(window)
 	_pv_image = TextureRect.new()
-	_pv_image.custom_minimum_size = Vector2(384, 216)
+	_pv_image.custom_minimum_size = Vector2(416, 234)
 	_pv_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_pv_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_pv_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	pv.add_child(_pv_image)
-	_pv_name = UI.label("", 30, UI.GOLD, 8)
+	window.add_child(_pv_image)
+	# its name in a box of its own, with where on Earth it is alongside
+	var title := HBoxContainer.new()
+	title.add_theme_constant_override("separation", 12)
+	pv.add_child(title)
+	_pv_name = UI.label("", 28, UI.GOLD, 0)
 	_pv_name.add_theme_font_override("font", UI.serif())
-	pv.add_child(_pv_name)
-	_pv_where = UI.label("", 17, UI.TEAL, 6)
-	pv.add_child(_pv_where)
-	_pv_line = UI.label("", 18, Color.WHITE, 6)
+	title.add_child(_pv_name)
+	_pv_where = UI.label("", 16, UI.TEAL, 0)
+	_pv_where.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title.add_child(_pv_where)
+	_pv_line = UI.label("", 17, UI.PAPER, 0)
 	_pv_line.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_pv_line.custom_minimum_size = Vector2(384, 46)
+	_pv_line.custom_minimum_size = Vector2(416, 44)
 	pv.add_child(_pv_line)
-	var foot := HBoxContainer.new()
-	foot.alignment = BoxContainer.ALIGNMENT_CENTER
-	foot.add_theme_constant_override("separation", 20)
-	foot.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	foot.offset_top = -92
-	foot.offset_bottom = -30
-	_travel.add_child(foot)
-	_travel_back = UI.button("BACK", _close_sub_panel)
-	_travel_back.custom_minimum_size.x = 200
-	foot.add_child(_travel_back)
+	_pv_buttons = HBoxContainer.new()
+	_pv_buttons.add_theme_constant_override("separation", 12)
+	pv.add_child(_pv_buttons)
+	_travel_back = UI.button("BACK", _globe_back)
 	_travel_go = UI.button("", _go)
-	_travel_go.custom_minimum_size.x = 360
-	_travel_go.visible = false
-	foot.add_child(_travel_go)
+	for b: Button in [_travel_back, _travel_go]:
+		b.custom_minimum_size = Vector2(120, 54)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_pv_buttons.add_child(b)
+	# the arrows sit across the card's edges, level with the bottom of the picture
+	# drawn here rather than from a picture: round paper buttons with a chevron, like the
+	# rest of the buttons, that turn gold under the pointer
+	for dir: int in [-1, 1]:
+		var arrow := Button.new()
+		arrow.flat = true
+		arrow.focus_mode = Control.FOCUS_NONE
+		arrow.custom_minimum_size = Vector2(60, 60)
+		arrow.size = Vector2(60, 60)
+		arrow.pressed.connect(func() -> void:
+			Sfx.play("ui", 1.5, -6.0)
+			_step_way(dir))
+		arrow.draw.connect(func() -> void:
+			var c := Vector2(30, 30)
+			arrow.draw_circle(c + Vector2(0, 4), 27.0, Color(0.0, 0.02, 0.08, 0.4))
+			arrow.draw_circle(c, 27.0, UI.INK)
+			arrow.draw_circle(c, 24.0, UI.GOLD if arrow.is_hovered() or arrow.button_pressed else UI.PAPER)
+			var tip := c + Vector2(9.0 * dir, 0.0)
+			var back := c + Vector2(-6.0 * dir, 0.0)
+			arrow.draw_polyline(PackedVector2Array([back + Vector2(0, -11), tip, back + Vector2(0, 11)]), UI.INK, 5.0, true))
+		arrow.mouse_entered.connect(arrow.queue_redraw)
+		arrow.mouse_exited.connect(arrow.queue_redraw)
+		_pv_wrap.add_child(arrow)
+		_pv_arrows.append(arrow)
 	_travel_globe.chosen.connect(_take_way)
 	_travel_globe.pointed.connect(_preview)
 
 
-## Where the globe sits in each globe scene: beside the list or the preview window on a wide
-## screen, above them on a tall one.
+## Where the globe sits in each globe scene. On a tall screen it is the concept art as drawn:
+## the globe above, the card across the bottom. On a wide one the card stands beside it.
 func _layout_globes() -> void:
-	var tall := _travel.size.y > _travel.size.x
+	var area := _travel.size
+	var tall := area.y > area.x
 	_map_globe.anchor = Vector2(0.5, 0.16) if tall else Vector2(0.155, 0.5)
 	_map_globe.radius = 0.4 if tall else 0.27
 	_map_side.anchor_left = 0.0 if tall else 0.31
 	_map_side.offset_left = 0.0
-	_travel_globe.anchor = Vector2(0.5, 0.56) if tall else Vector2(0.66, 0.5)
-	_travel_globe.radius = 0.4 if tall else 0.34
+	# the card: as wide as the screen allows when it is underneath
+	var card := _pv_card.get_combined_minimum_size()
+	_pv_card.size = card
+	var k := clampf((area.x - 90.0) / card.x, 1.0, 2.6) if tall else 1.0
+	_pv_wrap.scale = Vector2(k, k)
+	_travel_globe.ui_scale = maxf(k * 0.8, 1.0)
+	_map_globe.ui_scale = 1.7 if tall else 1.0
+	_pv_wrap.size = card
 	if tall:
-		_pv_card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
-		_pv_card.position.y = 110.0
+		_pv_wrap.position = Vector2((area.x - card.x * k) * 0.5, area.y - card.y * k - 60.0)
+		# the globe fills what is left above, and the card covers just a little of the bottom
+		# of it
+		var top := _pv_wrap.position.y
+		var r := minf(area.x * 0.48, (top - 30.0) / 1.8)
+		_travel_globe.radius = r / area.x
+		_travel_globe.anchor = Vector2(0.5, (top - r * 0.8) / area.y)
 	else:
-		_pv_card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE)
-		_pv_card.position.x = 36.0
+		_pv_wrap.position = Vector2(56.0, (area.y - card.y) * 0.5)
+		_travel_globe.anchor = Vector2(0.68, 0.5)
+		_travel_globe.radius = 0.36
+	var level := 14.0 + 117.0 - 30.0  # halfway down the picture
+	_pv_arrows[0].position = Vector2(-30.0, level)
+	_pv_arrows[1].position = Vector2(card.x - 30.0, level)
+	var several := _travel_globe.choices.size() > 1 or (_starting and Save.tester)
+	for arrow in _pv_arrows:
+		arrow.visible = several
+
+
+## BACK on the globe: to the title before a run has started, to the results after a stage.
+func _globe_back() -> void:
+	_travel_globe.stop_choosing()
+	_show(_title if _starting else _results)
 
 
 ## Turns the map's globe to a stage, draws the last hop of the way there, and lights up the
@@ -980,7 +1374,7 @@ func _slider_row(text: String, value: float, lo: float, hi: float, step: float, 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
 	var l := UI.label(text, 28, UI.TEAL, 6)
-	l.custom_minimum_size.x = 200
+	l.custom_minimum_size.x = 250
 	row.add_child(l)
 	var s := HSlider.new()
 	s.min_value = lo
@@ -1016,7 +1410,8 @@ func _open_sub_panel(panel: Control) -> void:
 
 func _close_sub_panel() -> void:
 	Save.store()
-	_show(_title)
+	# options can be opened from the pause menu too: go back to wherever it came from
+	_show(_pause if get_tree().paused else _title)
 
 
 # ================================================================== autotest

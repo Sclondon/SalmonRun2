@@ -76,8 +76,10 @@ func _ensure(action: String) -> void:
 var follow := false
 ## How far the finger is from the salmon, in metres across the river (+ is river-right).
 var follow_dx := 0.0
-## The finger is drawing little circles: boost.
-var circling := false
+## The finger is wiggling back and forth: boost.
+var wiggling := false
+## The finger is drawing circles: corkscrew that way (-1 anticlockwise, 1 clockwise, 0 not).
+var roll := 0.0
 
 var _swipes: Array[Vector2] = []
 
@@ -97,5 +99,6 @@ func take_swipes() -> Array[Vector2]:
 func clear_touch() -> void:
 	follow = false
 	follow_dx = 0.0
-	circling = false
+	wiggling = false
+	roll = 0.0
 	_swipes = []

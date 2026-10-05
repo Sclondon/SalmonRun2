@@ -3,9 +3,9 @@ extends Control
 ## as pins and the journey as a red line that draws itself from one to the next while the
 ## globe turns to follow it, the way the travel maps do in an adventure film.
 ##
-## It fills its whole rect. The globe sits at `anchor` and the camera zooms in on it: stages
-## can be oceans or a few miles apart, so it closes in until the ones in hand are clear of
-## each other, and the globe simply grows past the edges of the screen.
+## It fills its whole rect, with the globe at `anchor`. It only ever turns: it does not zoom
+## in. Stages that are too close together to tell apart at this size (a few miles, where the
+## others are oceans apart) have their pins fanned out round the one you are at instead.
 ##
 ## The Earth is NASA's Blue Marble picture (public domain), shrunk to textures/earth.png and
 ## wrapped on a sphere by shaders/globe.gdshader.
@@ -19,7 +19,8 @@ signal pointed(id: int)
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 
-const MAX_ZOOM := 16.0
+## Ways on closer than this on screen are fanned out to this distance.
+const NEAR := 70.0
 const GREY := Color(0.6, 0.6, 0.66)
 
 ## Where the middle of the globe is (as a share of this control's size) and how big it is
@@ -28,6 +29,9 @@ var anchor := Vector2(0.5, 0.5)
 var radius := 0.36
 ## Pin every stage (the practice map) rather than only the ones the journey touches.
 var show_all := false
+## Pins, names and lines are drawn this many times bigger (a tall phone screen shows the UI
+## small, so they need it).
+var ui_scale := 1.0
 ## The stage the big pin is on and whose name is shown.
 var selected := -1
 ## Stages to ring as the ways on from the selected one.
@@ -44,13 +48,11 @@ var _to := -1
 var _progress := 1.0
 var _duration := 1.4
 var _view := Vector3(0, 0, 1)
-## How close the camera is (1 is the whole globe in view), and where it is heading.
-var _zoom := 1.0
-var _zoom_to := 1.0
 var _t := 0.0
 var _earth: ColorRect
 var _mat: ShaderMaterial
 var _pins := {}  # stage -> where its pin was last drawn
+var _fan := {}   # stage -> the angle its pin was fanned out at, for the ones that were
 
 
 func _ready() -> void:
@@ -86,7 +88,6 @@ func show_path(done: Array[int], from: int, to: int, duration := 1.4) -> void:
 	selected = to
 	_duration = duration
 	_progress = 0.0 if _from != -1 else 1.0
-	_zoom_to = _zoom_for()
 	if _from != -1 and not is_visible_in_tree():
 		_view = _stage_vec(_from)
 	queue_redraw()
@@ -95,7 +96,6 @@ func show_path(done: Array[int], from: int, to: int, duration := 1.4) -> void:
 ## Jumps straight to looking at a stage (no turning).
 func look_at_stage(id: int) -> void:
 	_view = _stage_vec(id)
-	_zoom = _zoom_to
 
 
 func _process(delta: float) -> void:
@@ -106,28 +106,11 @@ func _process(delta: float) -> void:
 		_progress = minf(_progress + delta / _duration, 1.0)
 		if _progress >= 1.0:
 			arrived.emit()
-	_zoom = exp(lerpf(log(_zoom), log(_zoom_to), 1.0 - exp(-delta * 3.0)))
 	if _to != -1:
 		_view = _view.slerp(_head(), 1.0 - exp(-delta * 4.0)).normalized()
 	queue_redraw()
 
 
-## How close to come: enough that the stage in hand and the nearest one it connects to are
-## comfortably apart.
-func _zoom_for() -> float:
-	var here := _stage_vec(_to)
-	var nearest := PI
-	var others: Array[int] = onward.duplicate()
-	if not choices.is_empty():
-		others = [choices[choice]]
-	elif _from != -1:
-		others.append(_from)
-	elif not _static.is_empty():
-		others.append(_static[-1])
-	for id in others:
-		if id != _to:
-			nearest = minf(nearest, here.angle_to(_stage_vec(id)))
-	return clampf(0.5 / maxf(nearest, 0.001), 1.0, MAX_ZOOM)
 
 
 ## What the camera follows: the head of the line, or (choosing) halfway to the way in hand.
@@ -141,16 +124,15 @@ func _head() -> Vector3:
 
 func _draw() -> void:
 	var c := size * anchor
-	var r := minf(size.x, size.y) * radius * _zoom
-	# turn the Earth so the point of interest faces us (tilting only part of the way to it
-	# from far out, so north stays up)
-	var lat0 := asin(clampf(_view.y, -1.0, 1.0)) * lerpf(0.75, 1.0, smoothstep(1.0, 2.5, _zoom))
+	var r := minf(size.x, size.y) * radius
+	# turn the Earth so the point of interest faces us (tilting only part of the way to it,
+	# so north stays up)
+	var lat0 := asin(clampf(_view.y, -1.0, 1.0)) * 0.75
 	var lon0 := atan2(_view.x, _view.z)
 	var m := Basis(Vector3.RIGHT, lat0) * Basis(Vector3.UP, -lon0)
 	_earth.position = Vector2.ZERO
 	_earth.size = size
 	_mat.set_shader_parameter("view", m)
-	_mat.set_shader_parameter("zoom", _zoom)
 	_mat.set_shader_parameter("rect_size", size)
 	_mat.set_shader_parameter("center", c)
 	_mat.set_shader_parameter("globe_radius", r)
@@ -160,6 +142,7 @@ func _draw() -> void:
 		var p: Vector3 = m * _stage_vec(id)
 		if p.z > 0.0:
 			_pins[id] = c + Vector2(p.x, -p.y) * r
+	_spread_ways()
 	# the journey: every leg already swum, then the one being drawn
 	for i in _static.size() - 1:
 		_leg(m, c, r, _stage_vec(_static[i]), _stage_vec(_static[i + 1]), 1.0)
@@ -167,13 +150,12 @@ func _draw() -> void:
 		_leg(m, c, r, _stage_vec(_from), _stage_vec(_to), smoothstep(0.0, 1.0, _progress))
 	# the ways on are only possibilities until one is picked, so they are dashed
 	if not choices.is_empty():
-		var here := _stage_vec(_to)
 		for id in locked:
-			_leg(m, c, r, here, _stage_vec(id), 1.0, GREY, true)
+			_way(m, c, r, id, GREY)
 		for i in choices.size():
 			if i != choice:
-				_leg(m, c, r, here, _stage_vec(choices[i]), 1.0, UI.OCHRE, true)
-		_leg(m, c, r, here, _stage_vec(choices[choice]), 1.0, UI.GOLD, true)
+				_way(m, c, r, choices[i], UI.OCHRE)
+		_way(m, c, r, choices[choice], UI.GOLD)
 	# pins: the plain ones first, then the ones that matter on top
 	var font := UI.font()
 	for id: int in _pins:
@@ -196,6 +178,7 @@ func _draw() -> void:
 
 ## A map pin: a round head on a point that sits exactly on the place.
 func _pin(at: Vector2, col: Color, k: float) -> void:
+	k *= ui_scale
 	var head := at + Vector2(0.0, -22.0 * k)
 	var hr := 9.0 * k
 	draw_colored_polygon(PackedVector2Array([at + Vector2(0.0, 3.0 * k), head + Vector2(-hr - 2.5, 3.0 * k), head + Vector2(hr + 2.5, 3.0 * k)]), UI.INK)
@@ -212,9 +195,23 @@ func _pin_named(font: Font, id: int, text: String, col: Color, k: float) -> void
 	_pin(at, col, k)
 	if text == "":
 		return
-	var pos := at + Vector2(-200.0, 24.0)
-	draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, 20, 8, UI.INK)
-	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, 400.0, 20, col)
+	var fs := int(20.0 * ui_scale)
+	# underneath, unless the pin was fanned out: then on its outer side, clear of the others
+	var pos := at + Vector2(-400.0, 4.0 + fs)
+	var align := HORIZONTAL_ALIGNMENT_CENTER
+	if _fan.has(id):
+		var side := cos(float(_fan[id]))
+		var up := -22.0 * k * ui_scale + fs * 0.35
+		if side > 0.3:
+			pos = at + Vector2(14.0 * ui_scale, up)
+			align = HORIZONTAL_ALIGNMENT_LEFT
+		elif side < -0.3:
+			pos = at + Vector2(-800.0 - 14.0 * ui_scale, up)
+			align = HORIZONTAL_ALIGNMENT_RIGHT
+		else:
+			pos = at + Vector2(-400.0, -36.0 * k * ui_scale)
+	draw_string_outline(font, pos, text, align, 800.0, fs, int(8.0 * ui_scale), UI.INK)
+	draw_string(font, pos, text, align, 800.0, fs, col)
 
 
 ## Draws the great-circle line from a to b, as far as `upto` (0..1), skipping the far side.
@@ -232,14 +229,14 @@ func _leg(m: Basis, c: Vector2, r: float, a: Vector3, b: Vector3, upto: float, c
 		var at := c + Vector2(p.x, -p.y) * r
 		if ok and prev_ok:
 			run += prev.distance_to(at)
-			if not dashed or fmod(run, 22.0) < 12.0:
-				draw_line(prev, at, UI.INK, 8.0)
-				draw_line(prev, at, col, 4.0)
+			if not dashed or fmod(run, 22.0 * ui_scale) < 12.0 * ui_scale:
+				draw_line(prev, at, UI.INK, 8.0 * ui_scale)
+				draw_line(prev, at, col, 4.0 * ui_scale)
 		prev = at
 		prev_ok = ok
 	if upto < 1.0 and prev_ok:
-		draw_circle(prev, 7.0, UI.INK)
-		draw_circle(prev, 4.5, Color.WHITE)
+		draw_circle(prev, 7.0 * ui_scale, UI.INK)
+		draw_circle(prev, 4.5 * ui_scale, Color.WHITE)
 
 
 # ------------------------------------------------------------------ choosing the way on
@@ -254,7 +251,6 @@ func choose(done: Array[int], here: int, open: Array[int], shut: Array[int]) -> 
 	locked = shut.duplicate()
 	choice = 0
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_zoom_to = _zoom_for()
 
 
 func stop_choosing() -> void:
@@ -265,7 +261,6 @@ func stop_choosing() -> void:
 
 func _point(index: int) -> void:
 	choice = posmod(index, choices.size())
-	_zoom_to = _zoom_for()
 	pointed.emit(choices[choice])
 
 
@@ -289,10 +284,10 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	# the nearest way on to the tap: point at it, or go if it is already the one
 	var best := -1
-	var best_d := 80.0
+	var best_d := 80.0 * ui_scale
 	for i in choices.size():
 		if _pins.has(choices[i]):
-			var d: float = ((_pins[choices[i]] as Vector2) + Vector2(0.0, -14.0)).distance_to(event.position)
+			var d: float = ((_pins[choices[i]] as Vector2) + Vector2(0.0, -14.0 * ui_scale)).distance_to(event.position)
 			if d < best_d:
 				best_d = d
 				best = i
@@ -303,3 +298,45 @@ func _gui_input(event: InputEvent) -> void:
 		chosen.emit(choices[choice])
 	else:
 		_point(best)
+
+
+## Looks at the next (1) or previous (-1) way on, for the arrows beside the picture.
+func step(dir: int) -> void:
+	if choices.size() > 1:
+		_point(choice + dir)
+
+
+## Moves the pins of ways on that sit almost on top of where you are out into a fan above it,
+## so they can be told apart and tapped.
+func _spread_ways() -> void:
+	_fan.clear()
+	if choices.is_empty() or not _pins.has(_to):
+		return
+	var here: Vector2 = _pins[_to]
+	var close: Array[int] = []
+	for id: int in choices + locked:
+		if _pins.has(id) and (_pins[id] as Vector2).distance_to(here) < NEAR * ui_scale:
+			close.append(id)
+	for i in close.size():
+		# spread evenly either side of straight up
+		var a := -PI * 0.5 + (i - (close.size() - 1) * 0.5) * deg_to_rad(100.0 if close.size() < 3 else 80.0)
+		_fan[close[i]] = a
+		_pins[close[i]] = here + Vector2(cos(a), sin(a)) * NEAR * 1.2 * ui_scale
+
+
+## The dashed line to one way on: along the Earth, or straight to its pin if it was fanned out.
+func _way(m: Basis, c: Vector2, r: float, id: int, col: Color) -> void:
+	if not _fan.has(id):
+		_leg(m, c, r, _stage_vec(_to), _stage_vec(id), 1.0, col, true)
+		return
+	var from: Vector2 = _pins[_to]
+	var to: Vector2 = _pins[id]
+	var length := from.distance_to(to)
+	var dir := (to - from) / maxf(length, 0.001)
+	var at := 0.0
+	while at < length:
+		var a := from + dir * at
+		var b := from + dir * minf(at + 12.0 * ui_scale, length)
+		draw_line(a, b, UI.INK, 8.0 * ui_scale)
+		draw_line(a, b, col, 4.0 * ui_scale)
+		at += 22.0 * ui_scale

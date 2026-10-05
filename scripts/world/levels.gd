@@ -386,7 +386,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.95, 1.0),
 	},
 	{
-		"name": "THE FISH FARM", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false,
+		"name": "THE FISH FARM", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false, "farm": true,
 		"ending": "SPAWNED... IN A FISH FARM",
 		"tagline": "THE SHORT WAY: NOT HOME, BUT THERE ARE PELLETS",
 		"seed": 8912, "length": 2400.0,
