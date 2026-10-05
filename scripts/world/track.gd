@@ -981,7 +981,7 @@ func _build_features() -> void:
 	_place_facing_river(speaker, START_S + 40.0, 1.0, width(START_S + 40.0) * 0.5 + 6.0, 1.0)
 	_place_facing_river(speaker, START_S + 40.0, -1.0, width(START_S + 40.0) * 0.5 + 6.0, 1.0)
 
-	_build_arch(START_S + 22.0, "PRACTICE" if test else str(cfg.name), Color(0.2, 1.0, 0.85))
+	# (no gate at the start: only the one at the finish)
 	_build_arch(finish_s, _finish_text(), Color(1.0, 0.35, 0.7))
 
 
