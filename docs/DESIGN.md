@@ -111,7 +111,7 @@ are 16 to 21 m between their banks.
 
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
-| Open Ocean | night, moon, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight; three layers to dive |
+| Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight; three layers to dive |
 | Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | strings of crab-pot floats (dive under them) |
 | Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, three layers to dive | shark | currents, boost rings and sea nettles below |
 | Coastline | golden-hour sea, 70 m wide, with the beach and palms along one side only and open water on the other | barely climbs | shark | |

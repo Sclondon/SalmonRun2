@@ -131,6 +131,7 @@ func _apply_level() -> void:
 	_sky.set_shader_parameter("bottom_color", cfg.sky_bottom)
 	_sky.set_shader_parameter("sun_color", cfg.sun)
 	_sky.set_shader_parameter("sun_dir", cfg.sun_dir)
+	_sky.set_shader_parameter("sun_disc", 1.0 if cfg.get("sun_disc", true) else 0.0)
 	env.fog_light_color = cfg.fog
 	env.fog_density = cfg.fog_density
 	env.ambient_light_color = cfg.ambient

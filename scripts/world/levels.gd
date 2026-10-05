@@ -32,6 +32,7 @@ extends RefCounted
 ## ramps:   false for a stage with no jump ramps.
 ## shore:   for sea with land along one side only: -1 for the left, 1 for the right. The
 ##          other side is open water.
+## sun_disc: false for a plain sun (only its glow) in place of the striped disc.
 ## murk:    how thick the water is when you are under it (fog density; 0.016 if not given).
 ## rock_word: what a bump into one of the stage's obstacles is called ("ROCKED!").
 ## meander: how much the course bends from side to side (1 if not given).
@@ -76,17 +77,19 @@ const LIST: Array[Dictionary] = [
 			["ship", 0.006, 70.0, 130.0, 1.0, 1.0, 0.0, "water"],
 			["ship", 0.25, 120.0, 165.0, 1.0, 1.4, 0.0, "far"],
 		],
-		"sky_top": Color(0.01, 0.02, 0.10), "sky_horizon": Color(0.10, 0.34, 0.48),
-		"sky_bottom": Color(0.03, 0.12, 0.20), "sun": Color(0.85, 0.95, 1.0), "sun_dir": Vector3(0.25, 0.3, -1.0),
-		"fog": Color(0.06, 0.2, 0.3), "fog_density": 0.011,
-		"ambient": Color(0.35, 0.5, 0.8), "ambient_energy": 0.85,
-		"light": Color(0.65, 0.8, 1.0), "light_energy": 0.9,
-		"water_deep": Color(0.01, 0.06, 0.18), "water_shallow": Color(0.04, 0.24, 0.42),
-		"water_beat": Color(0.2, 0.7, 1.0), "swell": 3.0,
+		# broad daylight, under a plain sun (no striped disc)
+		"sky_top": Color(0.1, 0.34, 0.78), "sky_horizon": Color(0.62, 0.82, 0.95),
+		"sky_bottom": Color(0.08, 0.28, 0.5), "sun": Color(1.0, 0.97, 0.86), "sun_dir": Vector3(0.3, 0.75, -1.0),
+		"sun_disc": false,
+		"fog": Color(0.56, 0.76, 0.92), "fog_density": 0.004,
+		"ambient": Color(0.7, 0.82, 0.96), "ambient_energy": 1.0,
+		"light": Color(1.0, 0.97, 0.9), "light_energy": 1.3,
+		"water_deep": Color(0.02, 0.14, 0.4), "water_shallow": Color(0.08, 0.4, 0.68),
+		"water_beat": Color(0.5, 0.85, 1.0), "swell": 3.0,
 		# deep blue water, and no bottom to be seen (a floor this deep is not drawn)
 		"floor": 160.0, "water_depth_range": 26.0, "water_alpha_deep": 1.0, "water_foam_amount": 0.14,
 		"murk": 0.035,
-		"motes": Color(0.4, 0.9, 1.0),
+		"motes": Color(0.9, 0.97, 1.0),
 	},
 	{
 		"name": "SHALLOW SEA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
