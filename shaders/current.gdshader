@@ -31,6 +31,10 @@ uniform float ring_width = 0.4;
 // A wall for the tunnel, as a screen of dots strongest at its edges: how much of it is there
 // (0 is none, and none is what it has: it was tried, and it looked boxed in), and its colour.
 uniform float wall = 0.0;
+// Where it begins and ends (as UV.x), and over how many metres it fades in at the one and
+// out at the other: its ends are not cut off, they thin away into the water.
+uniform vec2 ends = vec2(-10000.0, 10000.0);
+uniform float fade = 26.0;
 uniform vec4 wall_colour : source_color = vec4(0.6, 0.85, 1.0, 1.0);
 // How near the eye it is cut away (metres): more while the salmon is riding inside it, so
 // that the tube is not in the way of the view.
@@ -101,9 +105,14 @@ void fragment() {
 	float glass = wall * pow(1.0 - facing, 1.6);
 	// (a regular screen of dots, not a scatter: it is clear glass, not static)
 	const float screen[16] = float[16](0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41, 0.22, 0.72, 0.09, 0.59, 0.97, 0.47, 0.84, 0.34);
-	float shell = step(screen[(int(FRAGCOORD.x) & 3) + (int(FRAGCOORD.y) & 3) * 4], glass);
+	float dot_here = screen[(int(FRAGCOORD.x) & 3) + (int(FRAGCOORD.y) & 3) * 4];
+	float shell = step(dot_here, glass);
+	// (towards either end, less and less of everything is drawn: it is thinned through the
+	// same screen of dots, and the strands grow finer too)
+	float there = smoothstep(0.0, fade / 6.0, min(UV.x - ends.x, ends.y - UV.x));
+	float kept = step(dot_here, there * there * 1.05);
 	// (nothing of it is drawn right up against the eye)
-	if (max(max(wisp, ring), shell) < 0.5 || far < clear) {
+	if (max(max(wisp, ring), shell) * kept < 0.5 || far < clear) {
 		discard;
 	}
 	// (the murk does not hide it, as it is there to be found: it only dims with distance)

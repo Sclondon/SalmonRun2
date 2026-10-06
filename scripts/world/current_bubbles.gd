@@ -80,4 +80,6 @@ func _process(delta: float) -> void:
 		var out := track.current_radius(near, s) * place.z
 		var middle := track.point(s, track.current_x(near, s), track.water_y(s) - track.current_depth(near, s))
 		var at := middle + (track.right(s) * cos(turn) + Vector3.UP * sin(turn)) * out
-		_mm.set_instance_transform(k, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * _sizes[k]), at))
+		# (smaller and smaller towards either end of the current, where it fades away)
+		var there := smoothstep(0.0, 26.0, minf(s - float(near.s0), float(near.s1) - s))
+		_mm.set_instance_transform(k, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * _sizes[k] * maxf(there, 0.01)), at))

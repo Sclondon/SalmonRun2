@@ -1323,6 +1323,7 @@ func _build_current(c: Dictionary) -> void:
 	# (few strands, well spread out: a wide one has a few more, no thicker than a narrow one has)
 	mat.set_shader_parameter("strands", maxf(roundf(TAU * wide / 11.0), 2.0))
 	mat.set_shader_parameter("girth", TAU * wide)
+	mat.set_shader_parameter("ends", Vector2(float(c.s0), float(c.s1)) / 6.0)
 	for k in rows + 1:
 		var s: float = float(c.s0) + 2.0 * k
 		var mid := point(s, current_x(c, s), water_y(s) - current_depth(c, s))
