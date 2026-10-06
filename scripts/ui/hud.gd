@@ -151,7 +151,7 @@ func _ready() -> void:
 	# the beat keeper: four pixel salmon, each leaping on its own beat of the bar
 	var beats := BeatFish.new()
 	beats.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	beats.position = Vector2(-224, -122)
+	beats.position = Vector2(-300, -160)
 	_beats = beats
 	root.add_child(beats)
 
@@ -285,9 +285,9 @@ func _layout() -> void:
 	_objective.scale = Vector2.ONE * (1.5 if tall else 1.0)
 	_objective.pivot_offset = Vector2(400.0, 0.0)
 	# (and the beat keepers, up clear of the thumbs and big enough to follow)
-	_beats.pivot_offset = Vector2(224.0, 110.0)
-	_beats.scale = Vector2.ONE * (1.7 if tall else 1.0)
-	_beats.position.y = area.y - (300.0 if tall else 122.0)
+	_beats.pivot_offset = Vector2(300.0, 150.0)
+	_beats.scale = Vector2.ONE * (1.5 if tall else 1.0)
+	_beats.position.y = area.y - (330.0 if tall else 160.0)
 
 
 func _process(delta: float) -> void:

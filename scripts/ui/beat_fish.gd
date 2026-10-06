@@ -25,8 +25,8 @@ const FISH := [
 ]
 ## How big a pixel of it is, how far apart the four are, and how high the leap is.
 const PIXEL := 3.0
-const APART := 112.0
-const LEAP := 42.0
+const APART := 150.0
+const LEAP := 56.0
 
 ## One salmon, still, as a sign (see above).
 var icon := false
@@ -34,8 +34,8 @@ var icon := false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(92.0, 46.0) if icon else Vector2(APART * 4.0, 110.0)
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if icon else CanvasItem.TEXTURE_FILTER_NEAREST
+	custom_minimum_size = Vector2(92.0, 46.0) if icon else Vector2(APART * 4.0, 150.0)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func _process(_delta: float) -> void:
@@ -73,15 +73,16 @@ func _draw() -> void:
 	var beat := Music.beat_float()
 	var now := int(floorf(beat)) % 4 if beat >= 0.0 else -1
 	var through := beat - floorf(beat)
-	var water := size.y - 22.0
+	var water := size.y - 30.0
 	for i in 4:
 		var middle := Vector2(APART * (i + 0.5), water)
-		var leaping := i == now
+		# (the red one, the downbeat, is the last of the four)
+		var leaping := now >= 0 and i == (now + 3) % 4
 		# the water it swims in: a short line of it, with a ripple where it leaves and lands
 		var sea := Color(UI.TEAL, 0.75 if leaping else 0.4)
 		for k in 9:
-			var x := middle.x - 54.0 + k * 12.0
-			draw_rect(Rect2(x, water + 12.0 + (PIXEL * 2.0 if (k + i) % 2 == 0 else 0.0), 12.0, PIXEL * 2.0), sea)
+			var x := middle.x - 63.0 + k * 14.0
+			draw_rect(Rect2(x, water + 16.0 + (5.0 if (k + i) % 2 == 0 else 0.0), 14.0, 5.0), sea)
 		var up := 0.0
 		var tilt := 0.0
 		if leaping:
@@ -89,21 +90,25 @@ func _draw() -> void:
 			tilt = lerpf(-0.75, 0.75, through)
 			if through < 0.2 or through > 0.8:
 				for side: float in [-1.0, 1.0]:
-					draw_rect(Rect2(middle.x + side * 34.0 - 3.0, water - 6.0, PIXEL * 2.0, PIXEL * 2.0), Color.WHITE)
-					draw_rect(Rect2(middle.x + side * 46.0 - 3.0, water + 2.0, PIXEL * 2.0, PIXEL * 2.0), Color.WHITE)
+					draw_rect(Rect2(middle.x + side * 48.0 - 3.0, water - 6.0, 7.0, 7.0), Color.WHITE)
+					draw_rect(Rect2(middle.x + side * 62.0 - 3.0, water + 4.0, 7.0, 7.0), Color.WHITE)
 		# (the others lie low in the water, half under it, and dim)
-		_fish(middle + Vector2(0.0, -up - (2.0 if leaping else -4.0)), tilt, i == 0, 1.0 if leaping else 0.45, PIXEL)
+		# (the same salmon as the sign by the score, red for the downbeat and silver for the rest)
+		_sign(middle + Vector2(0.0, -up - (4.0 if leaping else -6.0)), 112.0, i == 3, tilt, 1.0 if leaping else 0.5)
 
 
 # The sign by the count of the pack: a salmon drawn in clean shapes (not in big pixels like
 # the beat keepers), a spawner, red with a green head, facing right. `long` is its length.
-func _sign(middle: Vector2, long: float) -> void:
+func _sign(middle: Vector2, long: float, spawner := true, tilt := 0.0, dim := 1.0) -> void:
 	var k := long / 100.0
-	var red := Color(0.92, 0.2, 0.16)
-	var dark := Color(0.6, 0.08, 0.08)
-	var pale := Color(1.0, 0.7, 0.58)
-	var green := Color(0.34, 0.56, 0.24)
-	var ink := UI.INK
+	var red := Color(0.92, 0.2, 0.16, dim) if spawner else Color(0.7, 0.8, 0.9, dim)
+	var dark := Color(0.6, 0.08, 0.08, dim) if spawner else Color(0.2, 0.36, 0.54, dim)
+	var pale := Color(1.0, 0.7, 0.58, dim) if spawner else Color(0.96, 0.98, 1.0, dim)
+	var green := Color(0.34, 0.56, 0.24, dim) if spawner else Color(0.32, 0.46, 0.6, dim)
+	var ink := Color(UI.INK, dim)
+	# (turned about its middle: nose up as it leaves the water, nose down coming in)
+	draw_set_transform(middle, tilt, Vector2.ONE)
+	middle = Vector2.ZERO
 	# (points are in hundredths of its length, from its middle; y down)
 	var at := func(points: Array) -> PackedVector2Array:
 		var out := PackedVector2Array()
@@ -132,5 +137,6 @@ func _sign(middle: Vector2, long: float) -> void:
 	draw_colored_polygon(at.call([Vector2(-24, 6), Vector2(-10, 12), Vector2(8, 14), Vector2(22, 11), Vector2(22, 6), Vector2(-22, 3)]), pale)
 	draw_colored_polygon(at.call([Vector2(22, -13), Vector2(34, -7), Vector2(46, -1), Vector2(44, 4), Vector2(40, 6), Vector2(26, 11), Vector2(19, 0)]), green)
 	draw_colored_polygon(at.call([Vector2(40, -3), Vector2(48, -2), Vector2(47, 5), Vector2(43, 3)]), green.darkened(0.25))
-	draw_circle(middle + Vector2(33, -4) * k, 3.4 * k, Color(0.98, 0.9, 0.4))
+	draw_circle(middle + Vector2(33, -4) * k, 3.4 * k, Color(0.98, 0.9, 0.4, dim))
 	draw_circle(middle + Vector2(33.6, -4) * k, 1.9 * k, ink)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
