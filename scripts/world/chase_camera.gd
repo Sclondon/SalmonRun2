@@ -9,6 +9,15 @@ enum Mode { FOLLOW, CINEMA, OVERLOOK }
 var overlook_follow := false
 var _overlook_s := -1.0
 var _overlook_x := 0.0
+## Looking round in the water lab: the eye goes round the point it looks at. How far round
+## (radians), how high (radians: under 0 it is below the surface, looking up), how far off
+## (metres), and how far the point has been moved over the water (across, along).
+const ORBIT_PITCH := 0.93
+const ORBIT_DIST := 15.0
+var orbit_yaw := 0.0
+var orbit_pitch := ORBIT_PITCH
+var orbit_dist := ORBIT_DIST
+var orbit_move := Vector2.ZERO
 
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
@@ -51,9 +60,15 @@ func _process(delta: float) -> void:
 		if overlook_follow or _overlook_s < 0.0:
 			_overlook_s = p.s
 			_overlook_x = p.x
-		cam_s = minf(_overlook_s - 5.0, track.length - 40.0)
-		desired = track.point(cam_s, _overlook_x, track.water_y(cam_s) + 12.0)
-		look = track.point(cam_s + 9.0, _overlook_x, track.water_y(cam_s))
+		cam_s = clampf(_overlook_s + 4.0 + orbit_move.y, 5.0, track.length - 40.0)
+		# The eye goes round the point it looks at (see _unhandled_input): how far round, how
+		# high (or, under 0, how far below the surface), and how far off.
+		_orbit_keys(dt)
+		var focus := track.point(cam_s, _overlook_x + orbit_move.x, track.water_y(cam_s))
+		var away := Basis(Vector3.UP, orbit_yaw) * Basis(Vector3.RIGHT, -orbit_pitch) * Vector3(0.0, 0.0, orbit_dist)
+		desired = focus + track.basis_at(cam_s) * away
+		look = focus
+		under = 1.0 if orbit_pitch < 0.0 else 0.0
 	elif mode == Mode.CINEMA:
 		_cine_t += dt
 		if _cine_t > 6.0:
@@ -116,3 +131,55 @@ func _process(delta: float) -> void:
 	else:
 		keep_aspect = Camera3D.KEEP_HEIGHT
 	fov = lerpf(fov, target_fov, 1.0 - exp(-dt * 3.0))
+
+
+# ================================================================== looking round (water lab)
+
+## Puts the water lab's view back to where it starts: high up behind, looking down.
+func orbit_reset() -> void:
+	orbit_yaw = 0.0
+	orbit_pitch = ORBIT_PITCH
+	orbit_dist = ORBIT_DIST
+	orbit_move = Vector2.ZERO
+
+
+## In the water lab a drag turns the view round the point it looks at and tips it up and
+## down, and the wheel moves it in and out. (Only what the panel has not used gets here.)
+func _unhandled_input(event: InputEvent) -> void:
+	if mode != Mode.OVERLOOK:
+		return
+	if event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0:
+		var by: Vector2 = (event as InputEventMouseMotion).relative
+		orbit_yaw = wrapf(orbit_yaw - by.x * 0.006, -PI, PI)
+		orbit_pitch = clampf(orbit_pitch + by.y * 0.005, -1.2, 1.5)
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		match (event as InputEventMouseButton).button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				orbit_dist = maxf(orbit_dist * 0.9, 2.0)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				orbit_dist = minf(orbit_dist * 1.1, 120.0)
+	elif event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).physical_keycode == KEY_R:
+		orbit_reset()
+
+
+## The keys: W A S D or the arrows move the point looked at over the water (the way the view
+## is facing), Q and E move the eye in and out.
+func _orbit_keys(dt: float) -> void:
+	var push := Vector2.ZERO
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		push.y += 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		push.y -= 1.0
+	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
+		push.x += 1.0
+	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
+		push.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_Q):
+		orbit_dist = maxf(orbit_dist * (1.0 - dt), 2.0)
+	if Input.is_physical_key_pressed(KEY_E):
+		orbit_dist = minf(orbit_dist * (1.0 + dt), 120.0)
+	if push != Vector2.ZERO:
+		# (faster from further off, so that it crosses the picture at the same rate)
+		orbit_move += push.rotated(-orbit_yaw) * maxf(orbit_dist, 6.0) * 1.2 * dt
+		var lim := track.width(_overlook_s) * 0.5 + 30.0
+		orbit_move.x = clampf(orbit_move.x, -lim - _overlook_x, lim - _overlook_x)

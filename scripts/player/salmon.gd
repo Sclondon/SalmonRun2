@@ -999,7 +999,8 @@ func _update_visual(dt: float) -> void:
 	_wake.track = track
 	_wake.lay(s, x, clampf(speed / CRUISE, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
 	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
-	_spray.emitting = state == State.AIR or state == State.GRIND
+	# (sparks off the rail only: in the air they were just blue specks round the fish)
+	_spray.emitting = state == State.GRIND
 	for dots in _dots:
 		dots.emitting = state == State.SWIM and speed > 8.0 and dive < 0.3
 

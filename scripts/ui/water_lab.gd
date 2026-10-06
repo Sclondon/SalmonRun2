@@ -153,6 +153,10 @@ func _ready() -> void:
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_note.custom_minimum_size = Vector2(440, 18)
 	_body.add_child(_note)
+	if not Save.is_mobile():
+		var keys := UI.label("DRAG: LOOK ROUND   WHEEL OR Q E: IN AND OUT   W A S D: MOVE   R: BACK", 11, UI.NAVY, 0)
+		keys.custom_minimum_size = Vector2(440, 16)
+		_body.add_child(keys)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	_body.add_child(buttons)

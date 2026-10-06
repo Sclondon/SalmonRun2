@@ -1462,6 +1462,7 @@ func _open_lab(stage: int) -> void:
 	p.control = false
 	p.go()
 	world.camera.mode = ChaseCam.Mode.OVERLOOK
+	world.camera.orbit_reset()
 	world.camera.snap()
 	_lab_view.track = world.track
 	_lab_view.set_stage(Levels.LIST[stage].name)
