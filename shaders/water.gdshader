@@ -160,25 +160,23 @@ float view_depth(vec2 screen_uv, float depth, mat4 inv_projection) {
 	return -view.z / view.w;
 }
 
-// A wave train: smooth swells, peaked the more the choppier.
-float swell_of(float phase) {
-	return pow(0.5 + 0.5 * sin(phase), ripple_choppy);
+// One layer of ripples: smooth humps, peaked the more the choppier.
+float ripples_of(vec2 p) {
+	return pow(clamp(gnoise(p), 0.0, 1.0), ripple_choppy);
 }
 
 // The height of the small waves at a point on the water (metres across, metres along):
-// a few broad trains of swell crossing one another, each running its own way, with a soft
-// ripple over them. A slow drift bends them all, so that no two crests run side by side
-// for long.
+// three layers of smooth humps, each finer than the last, each turned a different way and
+// each drifting its own way, so that nothing in them lines up or comes round again. (They
+// were once trains of straight waves crossing one another, which is a criss-cross: a grid.)
 float wave_h(vec2 p) {
 	float t = TIME * ripple_speed;
 	p *= ripple_scale;
-	// (bent no further than this: any more and the bend folds the waves back over themselves,
-	// which shows as a crease)
-	p += (vec2(gnoise(p * 0.3 + 3.0), gnoise(p * 0.3 + 11.0)) - 0.5) * 1.1;
-	float h = swell_of(dot(p, vec2(0.8, 0.6)) + t * 1.3) * 0.9;
-	h += swell_of(dot(p, vec2(-0.5, 0.86)) * 1.7 - t * 1.7) * 0.55;
-	h += swell_of(dot(p, vec2(0.95, -0.3)) * 2.9 + t * 2.3) * 0.3;
-	h += gnoise(p * 2.3 + vec2(t * 0.6, 0.0)) * 0.35;
+	float h = ripples_of(p * 0.33 + vec2(t * 0.17, t * 0.11)) * 1.5;
+	p = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8);
+	h += ripples_of(p * 0.71 + vec2(-t * 0.23, t * 0.19) + 13.0) * 0.8;
+	p = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8);
+	h += ripples_of(p * 1.57 + vec2(t * 0.31, -t * 0.37) + 31.0) * 0.4;
 	return h;
 }
 
@@ -227,9 +225,10 @@ void fragment() {
 	// drifting patches, thicker along the banks (vertex green marks open water, which has
 	// none) and in rapids (vertex red)
 	float edge = smoothstep(0.36, 0.5, abs(UV.x - 0.5)) * (1.0 - COLOR.g);
-	float patches = step(1.0 - foam_amount * 0.5 - edge * edge_foam * 0.6 - COLOR.r * rapid_foam * 0.3, n);
+	// (a hair over 1 with everything at 0, so that then there is none at all)
+	float patches = step(1.001 - foam_amount * 0.5 - edge * edge_foam * 0.6 - COLOR.r * rapid_foam * 0.3, n);
 	// the rim: a hard band wherever the water is only this deep, with a ragged outer edge
-	float rim = step(water, rim_width * (1.0 - rim_ragged * 0.8 * (1.0 - n)));
+	float rim = step(water, rim_width * (1.0 - rim_ragged * 0.8 * (1.0 - n))) * step(0.0001, rim_width);
 	float fall = smoothstep(0.35, 0.6, v_steep);
 	float streak = step(0.45, vnoise(vec2(UV.x * 40.0, UV.y * 0.5 - TIME * 12.0 * sign(flow))));
 	float white = max(max(patches * 0.85, rim), fall * (0.55 + 0.45 * streak));
