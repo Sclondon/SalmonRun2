@@ -485,7 +485,9 @@ func _try_current() -> void:
 	for c: Dictionary in track.currents:
 		if s < float(c.s0) or s > float(c.s1) - 30.0:
 			continue
-		if absf(x - track.current_x(c, s)) < 2.2 and absf(depth - track.current_depth(c, s)) < 1.3:
+		# (anywhere inside it, however wide it is)
+		var wide := float(c.get("r", 1.25))
+		if absf(x - track.current_x(c, s)) < wide + 0.95 and absf(depth - track.current_depth(c, s)) < maxf(1.3, wide):
 			state = State.CURRENT
 			rail = c
 			_ridden = c.get("mat")

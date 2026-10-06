@@ -858,7 +858,9 @@ func _plan_current(s: float, launch: bool) -> float:
 		for i in 3:
 			var t := 0.45 + 0.4 * i
 			rings.append({"s": end + LAUNCH_SPEED * t, "x": cx, "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
-	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch})
+	# (they come in all sizes: most are a tight tube, and about one in three is a great wide one)
+	var radius := _rng.randf_range(2.6, 3.6) if _rng.randf() < 0.34 else _rng.randf_range(0.9, 1.9)
+	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch, "r": radius})
 	return CURRENT_KNOT * count + 40.0
 
 
@@ -1304,12 +1306,17 @@ func _build_current(c: Dictionary) -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var sides := 14
 	var rows := int((float(c.s1) - float(c.s0)) / 2.0)
+	var wide := float(c.get("r", 1.25))
+	# (a wide one has more wisps round it, no thicker than a narrow one has)
+	mat.set_shader_parameter("strands", maxf(roundf(3.0 * wide / 1.25), 3.0))
+	mat.set_shader_parameter("girth", TAU * wide)
 	for k in rows + 1:
 		var s: float = float(c.s0) + 2.0 * k
 		var mid := point(s, current_x(c, s), water_y(s) - current_depth(c, s))
 		var across := right(s)
 		# (it opens out of nothing and closes to nothing)
-		var radius := 1.25 * smoothstep(0.0, 4.0, float(mini(k, rows - k)))
+		# (and where it comes near the surface it is drawn in, so as to stay under it)
+		var radius := minf(wide, maxf(current_depth(c, s) - 0.3, 1.1)) * smoothstep(0.0, 4.0, float(mini(k, rows - k)))
 		for j in sides + 1:
 			var a := TAU * j / sides
 			st.set_uv(Vector2(s / 6.0, float(j) / sides))

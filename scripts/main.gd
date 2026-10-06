@@ -776,6 +776,8 @@ func _process(delta: float) -> void:
 			var prog := clampf((p.s - Track.START_S) / (world.track.finish_s - Track.START_S), 0.0, 1.0)
 			hud.set_stats(score.score, race_time, prog, p.boost, p.speed * 3.6)
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
+			# (in the flow, the pack falls in close and copies the salmon, tricks and all)
+			world.school.in_step = clampf((score.flow - 1) / 2.0, 0.0, 1.0)
 			if _has_objective():
 				hud.set_objective("%s   [%s]" % [Levels.objective_text(_level), Hud.fmt(_objective_value())], _objective_met())
 			else:

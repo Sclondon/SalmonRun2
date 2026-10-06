@@ -33,7 +33,7 @@ func _ready() -> void:
 	player.setup(track)
 	school = School.new()
 	add_child(school)
-	school.setup(track, player, 5 if Save.is_mobile() else 8)
+	school.setup(track, player, 6)
 	shoals = Shoals.new()
 	add_child(shoals)
 	shoals.setup(track, player, 5 if Save.is_mobile() else 9, 9 if Save.is_mobile() else 14)
