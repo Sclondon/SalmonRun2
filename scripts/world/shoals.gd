@@ -110,7 +110,7 @@ func _process(delta: float) -> void:
 		sh.x = x
 		var node: MultiMeshInstance3D = sh.node
 		# (nothing swims through a waterfall)
-		node.visible = not track.near_fall(s, 25.0, 25.0) and (not (sardines or krill) or bool(track.cfg.get("salt", false)))
+		node.visible = not track.near_fall(s, 25.0, 25.0) and (not (sardines or krill) or bool(track.cfg.get("salt", false))) and not (krill and bool(track.cfg.get("submerged", false)))
 		if not node.visible:
 			continue
 		var facing := track.basis_at(s)

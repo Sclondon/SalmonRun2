@@ -199,6 +199,16 @@ Notes:
   on the Coastline (`fx/weather.gd`), which roughens the water and leaves ringlets on it
   (`rain` in the water shader); Rainforest Falls and Arctic Waters are at night, under
   stars and an aurora (the sky shader). Clouds of krill drift near the surface of the sea.
+- **A fork is a way that breaks off, as in Star Fox.** Part of the way through a stage
+  (`fork_at`, 0.6 without it) a short divider parts the water, and where it ends the
+  right-hand way turns off to the right on a course of its own: a second stretch of the
+  same stage (`Track._build_branch`, a `Track` that is a child of the stage until taken),
+  with its own obstacles and its own finish, which leads to the advanced stage. Keep left
+  and the main way goes on to the default one. Passing the end of the divider on the right
+  puts the salmon on the branch (`World.take_branch`). There is no bank between the two
+  where they part (`open_side`). The Open Ocean (the ship and the abyss) and the Ocean
+  Trench (a choice of currents) keep their own kinds of fork.
+- **The Ocean Trench has no surface overhead** (`"no_surface"`): only the dark.
 
 ## 4. Stages
 

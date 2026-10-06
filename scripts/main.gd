@@ -929,7 +929,7 @@ func _travel_on(next: int, next_down: bool) -> void:
 	# there is drawn on it
 	var bend := 0.0
 	var onward := Levels.next_of(_level)
-	if not _down and onward.size() > 1 and onward.has(next):
+	if not _down and onward.size() > 1 and onward.has(next) and not world.track.fork.is_empty() and not world.track.fork.get("branch", false):
 		bend = 0.16 * (onward.find(next) - (onward.size() - 1) * 0.5) / ((onward.size() - 1) * 0.5)
 	var lane := 0.0
 	if bend != 0.0 and not world.track.fork.is_empty() and not world.track.fork.abyss and not world.track.fork.get("streams", false):
@@ -989,6 +989,19 @@ func _watch_fork() -> void:
 	track.set_fork_open(_objective_met())
 	var p := world.player
 	var ways: Array = track.fork.ways
+	if track.fork.get("branch", false):
+		# the way that breaks off: past the end of the divider on its right, and it is taken
+		if p.s < float(track.fork.s1) - 1.0:
+			return
+		var side := track.fork_lane(p.x)
+		if side > 0 and track.fork_open:
+			_fork_way = int(ways[mini(side, ways.size() - 1)])
+			world.take_branch()
+		else:
+			_fork_way = int(ways[0])
+		track.fork_locked = true
+		hud.popup("TO %s" % Levels.LIST[_fork_way].name, UI.GOLD, 1.6)
+		return
 	if track.fork.get("streams", false):
 		# a choice of currents: the one ridden is the way; none, and it is the default
 		if p.state == Salmon.State.CURRENT and p.rail.has("way"):

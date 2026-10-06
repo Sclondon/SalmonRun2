@@ -138,10 +138,10 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 		cfg.merge(cfg.spring, true)
 	# (and a long run-out beyond the finish, with nothing in it: the salmon swims on down it
 	# while the results are read and the next stage is made)
-	course = cfg.length
+	course = branch_len if is_branch else float(cfg.length)
 	length = course + (0.0 if test_level else RUN_OUT)
 	test = test_level
-	course_seed = int(cfg.seed) + (500 if down else 0)
+	course_seed = int(cfg.seed) + (500 if down else 0) + (777 if is_branch else 0)
 	_rng.seed = course_seed
 	_noise.seed = course_seed
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -159,6 +159,8 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 		_build_front()
 	_build_features()
 	_scatter()
+	if not fork.is_empty() and fork.get("branch", false):
+		_build_branch()
 
 
 func _make_materials() -> void:
@@ -267,7 +269,7 @@ static func write_presets() -> bool:
 # and how long, and where.
 func _plan_fork() -> void:
 	var ways := Levels.next_of(level)
-	if test or down or ways.size() < 2:
+	if test or down or is_branch or ways.size() < 2:
 		return
 	var end := course - 150.0
 	var wide := float(cfg.width)
@@ -299,12 +301,21 @@ func _plan_fork() -> void:
 	# finish and runs on through it and all down the run-out, and the stage that comes next is
 	# joined on to the side that was taken. (Not the ship or the currents, which are their own
 	# kind of fork.) So a fork is always at the end of its stage.
-	if not abyss and not streams:
+	var parts := not abyss and not streams
+	if parts:
+		# The advanced way breaks off: the divider is short, and where it ends the right-hand
+		# way turns off to the right, on a course of its own (see _build_branch).
+		long = minf(long, 70.0)
+		s1 = clampf(course * float(cfg.get("fork_at", 0.6)), 700.0, end - 500.0)
+		open_side = 1.0
+		open_from = s1 - 8.0
+		open_to = s1 + clampf(wide * 3.2, 60.0, 280.0)
+	if false:
 		long = minf(long, 90.0)
 		s1 = end + 60.0
-	var s_end := length - 6.0 if not abyss and not streams else s1
+	var s_end := s1
 	fork = {"s0": s1 - long, "s1": s_end, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
-			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style, "streams": streams}
+			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style, "streams": streams, "branch": parts}
 	if streams:
 		# one current for each way on, side by side, a few layers down: ride one and that is
 		# the way taken. All but the left-hand one are only there once the goal is met.
@@ -728,6 +739,19 @@ var clock := 0.0
 ## made ready ahead, is in the picture too but must not wind the clock as well).
 var live := true
 var lead_width := 0.0
+## The way that breaks off from this stage at its fork, if it has one (a stage in itself, a
+## child of this one until the salmon takes it): where it is set down, and how far across.
+var branch_track: Node3D
+var branch_join := Transform3D.IDENTITY
+var branch_lane := 0.0
+## This is such a way itself, and how long its course is. (Set before build.)
+var is_branch := false
+var branch_len := 0.0
+## Where two ways part there is no bank between them: none on this side (-1 left, 1 right)
+## from open_from to open_to (metres along).
+var open_side := 0.0
+var open_from := 0.0
+var open_to := 0.0
 var _swell_high := 0.0
 var _swell_long := 12.0
 var _swell_speed := 1.0
@@ -884,7 +908,7 @@ func _process(delta: float) -> void:
 # ================================================================== planning
 
 func _plan_features() -> void:
-	var s := 230.0
+	var s := 90.0 if is_branch else 230.0
 	var since_fall := 0.0
 	var kinds: Array = cfg.kinds
 	var falls_every: float = cfg.falls_every
@@ -1433,6 +1457,9 @@ func _build_chunks() -> void:
 		# (the swell lifts it out of the box it was made in)
 		wm.extra_cull_margin = 4.0
 		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# (far down in the abyss there is no surface to be seen overhead)
+		if cfg.get("no_surface", false):
+			wm.visible = false
 		_sections.append([i0 * STEP, wm])
 
 
@@ -1524,6 +1551,8 @@ func _ground_strip(mb: MB, i: int) -> void:
 		mb.quad(a, b, c, d, col, hint)
 	for side: float in [-1.0, 1.0]:
 		var sea := is_sea_side(side)
+		if side == open_side and sa >= open_from and sa < open_to:
+			continue
 		if open and sea:
 			continue
 		var pa := bank_profile(sa, side)
@@ -1987,7 +2016,7 @@ func _scatter() -> void:
 				match rule[7]:
 					"bank":
 						# (no bank on the side that is open sea)
-						if is_sea_side(side):
+						if is_sea_side(side) or (side == open_side and s >= open_from - 6.0 and s < open_to + 20.0):
 							continue
 						_try(bucket, srng, kind, variants, rule[1], s, side, hw + float(rule[2]), hw + float(rule[3]), rule[4], rule[5], rule[6])
 					"water":
@@ -2122,3 +2151,34 @@ func fork_centre(way: int, s: float) -> float:
 	var left: float = -hw if way <= 0 else float(cuts[mini(way, cuts.size()) - 1])
 	var right_edge: float = hw if way >= cuts.size() else float(cuts[way])
 	return (left + right_edge) * 0.5
+
+
+# ================================================================== the way that breaks off
+
+## How sharply the way that breaks off turns from the main one (radians), to the right.
+const BRANCH_TURN := 0.34
+
+# Makes the way that breaks off at the fork: a stretch of the same stage with a course of its
+# own, which begins in the right-hand way round the divider and turns off to the right. It is
+# a stage in itself (the salmon is put on it if it goes that way: see World.take_branch), and
+# it has its own finish. Neither has a bank between them where they part.
+func _build_branch() -> void:
+	var at_s: float = fork.s1
+	var lane := fork_centre(1, at_s)
+	var hw := width(at_s) * 0.5
+	var b: Node3D = load("res://scripts/world/track.gd").new()
+	b.is_branch = true
+	b.branch_len = maxf(course - at_s, 900.0)
+	b.live = false
+	b.open_side = -1.0
+	b.open_from = 0.0
+	b.open_to = open_to - open_from
+	add_child(b)
+	b.build(level, false, false, hw)
+	var from := basis_at(at_s) * Basis(Vector3.UP, -BRANCH_TURN)
+	var where := point(at_s, lane, water_y(at_s))
+	var turned: Basis = from * (b.basis_at(0.0) as Basis).inverse()
+	branch_join = Transform3D(turned, where - turned * (b.point(0.0, 0.0, b.water_y(0.0)) as Vector3))
+	b.transform = branch_join
+	branch_lane = lane
+	branch_track = b

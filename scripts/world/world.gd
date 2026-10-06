@@ -493,30 +493,58 @@ func theme_ahead() -> void:
 ## measured from the new stage now, and the old one is moved to where it lies from there (so
 ## nothing in the picture moves: only the numbers change).
 func take_next() -> void:
-	var over := player.s - _join_s
-	var was_water := track.water_y(player.s)
-	behind = track
-	behind.live = false
-	var carried := _join.affine_inverse()
-	behind.transform = carried
-	ahead.transform = Transform3D.IDENTITY
-	ahead.clock = behind.clock
-	ahead.live = true
-	track = ahead
+	var to := ahead
 	ahead = null
+	_switch(to, _join, _join_s, _join_lane)
 	_dress_player(track.level, track.down)
 	# (if the water has not begun to turn to this stage's yet, it does now)
 	if not _water_turning:
 		_turn_water(2.4)
 	_water_turning = false
+
+
+## The salmon has taken the way that breaks off from the stage (see Track.branch_track): it
+## is on that from here, and the main way is left behind, still in the picture.
+func take_branch() -> void:
+	var to: Track = track.branch_track
+	if to == null:
+		return
+	var join: Transform3D = track.branch_join
+	var at_s: float = track.fork.s1
+	var lane: float = track.branch_lane
+	track.branch_track = null
+	track.remove_child(to)
+	add_child(to)
+	move_child(to, 0)
+	_drop(ahead)
+	ahead = null
+	_switch(to, join, at_s, lane)
+
+
+# Puts the salmon and everything with it on `to`, a stage set down at `join` (as the stage
+# being swum sees it), which begins `at_s` metres along this one and `lane` metres across
+# it. Everything is measured from the new stage from now on, and the old one is moved to
+# where it lies from there (so nothing in the picture moves: only the numbers change).
+func _switch(to: Track, join: Transform3D, at_s: float, lane: float) -> void:
+	var over := player.s - at_s
+	var was_water := track.water_y(player.s)
+	_drop(behind)
+	behind = track
+	behind.live = false
+	var carried := join.affine_inverse()
+	behind.transform = carried
+	to.transform = Transform3D.IDENTITY
+	to.clock = behind.clock
+	to.live = true
+	track = to
 	player.track = track
 	player.rail = {}
 	if player._wake:
 		player._wake.clear()
 		player._wake.track = track
 	player.s = maxf(over, 0.0)
-	# (the new stage was joined on to the way that was taken: across it is measured from there)
-	player.x -= _join_lane
+	# (across the new stage is measured from where it was joined on)
+	player.x -= lane
 	var lim := track.width(player.s) * 0.5 - 2.0
 	player.x = clampf(player.x, -lim, lim)
 	# (as far above the water, or under it, as it was: the new stage's water is at a height of
@@ -530,7 +558,7 @@ func take_next() -> void:
 		player.layer = mini(player.layer, track.layers())
 	for flock: School in [school, others, run]:
 		flock.track = track
-		flock.carry(_join_s, _join_lane)
+		flock.carry(at_s, lane)
 	for shoal: Shoals in [shoals, sardines, krill]:
 		shoal.track = track
 		shoal.scatter()

@@ -504,6 +504,8 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
+		# (a hundred metres down: no surface to be seen overhead, only the dark)
+		"no_surface": true, "clouds": 0.0,
 		# (left under the water, by a choice of ocean currents: one for each way on)
 		"divider": "currents", "fork_at": 1.0,
 		"next": ["CORAL REEF", "ARCTIC WATERS"],
