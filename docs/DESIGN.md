@@ -173,6 +173,11 @@ Notes:
   rudders at the stern.
 - **Anglerfish** hang in the dark of the Ocean Trench, each behind its light.
 - **On a log** the salmon arches its back upward.
+- **The Ocean Trench is the canyon of the Dry Riverbed, drowned** (`"sunk"`: the same walls
+  26 m further down), and it is left under the water, by a **choice of ocean currents**: one
+  for each way on, side by side; the one ridden is the way taken (`"divider": "currents"`).
+- **The humpback** is bigger, bends as it swims (`heave` in `fish.gdshader`), and **tuna
+  chase the salmon**: up from behind and then round it. Every fish is in the field guide.
 
 ## 4. Stages
 

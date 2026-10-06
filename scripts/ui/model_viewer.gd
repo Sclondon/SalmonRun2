@@ -38,6 +38,30 @@ const PAGES := [
 	{"name": "SALMON SHARK", "latin": "Lamna ditropis", "kicker": "IN THE SEA", "length": "ABOUT 2 M",
 		"fact": "THE SALMON SHARK HUNTS PACIFIC SALMON, AND KEEPS ITS BODY WARMER THAN THE SEA ROUND IT.",
 		"model": "shark", "reach": 2.9},
+	{"name": "PACIFIC SARDINE", "latin": "Sardinops sagax", "kicker": "IN THE SEA", "length": "ABOUT 20 CM",
+		"fact": "SARDINES KEEP TOGETHER IN SHOALS OF MANY THOUSANDS, WHICH TURN AND FLASH AS ONE.",
+		"model": "sardine", "reach": 0.9},
+	{"name": "PACIFIC BLUEFIN TUNA", "latin": "Thunnus orientalis", "kicker": "IN THE SEA", "length": "UP TO 3 M",
+		"fact": "A BLUEFIN CROSSES THE WHOLE PACIFIC, AND CAN SWIM AS FAST AS A CAR ON A ROAD.",
+		"model": "tuna", "reach": 2.2},
+	{"name": "LEATHERBACK TURTLE", "latin": "Dermochelys coriacea", "kicker": "IN THE SEA", "length": "ABOUT 2 M",
+		"fact": "THE LEATHERBACK HAS NO HARD SHELL: ITS BACK IS LEATHERY SKIN OVER RIDGES OF BONE.",
+		"model": "turtle", "reach": 2.6},
+	{"name": "HUMPBACK WHALE", "latin": "Megaptera novaeangliae", "kicker": "IN THE SEA", "length": "ABOUT 14 M",
+		"fact": "A HUMPBACK'S FLIPPERS ARE A THIRD AS LONG AS ITS BODY: THE LONGEST OF ANY WHALE.",
+		"model": "whale", "reach": 11.0},
+	{"name": "ANGLERFISH", "latin": "Lophiiformes", "kicker": "IN THE DEEP", "length": "ABOUT 20 CM",
+		"fact": "THE LIGHT ON AN ANGLERFISH'S ROD IS MADE BY BACTERIA THAT LIVE IN IT.",
+		"model": "angler", "reach": 1.7},
+	{"name": "RAINBOW TROUT", "latin": "Oncorhynchus mykiss", "kicker": "IN THE RIVER", "length": "ABOUT 40 CM",
+		"fact": "A RAINBOW TROUT THAT GOES TO SEA AND COMES BACK IS CALLED A STEELHEAD.",
+		"model": "trout", "reach": 1.5},
+	{"name": "GOLDEN TROUT", "latin": "Oncorhynchus aguabonita", "kicker": "IN THE RIVER", "length": "ABOUT 25 CM",
+		"fact": "THE GOLDEN TROUT COMES FROM A FEW HIGH STREAMS IN CALIFORNIA'S SIERRA NEVADA.",
+		"model": "golden", "reach": 1.5},
+	{"name": "WHITE STURGEON", "latin": "Acipenser transmontanus", "kicker": "IN THE RIVER", "length": "UP TO 6 M",
+		"fact": "A WHITE STURGEON CAN LIVE FOR MORE THAN A HUNDRED YEARS.",
+		"model": "sturgeon", "reach": 2.9},
 	{"name": "BROWN BEAR", "latin": "Ursus arctos", "kicker": "ON THE RIVER", "length": "ABOUT 2 M",
 		"fact": "BEARS GATHER ON THE RIVER FOR THE SALMON RUN, AND CARRY WHAT IS LEFT INTO THE FOREST.",
 		"model": "bear", "reach": 4.6},
@@ -212,6 +236,22 @@ func _build_stage() -> void:
 				_part(node, Props.sea_nettle(rng), mat, Vector3(0.0, 1.1, 0.0))
 			"jelly":
 				_part(node, Props.jelly(rng), mat, Vector3(0.0, 0.4, 0.0))
+			"sardine":
+				_part(node, Props.sardine(), mat, Vector3.ZERO)
+			"tuna":
+				_part(node, Props.tuna(), mat, Vector3.ZERO)
+			"turtle":
+				_part(node, Props.turtle(), mat, Vector3.ZERO)
+			"whale":
+				_part(node, Props.whale(), mat, Vector3.ZERO)
+			"angler":
+				_part(node, Props.angler(), mat, Vector3.ZERO)
+			"trout":
+				_part(node, Props.trout(), mat, Vector3.ZERO)
+			"golden":
+				_part(node, Props.trout(true), mat, Vector3.ZERO)
+			"sturgeon":
+				_part(node, Props.sturgeon(), mat, Vector3.ZERO)
 			"shark":
 				_part(node, Props.shark_whole(), mat, Vector3.ZERO)
 			"bear":

@@ -982,7 +982,15 @@ func _watch_fork() -> void:
 	track.set_fork_open(_objective_met())
 	var p := world.player
 	var ways: Array = track.fork.ways
-	if track.fork.abyss:
+	if track.fork.get("streams", false):
+		# a choice of currents: the one ridden is the way; none, and it is the default
+		if p.state == Salmon.State.CURRENT and p.rail.has("way"):
+			_fork_way = int(ways[int(p.rail.way)])
+		elif p.s >= track.finish_s - 6.0:
+			_fork_way = int(ways[0])
+		else:
+			return
+	elif track.fork.abyss:
 		# the abyss: the way there is down the giant current; the way on is everywhere else
 		if p.state == Salmon.State.CURRENT and p.rail.get("abyss", false):
 			_fork_way = int(ways[1])

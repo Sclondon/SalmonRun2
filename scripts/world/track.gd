@@ -86,6 +86,8 @@ var fork_open := true
 ## Set once the salmon has passed the bow: the way is chosen, and nothing changes after.
 var fork_locked := false
 var _abyss_node: Node3D
+# (the currents that are only there once the goal is met)
+var _gated: Array[Node3D] = []
 var _boom: Node3D
 var _fork_signs: Array[Label3D] = []
 var _fork_set := false
@@ -268,9 +270,13 @@ func _plan_fork() -> void:
 	var style: String = cfg.get("divider", "stacks" if salt else "island")
 	var abyss := style == "abyss"
 	var ship := abyss
+	# (a stage swum under the water is left by a choice of ocean currents: no divider at all)
+	var streams := style == "currents"
 	var lanes := 2 if abyss else ways.size()
 	# a ship is as big as a real one where there is room for it (some 320 m by 48 m)
 	var beam := clampf(wide * 0.17, 6.0, 24.0) if ship else clampf(wide * 0.08, 1.3, 7.0)
+	if streams:
+		beam = 0.0
 	if lanes > 2:
 		beam *= 0.6
 	var long := beam * 13.3 if ship else clampf(wide * 2.4, 55.0, 130.0)
@@ -282,7 +288,20 @@ func _plan_fork() -> void:
 	var at := 1.0 if abyss or cfg.get("submerged", false) else float(cfg.get("fork_at", 1.0))
 	var s1 := end - 8.0 if at >= 1.0 else clampf(course * at, 700.0, end - 8.0)
 	fork = {"s0": s1 - long, "s1": s1, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
-			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style}
+			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style, "streams": streams}
+	if streams:
+		# one current for each way on, side by side, a few layers down: ride one and that is
+		# the way taken. All but the left-hand one are only there once the goal is met.
+		var from := float(fork.s0)
+		var knots := int((end + 60.0 - from) / CURRENT_KNOT)
+		for k in lanes:
+			var lane := wide * ((k + 0.5) / lanes - 0.5) * 0.6
+			var xs := PackedFloat32Array()
+			var ds := PackedFloat32Array()
+			for j in knots + 1:
+				xs.append(lane)
+				ds.append(minf(3.0, float(layers())))
+			currents.append({"s0": from, "s1": from + CURRENT_KNOT * knots, "xs": xs, "ds": ds, "off": 0.0, "launch": false, "r": 5.0, "way": k, "gated": k > 0})
 	if abyss:
 		# The way down: a giant current that begins a dive under the surface, to the right of
 		# the ship, and goes down and down. It is only there once the goal is met.
@@ -294,7 +313,7 @@ func _plan_fork() -> void:
 		for k in knots + 1:
 			xs.append(lane)
 			ds.append(clampf(1.0 + (k - 1) * 0.9, 1.0, float(layers())))
-		currents.append({"s0": from, "s1": from + CURRENT_KNOT * knots, "xs": xs, "ds": ds, "off": 0.0, "launch": false, "r": 9.0, "abyss": true})
+		currents.append({"s0": from, "s1": from + CURRENT_KNOT * knots, "xs": xs, "ds": ds, "off": 0.0, "launch": false, "r": 9.0, "abyss": true, "gated": true})
 
 
 ## How wide a divider is to either side of its middle at `s` (0 where there is none).
@@ -325,7 +344,7 @@ func fork_keep(s: float, x: float) -> float:
 	if fork.is_empty():
 		return x
 	var cuts: Array = fork.cuts
-	var shut: bool = not fork_open and not bool(fork.abyss)
+	var shut: bool = not fork_open and not bool(fork.abyss) and not bool(fork.get("streams", false))
 	var half := fork_half(s)
 	if half > 0.0:
 		var lim := half + 1.3
@@ -350,6 +369,8 @@ func set_fork_open(open: bool) -> void:
 	fork_open = open
 	if _boom:
 		_boom.visible = not open
+	for tube in _gated:
+		tube.visible = open
 	if _abyss_node:
 		_abyss_node.visible = open
 	var ways: Array = fork.ways
@@ -367,7 +388,9 @@ func _build_fork() -> void:
 	var cuts: Array = fork.cuts
 	var beam: float = fork.beam
 	for cut: float in cuts:
-		if fork.ship:
+		if fork.get("streams", false):
+			pass
+		elif fork.ship:
 			_build_ship(cut)
 		else:
 			_build_bar(cut, str(fork.style))
@@ -392,10 +415,14 @@ func _build_fork() -> void:
 		label.modulate = Color(1.0, 0.95, 0.6)
 		label.outline_modulate = Color(0.05, 0.08, 0.2)
 		label.position = point(s0 + 12.0, (left + right_edge) * 0.5, water_y(s0) + clampf(hw * 0.2, 3.5, 15.0))
+		if fork.get("streams", false):
+			# (under the water, over the mouth of its current)
+			label.position = point(s0 + 6.0, (left + right_edge) * 0.5 * 0.6, water_y(s0) - minf(3.0, float(layers())) * layer_depth() + 7.5)
+			label.pixel_size = 0.03
 		add_child(label)
 		_fork_signs.append(label)
 	_boom = null
-	if not fork.abyss:
+	if not fork.abyss and not fork.get("streams", false):
 		# the boom: a line of red buoys from the right-hand edge of the water to the first bow
 		_boom = Node3D.new()
 		add_child(_boom)
@@ -757,7 +784,8 @@ func bank_profile(s: float, side: float) -> PackedVector2Array:
 	var n2 := _noise.get_noise_2d(s * 0.008, k + 30.0)
 	var out := PackedVector2Array()
 	for p: Array in (SEA_PROFILE if is_sea_side(side) else cfg.profile):
-		out.append(Vector2(hw + float(p[0]), float(p[1]) + n1 * float(p[2]) + n2 * float(p[3])))
+		# (a drowned stage has its ground, banks and all, "sunk" metres further down)
+		out.append(Vector2(hw + float(p[0]), float(p[1]) + n1 * float(p[2]) + n2 * float(p[3]) - float(cfg.get("sunk", 0.0))))
 	return out
 
 
@@ -910,7 +938,7 @@ func _plan_deep() -> void:
 	var k := 0
 	var deep_end := course - 480.0
 	# (a stage all under the water ends with a current that climbs to the surface)
-	if cfg.get("submerged", false):
+	if cfg.get("submerged", false) and not fork.get("streams", false):
 		deep_end -= 300.0
 		_plan_current(deep_end + 30.0, true)
 	while s < deep_end:
@@ -1398,10 +1426,11 @@ func _ground_strip(mb: MB, i: int) -> void:
 	var rock: Color = cfg.cliff
 	var bed: Color = cfg.bed
 	for j in (0 if open else 4):
-		var a := point(sa, BED_X[j] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j])
-		var b := point(sa, BED_X[j + 1] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j + 1])
-		var c := point(sb, BED_X[j + 1] * (width(sb) * 0.5 - 0.5), water_y(sb) + BED_D[j + 1])
-		var d := point(sb, BED_X[j] * (width(sb) * 0.5 - 0.5), water_y(sb) + BED_D[j])
+		var sunk := float(cfg.get("sunk", 0.0))
+		var a := point(sa, BED_X[j] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j] - sunk)
+		var b := point(sa, BED_X[j + 1] * (width(sa) * 0.5 - 0.5), water_y(sa) + BED_D[j + 1] - sunk)
+		var c := point(sb, BED_X[j + 1] * (width(sb) * 0.5 - 0.5), water_y(sb) + BED_D[j + 1] - sunk)
+		var d := point(sb, BED_X[j] * (width(sb) * 0.5 - 0.5), water_y(sb) + BED_D[j] - sunk)
 		var col := Props.vary(rock if cliff else bed, _rng, 0.05)
 		mb.quad(a, b, c, d, col, hint)
 	for side: float in [-1.0, 1.0]:
@@ -1641,11 +1670,13 @@ func _build_current(c: Dictionary) -> void:
 			for i: int in [a, b, a + 1, a + 1, b, b + 1]:
 				st.add_index(i)
 	var tube := _add_mesh(st.commit(), mat)
+	if c.get("gated", false) and not c.get("abyss", false):
+		_gated.append(tube)
 	if c.get("abyss", false):
 		_abyss_node = tube
 	c.mat = mat
-	# (the way down to the abyss has no arrows over it: it is not there until it is earned)
-	if c.get("abyss", false):
+	# (a current that is a way on has no arrows over it)
+	if c.get("abyss", false) or c.has("way"):
 		return
 	var arrows := SurfaceTool.new()
 	arrows.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1973,8 +2004,9 @@ func _build_front() -> void:
 		for j in 4:
 			var x0: float = BED_X[j] * (hw - 0.5)
 			var x1: float = BED_X[j + 1] * (hw - 0.5)
-			mb.quad(point(0.0, x0, wy + BED_D[j]), point(0.0, x1, wy + BED_D[j + 1]),
-					point(0.0, x1, wy + BED_D[j + 1] - down), point(0.0, x0, wy + BED_D[j] - down), Props.shade(rock, 0.7), back)
+			var sunk := float(cfg.get("sunk", 0.0))
+			mb.quad(point(0.0, x0, wy + BED_D[j] - sunk), point(0.0, x1, wy + BED_D[j + 1] - sunk),
+					point(0.0, x1, wy + BED_D[j + 1] - sunk - down), point(0.0, x0, wy + BED_D[j] - sunk - down), Props.shade(rock, 0.7), back)
 	# under each bank
 	for side: float in [-1.0, 1.0]:
 		if cfg.has("floor") and is_sea_side(side):

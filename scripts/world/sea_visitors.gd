@@ -16,8 +16,8 @@ const Props := preload("res://scripts/world/props.gd")
 ## kind the stage did not have turns up anyway once the score is high enough (see abundance).
 const KINDS := {
 	"turtle": {"chance": 0.6, "count": 4, "few": 1, "size": 1.1},
-	"whale": {"chance": 0.45, "count": 2, "few": 1, "size": 1.0},
-	"tuna": {"chance": 0.6, "count": 9, "few": 3, "size": 1.0},
+	"whale": {"chance": 0.45, "count": 2, "few": 1, "size": 1.7},
+	"tuna": {"chance": 0.9, "count": 9, "few": 4, "size": 1.25},
 	# (in fresh water; the golden trout is a rare one: touch it and it joins the pack)
 	"trout": {"chance": 0.75, "count": 7, "few": 3, "size": 1.0, "fresh": true},
 	"sturgeon": {"chance": 0.5, "count": 3, "few": 1, "size": 1.0, "fresh": true},
@@ -56,7 +56,15 @@ func setup(t: Track, p: Salmon) -> void:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			node.visible = false
 			add_child(node)
-			_animals.append({"node": node, "kind": kind, "i": i, "here": false, "s": 0.0, "x": 0.0,
+			# (a whale bends as it swims, tail up and down in a slow wave: see fish.gdshader)
+			var bends: ShaderMaterial = null
+			if kind == "whale":
+				bends = ShaderMaterial.new()
+				bends.shader = preload("res://shaders/fish.gdshader")
+				bends.set_shader_parameter("wag_amp", 0.0)
+				bends.set_shader_parameter("heave", 0.75)
+				bends.set_shader_parameter("body", 7.0)
+			_animals.append({"node": node, "kind": kind, "i": i, "here": false, "s": 0.0, "x": 0.0, "mat": bends,
 					"depth": 1.0, "pace": 1.0, "phase": _rng.randf() * TAU})
 	scatter()
 
@@ -80,7 +88,7 @@ func scatter() -> void:
 	for a: Dictionary in _animals:
 		a.here = false
 		(a.node as MeshInstance3D).visible = false
-		(a.node as MeshInstance3D).material_override = track.mat_world
+		(a.node as MeshInstance3D).material_override = a.mat if a.mat != null else track.mat_world
 
 
 # Sets one down where it will next be met: ahead of the salmon (or, the tuna, behind it).
@@ -119,17 +127,17 @@ func _place(a: Dictionary, first: bool) -> void:
 		"tuna":
 			# (all of them together, in a loose arrowhead)
 			if int(a.i) == 0:
-				a.s = player.s - _rng.randf_range(120.0, 420.0)
+				a.s = player.s - _rng.randf_range(60.0, 110.0)
 				a.x = _rng.randf_range(-0.5, 0.5) * (lim - 8.0)
 				a.depth = _rng.randf_range(0.8, 3.0)
-				a.pace = Salmon.CRUISE + _rng.randf_range(9.0, 15.0)
+				a.pace = 0.0
 			else:
 				var lead: Dictionary = _animals.filter(func(b: Dictionary) -> bool: return b.kind == "tuna" and int(b.i) == 0)[0]
 				var row := (int(a.i) + 1) / 2
 				a.s = float(lead.s) - row * 3.2
 				a.x = float(lead.x) + row * 2.4 * (1.0 if int(a.i) % 2 == 1 else -1.0)
 				a.depth = float(lead.depth) + _rng.randf_range(-0.3, 0.5)
-				a.pace = lead.pace
+				a.pace = 0.0
 
 
 func _process(delta: float) -> void:
@@ -139,6 +147,8 @@ func _process(delta: float) -> void:
 	_t += dt
 	for a: Dictionary in _animals:
 		var node: MeshInstance3D = a.node
+		if a.mat != null:
+			(a.mat as ShaderMaterial).set_shader_parameter("wag_phase", _t * 1.6 + float(a.phase))
 		# (is it about yet? More of each kind as the score climbs)
 		var rule: Dictionary = KINDS[a.kind]
 		var wanted := 0
@@ -153,7 +163,8 @@ func _process(delta: float) -> void:
 		var gap: float = float(a.s) - player.s
 		# gone by (or, the tuna, gone on ahead out of sight): met again further on
 		var leads: bool = a.kind == "whale" and int(a.i) == 0 and _guiding()
-		if not leads and ((a.kind == "tuna" and gap > 170.0) or (a.kind != "tuna" and gap < -40.0)):
+		# (the tuna stay with the salmon: they are only set down afresh if left far behind)
+		if not leads and ((a.kind == "tuna" and absf(gap) > 220.0) or (a.kind != "tuna" and gap < -40.0)):
 			_place(a, false)
 			gap = float(a.s) - player.s
 		a.s = float(a.s) + float(a.pace) * dt
@@ -191,6 +202,17 @@ func _process(delta: float) -> void:
 				tilt = cos(_t * 1.6 + phase) * 0.06
 			"tuna":
 				sway = sin(_t * 9.0 + phase) * 0.1
+				# They chase the salmon: up from behind, fast, and then round it, now ahead and
+				# now beside, each keeping a place of its own in the pack of them.
+				var row := (int(a.i) + 1) / 2
+				var wing := 1.0 if int(a.i) % 2 == 1 else -1.0
+				var want_s := player.s - 5.0 - row * 3.4 + sin(_t * 0.35 + phase) * 9.0
+				var want_x := player.x + (4.5 + row * 2.6) * wing + sin(_t * 0.5 + phase * 1.7) * 2.5
+				a.s = float(a.s) + clampf(player.speed + (want_s - float(a.s)) * 1.4, 6.0, Salmon.CRUISE + 20.0) * dt - float(a.pace) * dt
+				a.x = lerpf(float(a.x), want_x, 1.0 - exp(-1.2 * dt))
+				a.depth = lerpf(float(a.depth), maxf(track.layer_depth() * player.dive, 0.0) + 0.6 + 0.4 * row, 1.0 - exp(-1.5 * dt))
+				s = float(a.s)
+				depth = float(a.depth)
 			"whale":
 				# The one that leads the way (the open ocean): it keeps ahead of the salmon, a little
 				# to one side, makes for the giant current as the ship comes up, and goes down it.
@@ -203,7 +225,7 @@ func _process(delta: float) -> void:
 					a.x = lerpf(float(a.x), lerpf(player.x + 16.0, track.current_x(down, maxf(s, float(down.s0))), near), 1.0 - exp(-0.8 * dt))
 					# (its back is always out of the water, to be followed; it rolls higher to breathe)
 					var breathe := 1.5 - 1.3 * maxf(sin(_t * 0.5 + phase), 0.0)
-					depth = breathe
+					depth = breathe * float(KINDS[a.kind].size)
 					tilt = cos(_t * 0.5 + phase) * 0.1
 					if s > float(down.s0) - 30.0:
 						var into := smoothstep(float(down.s0) - 30.0, float(down.s0) + 40.0, s)

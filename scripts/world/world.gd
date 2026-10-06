@@ -504,6 +504,10 @@ func take_next() -> void:
 	var lift := track.water_y(player.s) - was_water
 	player.y += lift
 	player._prev_surface += lift
+	# (and no deeper than this stage is: it comes up to what water there is)
+	if not track.cfg.get("submerged", false):
+		player.dive_to = minf(player.dive_to, float(track.layers()))
+		player.layer = mini(player.layer, track.layers())
 	for flock: School in [school, others, run]:
 		flock.track = track
 		flock.carry(_join_s)

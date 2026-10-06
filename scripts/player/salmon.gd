@@ -545,7 +545,7 @@ func _set_layer(to: int) -> void:
 func _try_current() -> void:
 	var depth := track.layer_depth() * dive
 	for c: Dictionary in track.currents:
-		if s < float(c.s0) or s > float(c.s1) - 30.0 or (c.get("abyss", false) and not track.fork_open):
+		if s < float(c.s0) or s > float(c.s1) - 30.0 or (c.get("gated", false) and not track.fork_open):
 			continue
 		# (anywhere inside it, however wide it is)
 		var wide := track.current_radius(c, s)

@@ -499,7 +499,8 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
-		"divider": "stacks", "fork_at": 1.0,
+		# (left under the water, by a choice of ocean currents: one for each way on)
+		"divider": "currents", "fork_at": 1.0,
 		"next": ["CORAL REEF", "ARCTIC WATERS"],
 		"objective": {"type": "rings", "n": 10},
 		"tagline": "NOTHING BUT DARK WATER AND LIVING LIGHT",
@@ -514,16 +515,21 @@ const LIST: Array[Dictionary] = [
 		"deep": ["currents", "rings", "jellies", "surge", "rings", "currents", "jellies", "surge"],
 		"kinds": ["rings", "rocks", "predators", "ramps", "rails", "rings"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
-		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
-		"bank_colors": [Color(0.02, 0.02, 0.06), Color(0.01, 0.01, 0.05), Color(0.01, 0.01, 0.05)],
-		# (a canyon like the dry river's, but drowned: red rock gone dark and blue with the depth)
-		"bed": Color(0.34, 0.2, 0.2), "cliff": Color(0.3, 0.17, 0.16),
+		# The canyon of the dry riverbed, drowned: the same walls in the same red rock, 26 m
+		# further down, so that their rims are under the surface.
+		"sunk": 26.0,
+		"profile": [[-0.5, -1.2, 0, 0], [2.0, 0.6, 0.3, 0], [7.0, 1.6, 0.6, 0.5], [12.0, 11.0, 2.0, 3.0],
+				[26.0, 15.0, 2.0, 5.0], [52.0, 22.0, 0, 3.0]],
+		"bank_colors": [Color(0.8, 0.66, 0.44), Color(0.86, 0.72, 0.48), Color(0.8, 0.42, 0.24),
+				Color(0.7, 0.34, 0.2), Color(0.62, 0.3, 0.2)],
+		"bed": Color(0.72, 0.6, 0.42), "cliff": Color(0.74, 0.4, 0.26),
 		"sea_from": 0.8, "markers": [Color(0.3, 0.2, 0.6), Color(0.3, 1.0, 0.9)],
 		"rock": Color(0.16, 0.14, 0.24), "rock_cap": Color(0.3, 1.0, 0.9, 0.3),
 		"ramp": Color(0.14, 0.12, 0.22), "ramp_top": Color(0.4, 0.3, 0.7),
 		"rail": Color(0.3, 0.9, 0.8, 0.5), "rail_node": Color(0.5, 0.3, 0.8),
 		"arch": Color(0.24, 0.22, 0.34), "ruins": false,
 		"scatter": [
+			["rock", 0.4, 0.0, 9.0, 0.8, 2.4, -0.4, "bank"],
 			["jelly", 0.3, 3.0, 70.0, 0.7, 2.0, 0.0, "water"],
 			["spire", 0.05, 20.0, 110.0, 0.8, 2.0, -1.0, "water"],
 			["spire", 0.5, 100.0, 160.0, 2.0, 4.0, -1.0, "far"],
@@ -535,7 +541,7 @@ const LIST: Array[Dictionary] = [
 		"light": Color(0.5, 0.6, 1.0), "light_energy": 0.7,
 		"water_deep": Color(0.0, 0.01, 0.08), "water_shallow": Color(0.04, 0.1, 0.3),
 		"swell": 2.5,
-		"floor": 27.0, "canyon": true, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
+		"water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
 		"water_whitecaps": 0.4, "motes": Color(0.3, 1.0, 0.9),
 	},
 	{
