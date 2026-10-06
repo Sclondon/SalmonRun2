@@ -149,7 +149,7 @@ avoid rocks, ride ramps and leap falls. They are company only.
 | Drag | a stick under the thumb: drag to one side of where your finger came down and the salmon steers that way, harder the further you drag, for as long as you hold it there (until it meets the bank). Where on the screen you touch makes no difference | |
 | Swipe up | full jump (also hops off a rail); dived, comes back up to the surface | backflip |
 | Swipe down | dive one layer deeper | frontflip |
-| Hard flick left / right | dash 3 m that way (it takes a fast, flat flick well past the reach of the stick, so that turning does not set it off) | spin |
+| Hard flick left / right | dash 3 m that way, turning a corkscrew as it goes (it takes a fast, flat flick well past the reach of the stick, so that turning does not set it off) | spin with a corkscrew |
 | Swipe left / right / down / diagonal | | one full 360 that way: spin, frontflip, or both |
 | Wiggle back and forth | boost | |
 | Circles | boost | corkscrew, the way the finger goes round |
@@ -206,7 +206,9 @@ on its own along a trail of its own, whatever is on the surface above it
 - **Landing** must be roughly upright with no grab held, or it is a wipeout.
 - **Flow** is the multiplier: +1 for each clean trick up to x5. It resets on a wipeout or a
   bump, or after 4 seconds on the water without a trick.
-- **Timing:** every trick is graded on how close to a beat it landed, and called out: MISS,
+- **Timing:** every swipe is graded on how close to a beat it was made, and called out there
+  and then (the jump itself is one; on keys and pads, so is the start of each held spin). A
+  trick is worth the grade of its swipes taken together, not when it lands. The grades: MISS,
   SLOPPY, O.K. (x1.1), ALRIGHT (x1.15), NICE (x1.25), GOOD (x1.35), GREAT (x1.5), EXCELLENT
   (x1.75) and PERFECT! (x2). The windows are shares of the gap between beats, so they keep
   pace with the tune: at 174 BPM, PERFECT! is within about 25 ms and NICE within about 110.

@@ -214,6 +214,7 @@ func _ready() -> void:
 
 	var p := world.player
 	p.trick_landed.connect(_on_trick)
+	p.swipe_timed.connect(_on_timed)
 	p.wiped_out.connect(_on_wipe)
 	p.bumped.connect(_on_bump)
 	p.ring_collected.connect(_on_ring)
@@ -809,9 +810,21 @@ func _on_trick(trick: Dictionary) -> void:
 	world.player.boost = minf(world.player.boost + float(trick.points) / 40.0, 100.0)
 	var grade := int(trick.get("grade", 0))
 	hud.show_trick(trick.name, gained, flow, grade)
+	Sfx.play("trick", 1.0 + 0.06 * (flow - 1))
+	# (a leap's swipes were each graded as they were made: see _on_timed)
+	if trick.get("swiped", false):
+		return
 	# how well it was timed, from MISS up to PERFECT!
 	hud.show_grade(grade, str(Score.GRADES[grade][0]))
-	Sfx.play("trick", 1.0 + 0.06 * (flow - 1))
+	if grade >= Score.ON_BEAT:
+		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
+
+
+## A swipe (or a jump) has been timed against the beat: says how well, from MISS up to PERFECT!
+func _on_timed(grade: int) -> void:
+	if phase != Phase.RACE:
+		return
+	hud.show_grade(grade, str(Score.GRADES[grade][0]))
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
 

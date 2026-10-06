@@ -4,6 +4,9 @@ extends Node3D
 ## judged on landing.
 
 signal trick_landed(trick: Dictionary)   # {name, points, beat}
+## A swipe (or a jump, or the start of a spin on the keys) has been timed against the beat:
+## how well, as a grade (see Score.GRADES).
+signal swipe_timed(grade: int)
 signal wiped_out(reason: String)
 ## A glancing hit (rock while swimming): you lose speed and flow but keep control.
 signal bumped(reason: String)
@@ -89,9 +92,16 @@ var dive := 0.0
 ## How far down it is making for, in layers: the layer it was last sent to, or wherever it
 ## has been swum to freely since.
 var dive_to := 0.0
+# how well each swipe of the leap in hand was timed (the jump itself is the first), and
+# which of the held inputs (spin, flip, corkscrew, grab) were already on last frame
+var _marks: Array[int] = []
+var _held := [true, true, true, true]
 var _rise := 0.0
 var _current_wait := 0.0
 var _dash := 0.0
+# the corkscrew it turns as it dashes: which way, and how far through it is (1 is done)
+var _dash_dir := 0.0
+var _dash_t := 1.0
 
 var _yaw_v := 0.0
 var _pitch_v := 0.0
@@ -381,6 +391,8 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	for swipe: Vector2 in inp.swipes:
 		if swipe == Vector2.LEFT or swipe == Vector2.RIGHT:
 			_dash = swipe.x * DASH
+			_dash_dir = swipe.x
+			_dash_t = 0.0
 			_stretch_v += 5.0
 			Sfx.play("jump", 1.5, -8.0)
 	if _dash != 0.0:
@@ -409,7 +421,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 			vy += 6.6 + 7.7 * charge
 		elif _swiped_up(inp):
 			vy += 6.6 + 7.7 * SWIPE_JUMP
-		_take_off()
+		_take_off(released or bool(inp.jump) or _swiped_up(inp))
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
 	_ramp_vy = clampf(climb, 0.0, 20.0)
@@ -440,10 +452,10 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 			_try_current()
 	elif released:
 		vy = 7.7 + 8.8 * charge + _ramp_vy
-		_take_off()
+		_take_off(true)
 	elif up:
 		vy = 7.7 + 8.8 * SWIPE_JUMP + _ramp_vy
-		_take_off()
+		_take_off(true)
 	elif down:
 		_set_layer(1)
 
@@ -530,7 +542,11 @@ func _swiped_up(inp: Dictionary) -> bool:
 	return (inp.swipes as Array).has(Vector2.UP)
 
 
-func _take_off() -> void:
+func _take_off(by_jump := false) -> void:
+	_marks.clear()
+	_held = [true, true, true, true]
+	if by_jump:
+		_mark()
 	state = State.AIR
 	air_time = 0.0
 	yaw = 0.0
@@ -604,13 +620,17 @@ func _air(dt: float, inp: Dictionary) -> void:
 	_clamp_banks()
 	# each swipe is one full turn that way: sideways spins, up is a backflip, down a frontflip
 	for sw: Vector2 in inp.swipes:
+		_mark()
 		_trick_wait[SPIN] -= sw.x
 		_trick_wait[FLIP] -= sw.y
 	# a held finger only steers on the water, so it doesn't spin the salmon up here
 	var spin_in := 0.0 if GameInput.follow and not autopilot else -float(inp.steer)
 	var r: Vector2
 	if _trick_busy(SPIN):
+		# (it corkscrews into a swipe to one side: a turn of the roll with each turn of the spin)
+		var yaw_was := yaw
 		yaw = _run_trick(SPIN, yaw, dt)
+		roll += yaw - yaw_was
 		_yaw_v = 0.0
 	else:
 		r = _spin(yaw, _yaw_v, spin_in, SPIN_RATE, 180.0, dt)
@@ -627,6 +647,12 @@ func _air(dt: float, inp: Dictionary) -> void:
 	roll = r.x
 	_roll_v = r.y
 	grab = inp.grab
+	# (on keys and pads a spin is held, not swiped: it is timed from when it is begun)
+	var holding := [absf(spin_in) > 0.2, absf(float(inp.pitch)) > 0.2, absf(float(inp.roll)) > 0.2, grab >= 0]
+	for i in holding.size():
+		if holding[i] and not _held[i]:
+			_mark()
+	_held = holding
 	if grab >= 0:
 		grabs[grab] = float(grabs.get(grab, 0.0)) + dt
 
@@ -722,13 +748,28 @@ func _compose_trick() -> Dictionary:
 		pts += 300
 	if parts.size() >= 3:
 		pts = int(pts * 1.25)
-	return _on_beat(" + ".join(parts), pts)
+	# (how well it was timed is how well its swipes were, the jump among them, taken together:
+	# not when it lands)
+	var sum := 0
+	for m in _marks:
+		sum += m
+	var trick := _on_beat(" + ".join(parts), pts, roundi(float(sum) / _marks.size()) if not _marks.is_empty() else 0)
+	trick.swiped = true
+	return trick
 
 
-## Landing (or leaving a rail) close to the beat multiplies the points: the closer, the better
-## the grade (see Score.GRADES).
-func _on_beat(trick_name: String, pts: int) -> Dictionary:
+## Times a swipe against the beat, remembers it for the trick it is part of, and says so.
+func _mark() -> void:
 	var grade := Score.grade(Music.beat_offset(), Music.sec_per_beat)
+	_marks.append(grade)
+	swipe_timed.emit(grade)
+
+
+## Swiping (or leaving a rail) close to the beat multiplies the points: the closer, the better
+## the grade (see Score.GRADES).
+func _on_beat(trick_name: String, pts: int, grade := -1) -> Dictionary:
+	if grade < 0:
+		grade = Score.grade(Music.beat_offset(), Music.sec_per_beat)
 	pts = int(pts * float(Score.GRADES[grade][2]))
 	# (beat: 0 off it, 1 on it, 2 as good as it gets)
 	var beat := 2 if grade >= Score.GRADES.size() - 2 else (1 if grade >= Score.ON_BEAT else 0)
@@ -964,7 +1005,8 @@ func _update_visual(dt: float) -> void:
 			target_bend = _turn * 0.9
 			b = base * Basis(Vector3.UP, deg_to_rad(_land_twist) + lead) \
 					* Basis(Vector3.RIGHT, slope_ang + sin(_t * 5.0) * 0.05 - tip) \
-					* Basis(Vector3.BACK, -vx * 0.035)
+					* Basis(Vector3.BACK, -vx * 0.035 - _dash_dir * TAU * smoothstep(0.0, 1.0, _dash_t))
+			_dash_t = minf(_dash_t + dt / 0.32, 1.0)
 			wag_speed = 8.0 + speed * 0.35
 			if state == State.IDLE:
 				wag_speed = 5.0
