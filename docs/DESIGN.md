@@ -224,6 +224,11 @@ on its own along a trail of its own, whatever is on the surface above it
   under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
   ramps, the fish), and patches of foam drift with the current. Every stage can set any of
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
+- **Foam** is cut from a grey picture that wraps (`textures/foam_noise.png`, made by
+  `scripts/tools/bake_foam.gd`; any picture that wraps can be set in its place on
+  `materials/water.tres`). The noise in the water shader takes its random numbers from whole
+  numbers, not the usual `fract(sin())`, which the desktop renderer gets wrong at the corners
+  of each square (every square then shows as a block).
 - **The swell is real.** The water's mesh is a few metres to a square and the shader lifts it
   into waves: four trains of different lengths crossing one another, the long ones travelling
   faster, as real waves do. A stage's `swell` says how rough its water is (higher and longer

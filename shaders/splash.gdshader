@@ -13,8 +13,17 @@ uniform float ragged = 0.3;
 // 0 as the tube goes up, 1 as it has fallen back: it thins out into shreds on the way down.
 uniform float spent = 0.0;
 
+// (worked out in whole numbers, so that every square of the noise agrees about its corners:
+// see hash in water.gdshader)
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+	ivec2 c = ivec2(round(p));
+	uint h = uint(c.x) * 668265261u ^ (uint(c.y) * 374761393u);
+	h ^= h >> 15u;
+	h *= 2246822519u;
+	h ^= h >> 13u;
+	h *= 3266489917u;
+	h ^= h >> 16u;
+	return float(h) / 4294967295.0;
 }
 
 float noise(vec2 p) {

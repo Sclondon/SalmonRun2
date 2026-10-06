@@ -72,10 +72,10 @@ static var water_overrides := {}
 ## (scenes/water_scene.tscn shows a patch of sea with it). A stage's own "water_..." settings
 ## and the water lab's go on top of it.
 const WATER := preload("res://materials/water.tres")
-const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "ripple",
-		"roughness", "specular", "wave_height", "wave_scale", "wave_choppy", "wave_speed", "lines", "view_clear",
+const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "colour_ripple", "rapid_foam",
+		"roughness", "specular", "ripple_height", "ripple_scale", "ripple_choppy", "ripple_speed", "lines", "view_clear",
 		"swell_height", "swell_length", "swell_speed", "crest_foam",
-		"whitecaps", "foam_amount", "foam_scale", "edge_foam", "rim_width", "rim_ragged", "wake_spread", "wake_width"]
+		"whitecaps", "foam_amount", "foam_scale", "foam_size", "edge_foam", "rim_width", "rim_ragged", "wake_spread", "wake_width"]
 
 var _rng := RandomNumberGenerator.new()
 var _noise := FastNoiseLite.new()

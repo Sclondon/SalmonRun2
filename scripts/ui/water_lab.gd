@@ -13,43 +13,46 @@ const UI := preload("res://scripts/ui/ui_kit.gd")
 const Track := preload("res://scripts/world/track.gd")
 const Wake := preload("res://scripts/fx/wake.gd")
 
-## The settings, in the order shown: [uniform, label, least, most]. A null least marks a
-## colour. Headings are a lone string.
+## The settings, in the order shown: [uniform, least, most]. A null least marks a colour.
+## Headings are a lone string. They are named and grouped just as they are in the water
+## shader (so as the Inspector shows them, in the editor: see scenes/water_scene.tscn); only
+## WAKE LIFE is not one of the shader's own.
 const ROWS := [
 	"COLOUR",
-	["deep", "DEEP", null, null],
-	["shallow", "SHALLOW", null, null],
-	["foam_color", "FOAM", null, null],
-	["depth_range", "DEPTH RANGE (M)", 1.0, 60.0],
-	["alpha_shallow", "CLEAR WHEN SHALLOW", 0.0, 1.0],
-	["alpha_deep", "SOLID WHEN DEEP", 0.0, 1.0],
-	["ripple", "COLOUR RIPPLE", 0.0, 1.0],
-	["view_clear", "PALER LOOKING DOWN", 0.0, 1.0],
-	"SURFACE",
-	["roughness", "ROUGHNESS", 0.0, 1.0],
-	["specular", "SPECULAR", 0.0, 1.0],
-	["wave_height", "RIPPLE HEIGHT", 0.0, 2.0],
-	["wave_scale", "RIPPLE FINENESS", 0.1, 3.0],
-	["wave_choppy", "RIPPLE PEAKS", 0.5, 5.0],
-	["wave_speed", "RIPPLE SPEED", 0.0, 3.0],
-	"SWELL (THE BIG WAVES)",
-	["swell_height", "SWELL HEIGHT (M)", 0.0, 1.0],
-	["swell_length", "SWELL LENGTH (M)", 2.0, 60.0],
-	["swell_speed", "SWELL SPEED", 0.0, 4.0],
-	"LOOK",
-	["lines", "PALE LINES", 0.0, 1.0],
+	["deep", null, null],
+	["shallow", null, null],
+	["foam_color", null, null],
+	["depth_range", 1.0, 60.0],
+	["alpha_shallow", 0.0, 1.0],
+	["alpha_deep", 0.0, 1.0],
+	["colour_ripple", 0.0, 1.0],
+	["view_clear", 0.0, 1.0],
 	"FOAM",
-	["whitecaps", "WHITECAPS", 0.0, 1.0],
-	["crest_foam", "FOAM ON CRESTS", 0.0, 1.0],
-	["foam_amount", "DRIFTING FOAM", 0.0, 1.0],
-	["foam_scale", "FOAM FINENESS", 0.2, 4.0],
-	["edge_foam", "BANK FOAM", 0.0, 1.0],
-	["rim_width", "RIM WIDTH (M)", 0.0, 2.0],
-	["rim_ragged", "RIM RAGGED", 0.0, 1.0],
+	["foam_amount", 0.0, 1.0],
+	["whitecaps", 0.0, 1.0],
+	["crest_foam", 0.0, 1.0],
+	["foam_scale", 0.2, 4.0],
+	["foam_size", 4.0, 80.0],
+	["edge_foam", 0.0, 1.0],
+	["rapid_foam", 0.0, 1.0],
+	["rim_width", 0.0, 2.0],
+	["rim_ragged", 0.0, 1.0],
+	"MOTION (THE SWELL)",
+	["swell_height", 0.0, 1.0],
+	["swell_length", 2.0, 60.0],
+	["swell_speed", 0.0, 4.0],
+	"SURFACE (THE RIPPLES)",
+	["roughness", 0.0, 1.0],
+	["specular", 0.0, 1.0],
+	["lines", 0.0, 1.0],
+	["ripple_scale", 0.02, 3.0],
+	["ripple_height", 0.0, 3.0],
+	["ripple_choppy", 0.5, 5.0],
+	["ripple_speed", 0.0, 3.0],
 	"WAKE",
-	["wake_life", "WAKE LENGTH (S)", 0.1, 2.0],
-	["wake_spread", "WAKE SPREAD", 0.0, 5.0],
-	["wake_width", "WAKE WIDTH (M)", 0.05, 1.5],
+	["wake_life", 0.1, 2.0],
+	["wake_spread", 0.0, 5.0],
+	["wake_width", 0.05, 1.5],
 ]
 
 ## The water in hand (set by main whenever the stage changes).
@@ -126,11 +129,11 @@ func _ready() -> void:
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 8)
 		list.add_child(line)
-		var name_label := UI.label(row[1], 13, UI.INK, 0)
+		var name_label := UI.label(str(row[0]).replace("_", " ").to_upper(), 13, UI.INK, 0)
 		name_label.custom_minimum_size.x = 170
 		line.add_child(name_label)
 		var key: String = row[0]
-		if row[2] == null:
+		if row[1] == null:
 			var picker := ColorPickerButton.new()
 			picker.custom_minimum_size = Vector2(200, 30)
 			picker.edit_alpha = false
@@ -140,9 +143,9 @@ func _ready() -> void:
 			_pickers[key] = picker
 			continue
 		var slider := HSlider.new()
-		slider.min_value = row[2]
-		slider.max_value = row[3]
-		slider.step = (float(row[3]) - float(row[2])) / 200.0
+		slider.min_value = row[1]
+		slider.max_value = row[2]
+		slider.step = (float(row[2]) - float(row[1])) / 200.0
 		slider.custom_minimum_size = Vector2(190, 30)
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.focus_mode = Control.FOCUS_NONE

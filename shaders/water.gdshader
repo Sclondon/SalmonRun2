@@ -27,7 +27,7 @@ uniform float depth_range = 5.0;
 uniform float alpha_shallow : hint_range(0.0, 1.0) = 0.6;
 uniform float alpha_deep : hint_range(0.0, 1.0) = 0.93;
 // How much the surface colour varies in ripples.
-uniform float ripple : hint_range(0.0, 1.0) = 0.08;
+uniform float colour_ripple : hint_range(0.0, 1.0) = 0.08;
 // Looked straight down into, water is paler than looked across: how much (0 is no
 // difference, 1 is as pale as the shallows).
 uniform float view_clear : hint_range(0.0, 1.0) = 0.35;
@@ -39,6 +39,12 @@ uniform float foam_amount : hint_range(0.0, 1.0) = 0.18;
 uniform float whitecaps : hint_range(0.0, 1.0) = 0.3;
 // Size of the patches (bigger number, smaller patches).
 uniform float foam_scale = 1.0;
+// The pattern the foam is cut from: a grey picture that wraps round at its edges. Where it
+// is bright there is foam; the settings above say how bright it has to be. (Made by
+// scripts/tools/bake_foam.gd; any picture that wraps will do in its place.) And how many
+// metres of water one copy of it covers.
+uniform sampler2D foam_texture : repeat_enable, filter_linear, hint_default_white;
+uniform float foam_size = 22.0;
 // How much more foam there is on the crests of the swell than in its troughs (0 is no more).
 uniform float crest_foam : hint_range(0.0, 1.0) = 0.5;
 // Extra foam along a river's banks and in rapids.
@@ -70,10 +76,10 @@ uniform float specular : hint_range(0.0, 1.0) = 0.12;
 uniform float lines : hint_range(0.0, 1.0) = 0.6;
 // The small waves that give it its shape: how fine they are, how steep, how peaked their
 // crests are, and how fast they move.
-uniform float wave_scale = 0.55;
-uniform float wave_height : hint_range(0.0, 3.0) = 0.16;
-uniform float wave_choppy = 1.4;
-uniform float wave_speed = 1.0;
+uniform float ripple_scale = 0.55;
+uniform float ripple_height : hint_range(0.0, 3.0) = 0.16;
+uniform float ripple_choppy = 1.4;
+uniform float ripple_speed = 1.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
 uniform float across = 22.0;
 
@@ -99,8 +105,20 @@ varying float v_steep;
 varying vec2 v_metres;
 varying float v_swell;
 
+// A random number from 0 to 1 for each corner of a grid. It is worked out in whole numbers,
+// so that a corner gets the same number whichever square of the grid asks for it. (The usual
+// fract(sin(...)) does not: the desktop renderer works out "this corner plus one" a hair
+// differently from "the next corner", the number comes out quite different, and every square
+// of the noise shows as a block with a seam round it.)
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+	ivec2 c = ivec2(round(p));
+	uint h = uint(c.x) * 668265261u ^ (uint(c.y) * 374761393u);
+	h ^= h >> 15u;
+	h *= 2246822519u;
+	h ^= h >> 13u;
+	h *= 3266489917u;
+	h ^= h >> 16u;
+	return float(h) / 4294967295.0;
 }
 
 float vnoise(vec2 p) {
@@ -144,7 +162,7 @@ float view_depth(vec2 screen_uv, float depth, mat4 inv_projection) {
 
 // A wave train: smooth swells, peaked the more the choppier.
 float swell_of(float phase) {
-	return pow(0.5 + 0.5 * sin(phase), wave_choppy);
+	return pow(0.5 + 0.5 * sin(phase), ripple_choppy);
 }
 
 // The height of the small waves at a point on the water (metres across, metres along):
@@ -152,8 +170,8 @@ float swell_of(float phase) {
 // ripple over them. A slow drift bends them all, so that no two crests run side by side
 // for long.
 float wave_h(vec2 p) {
-	float t = TIME * wave_speed;
-	p *= wave_scale;
+	float t = TIME * ripple_speed;
+	p *= ripple_scale;
 	// (bent no further than this: any more and the bend folds the waves back over themselves,
 	// which shows as a crease)
 	p += (vec2(gnoise(p * 0.3 + 3.0), gnoise(p * 0.3 + 11.0)) - 0.5) * 1.1;
@@ -203,8 +221,8 @@ void fragment() {
 	float water = max(behind - surface, 0.0);
 	float depth = clamp(water / depth_range, 0.0, 1.0);
 
-	vec2 p = vec2(UV.x * 10.0, UV.y * 0.18 - TIME * flow * 3.0) * foam_scale;
-	float n = vnoise(p) * 0.6 + vnoise(p * 2.3 + 7.0) * 0.4;
+	vec2 p = vec2(v_metres.x * 0.37, UV.y * 0.18 - TIME * flow * 3.0) * foam_scale;
+	float n = smoothstep(0.25, 0.75, texture(foam_texture, p * 0.13).r * 0.6 + texture(foam_texture, p.yx * 0.29 + 0.37).r * 0.4);
 
 	// drifting patches, thicker along the banks (vertex green marks open water, which has
 	// none) and in rapids (vertex red)
@@ -228,14 +246,15 @@ void fragment() {
 	col = mix(col, shallow.rgb, max(crest, 0.0) * 0.18);
 	// (the colour varies in soft patches: made from the smooth noise, or its grid shows)
 	float tint = gnoise(p * 0.7) * 0.6 + gnoise(p * 1.6 + 7.0) * 0.4;
-	col = mix(col, shallow.rgb, (tint - 0.5) * 2.0 * ripple * (0.4 + 0.6 * depth));
+	col = mix(col, shallow.rgb, (tint - 0.5) * 2.0 * colour_ripple * (0.4 + 0.6 * depth));
 	col = mix(col, foam_color.rgb, white);
 	// The shape of the surface: the slope of the small waves here, turned into a normal, so
 	// that the light and the sky are reflected off each one as off real water. (The slope is
 	// measured a short step each way; the step is longer the bigger the waves are set, or it
 	// would be too short to measure at all.)
-	vec2 at = vec2(UV.x * across, UV.y - TIME * flow * 2.0);
-	float eps = (0.06 + far * 0.003) * 0.55 / max(wave_scale, 0.02);
+	// (in metres across the course, not by the mapping, which is not the same size out to sea)
+	vec2 at = vec2(v_metres.x, UV.y - TIME * flow * 2.0);
+	float eps = (0.06 + far * 0.003) * 0.55 / max(ripple_scale, 0.02);
 	float h0 = wave_h(at);
 	float slope_x = (wave_h(at + vec2(eps, 0.0)) - h0) / eps;
 	float slope_y = (wave_h(at + vec2(0.0, eps)) - h0) / eps;
@@ -280,15 +299,15 @@ void fragment() {
 	// Foam lies on the water in flat white patches with ragged edges, gathered into drifts
 	// with clear water between them, and a scatter of small flecks round about. (None far
 	// off, where they would only be specks, nor in the wake.)
-	vec2 fp = at * 0.16;
-	fp += (vec2(vnoise(fp * 1.7 + 5.0), vnoise(fp * 1.7 + 9.0)) - 0.5) * 1.6;
-	float drift = vnoise(at * 0.028 + 20.0);
-	float sheet = vnoise(fp) * 0.7 + vnoise(fp * 3.1 + 2.0) * 0.3;
+	// (cut from the foam picture, laid twice at two sizes so that it is not seen to repeat;
+	// a slow, smooth noise gathers it into drifts)
+	vec2 fuv = at * foam_scale / foam_size;
+	float sheet = texture(foam_texture, fuv).r * 0.65 + texture(foam_texture, fuv.yx * 2.63 + vec2(0.31, 0.17)).r * 0.35;
+	float drift = gnoise(at * 0.022 + 20.0);
 	// (more of it on the crests of the swell than in the troughs: it forms as a crest comes
 	// up under it, and thins away again as the crest goes by)
-	float lift = crest * crest_foam * 0.22;
-	float cap = step(mix(0.8, 0.6, whitecaps) - lift, sheet) * step(mix(0.78, 0.52, whitecaps) - lift, drift);
-	cap = max(cap, step(0.87, vnoise(at * 0.8 + 40.0)) * step(mix(0.72, 0.46, whitecaps), vnoise(at * 0.06 + 3.0)));
+	float lift = crest * crest_foam * 0.12;
+	float cap = step(mix(1.02, 0.6, whitecaps), sheet + (drift - 0.5) * 0.8 + lift);
 	cap *= (1.0 - fall) * step(0.001, whitecaps) * (1.0 - smoothstep(150.0, 340.0, far)) * (1.0 - wake_calm);
 	white = max(white, cap);
 	col = mix(col, foam_color.rgb, cap);
@@ -307,7 +326,7 @@ void fragment() {
 	// (far off the small waves are smaller than a pixel: they are smoothed away, or they would
 	// only be noise; foam is not shiny; and the wake has flattened them. The swell is none
 	// of those things: it is the shape of the water itself.)
-	float steepness = wave_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_calm);
+	float steepness = ripple_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_calm);
 	vec2 slope = vec2(slope_x, slope_y) * steepness + rise.yz * v_swell;
 	vec3 wavy = normalize(flat_normal - across_way * slope.x - along_way * slope.y);
 	// seen at a low angle water is a mirror, however clear it is seen from above

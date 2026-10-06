@@ -166,6 +166,11 @@ func _ready() -> void:
 	# set by its height, length and speed)
 	Track.water_overrides.erase("sparkle")
 	Track.water_overrides.erase("swell")
+	# (and ones that have changed their names, to match what the water lab calls them)
+	for renamed: Array in [["wave_height", "ripple_height"], ["wave_scale", "ripple_scale"], ["wave_choppy", "ripple_choppy"], ["wave_speed", "ripple_speed"], ["ripple", "colour_ripple"]]:
+		if Track.water_overrides.has(renamed[0]):
+			Track.water_overrides[renamed[1]] = Track.water_overrides[renamed[0]]
+			Track.water_overrides.erase(renamed[0])
 	Wake.life = Save.water.get("wake_life", Wake.LIFE)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
