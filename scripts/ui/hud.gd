@@ -16,6 +16,11 @@ var _pack: Label
 var _pack_icon: BeatFish
 var _popup: Label
 var _banner: Label
+# the corners of the screen, to be laid out afresh for the shape of it (see _layout)
+var _tl: Control
+var _tr: Control
+var _mid: Control
+var _beats: Control
 var _platinum: ShaderMaterial
 var _count: Label
 var _speed: Label
@@ -38,6 +43,7 @@ func _ready() -> void:
 
 	var tl := VBoxContainer.new()
 	tl.position = Vector2(28, 18)
+	_tl = tl
 	root.add_child(tl)
 	tl.add_child(UI.label("SCORE", 22, UI.TEAL, 6))
 	_score = UI.label("0", 52, Color.WHITE)
@@ -51,6 +57,7 @@ func _ready() -> void:
 	tr.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	# (the time, to the left of the pause button: see touch_controls.gd)
 	tr.position = Vector2(-350, 22)
+	_tr = tr
 	tr.alignment = BoxContainer.ALIGNMENT_BEGIN
 	root.add_child(tr)
 	_time = UI.label("0:00.00", 44, Color.WHITE)
@@ -78,6 +85,7 @@ func _ready() -> void:
 	# are swimming with you, which is the flow)
 	mid.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	mid.position = Vector2(28, 136)
+	_mid = mid
 	mid.custom_minimum_size = Vector2(420, 0)
 	mid.add_theme_constant_override("separation", 2)
 	mid.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -144,6 +152,7 @@ func _ready() -> void:
 	var beats := BeatFish.new()
 	beats.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	beats.position = Vector2(-224, -122)
+	_beats = beats
 	root.add_child(beats)
 
 
@@ -252,7 +261,37 @@ func set_flow(flow: int, frac: float) -> void:
 	_combo_bar.value = frac
 
 
+# A phone held upright shows the picture 1280 wide however narrow it is, so everything on it
+# is small: there the score, the pack, the tricks and the time are drawn nearly twice the
+# size, the time is kept clear of the pause button, and the bar across the top goes down
+# out of their way. (The pause button is the touch layer's: see touch_controls.gd.)
+func _layout() -> void:
+	var area := root.size
+	var tall := area.y > area.x
+	var k := 1.9 if tall else (1.25 if Save.is_mobile() else 1.0)
+	var pause := 1.7 if tall else 1.0
+	_tl.scale = Vector2(k, k)
+	# (the trick just done is the thing to notice: bigger again)
+	var km := k * (1.45 if tall else 1.2)
+	_mid.scale = Vector2(km, km)
+	_mid.position = Vector2(28.0, 18.0 + 118.0 * k)
+	_tr.scale = Vector2(k, k)
+	# (the time: its right-hand end a little short of the pause button, level with it)
+	var right_end := area.x - (58.0 + 30.0) * pause - 16.0
+	_tr.position = Vector2(right_end - 232.0 * k, 50.0 * pause - 28.0 * k)
+	var down := (118.0 * k + 112.0 * km) if tall else 0.0
+	_progress.position.y = 26.0 + down
+	_objective.position.y = 44.0 + down
+	_objective.scale = Vector2.ONE * (1.5 if tall else 1.0)
+	_objective.pivot_offset = Vector2(400.0, 0.0)
+	# (and the beat keepers, up clear of the thumbs and big enough to follow)
+	_beats.pivot_offset = Vector2(224.0, 110.0)
+	_beats.scale = Vector2.ONE * (1.7 if tall else 1.0)
+	_beats.position.y = area.y - (300.0 if tall else 122.0)
+
+
 func _process(delta: float) -> void:
+	_layout()
 	_trick_t -= delta
 	if _trick_t < 0.6:
 		_trick.modulate.a = clampf(_trick_t / 0.6, 0.0, 1.0)
@@ -287,7 +326,7 @@ func banner(text: String) -> void:
 	_banner.modulate.a = 1.0
 	_banner.position.y = -120.0
 	var drop := create_tween()
-	drop.tween_property(_banner, "position:y", 150.0, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	drop.tween_property(_banner, "position:y", 150.0 if root.size.x > root.size.y else 330.0, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	drop.tween_interval(2.2)
 	drop.tween_property(_banner, "position:y", -120.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	drop.tween_property(_banner, "modulate:a", 0.0, 0.05)

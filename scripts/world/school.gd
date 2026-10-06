@@ -429,7 +429,8 @@ func speaker() -> Node3D:
 	var best: Node3D = null
 	var near := INF
 	for f: Dictionary in _fish:
-		if int(f.n) >= active or not (f.node as Node3D).visible:
+		# (one ahead of the salmon: one behind it is too near the eye, and its bubble fills the screen)
+		if int(f.n) >= active or not (f.node as Node3D).visible or float(f.s) < player.s + 1.0:
 			continue
 		var d := absf(float(f.s) - player.s - 2.0) + absf(float(f.x) - player.x) * 0.5 + _rng.randf() * 4.0
 		if d < near:
