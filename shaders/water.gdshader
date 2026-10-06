@@ -1,8 +1,13 @@
 // Water, in a flat, painted style: matte colour, clear close to and solid far off, faint pale
 // lines wandering over it and drifts of flat white foam. Its colour goes from shallow to deep with how much
 // water there really is under each pixel, a rim of foam forms wherever something breaks the
-// surface (banks, rocks, ramps, the fish), patches of foam drift with the current, waterfalls
-// turn to white water, and the whole thing shimmers on the beat.
+// surface (banks, rocks, ramps, the fish), patches of foam drift with the current, and waterfalls
+// turn to white water.
+//
+// The waves are real: the mesh is fine enough (a few metres to a square) to be lifted into a
+// swell, a sum of four trains of waves of different lengths crossing one another, and the
+// light falls on the slope of that swell worked out at every pixel, so that it is smooth
+// however coarse the mesh. track.gd works out the same swell (swell_y) to float things on it.
 //
 // Every stage can set any of these from its entry in levels.gd: a key "water_<name>" sets the
 // uniform <name>.
@@ -11,13 +16,11 @@ render_mode cull_disabled, specular_schlick_ggx;
 
 #include "res://shaders/psx_common.gdshaderinc"
 
-global uniform float beat_pulse;
 
 group_uniforms colour;
 uniform vec4 deep : source_color = vec4(0.03, 0.30, 0.36, 1.0);
 uniform vec4 shallow : source_color = vec4(0.16, 0.70, 0.64, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.92, 1.0, 0.96, 1.0);
-uniform vec4 beat : source_color = vec4(0.25, 1.0, 0.8, 1.0);
 // Metres of water before it reaches its deep colour.
 uniform float depth_range = 5.0;
 // How solid the water looks where it is shallow and where it is deep (1 hides what is under it).
@@ -25,6 +28,9 @@ uniform float alpha_shallow : hint_range(0.0, 1.0) = 0.6;
 uniform float alpha_deep : hint_range(0.0, 1.0) = 0.93;
 // How much the surface colour varies in ripples.
 uniform float ripple : hint_range(0.0, 1.0) = 0.08;
+// Looked straight down into, water is paler than looked across: how much (0 is no
+// difference, 1 is as pale as the shallows).
+uniform float view_clear : hint_range(0.0, 1.0) = 0.35;
 
 group_uniforms foam;
 // Drifting patches of foam: 0 is none, 1 is a lot.
@@ -33,6 +39,8 @@ uniform float foam_amount : hint_range(0.0, 1.0) = 0.18;
 uniform float whitecaps : hint_range(0.0, 1.0) = 0.3;
 // Size of the patches (bigger number, smaller patches).
 uniform float foam_scale = 1.0;
+// How much more foam there is on the crests of the swell than in its troughs (0 is no more).
+uniform float crest_foam : hint_range(0.0, 1.0) = 0.5;
 // Extra foam along a river's banks and in rapids.
 uniform float edge_foam : hint_range(0.0, 1.0) = 0.35;
 uniform float rapid_foam : hint_range(0.0, 1.0) = 0.5;
@@ -42,10 +50,16 @@ uniform float rim_ragged : hint_range(0.0, 1.0) = 0.5;
 
 group_uniforms motion;
 uniform float flow = 0.6;
-// How big the waves are (open sea is rougher than a river).
+// The swell. How rough the stage's water is (open sea is rougher than a river: set from the
+// stage), then how high its biggest wave is for each 1 of that (metres), how long (metres:
+// rougher water has longer waves as well), and how fast it travels (1 is as real waves do).
 uniform float swell = 1.0;
-// How strongly the water lights up on the beat.
-uniform float sparkle : hint_range(0.0, 2.0) = 1.0;
+uniform float swell_height : hint_range(0.0, 1.0) = 0.18;
+uniform float swell_length : hint_range(2.0, 60.0) = 12.0;
+uniform float swell_speed : hint_range(0.0, 4.0) = 1.0;
+// Seconds since the stage was made (set every frame by track.gd, which keeps the same time
+// for its own copy of the swell).
+uniform float clock = 0.0;
 
 group_uniforms surface;
 // The surface is lit as real water is: a smooth, shiny skin of small waves that mirrors the
@@ -80,6 +94,11 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_dis
 varying vec3 v_world;
 
 varying float v_steep;
+// where this is on the water in metres (across from the middle, along), the world position
+// before the swell lifted it, and how much of the swell there is here (none far out to sea)
+varying vec2 v_metres;
+varying vec3 v_flat;
+varying float v_swell;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -124,11 +143,36 @@ float wave_h(vec2 p) {
 	return h;
 }
 
+// The swell at a point on the water (metres across, metres along): its height, and its slope
+// each way. Four trains of waves, each shorter and lower than the last and running its own
+// way; the long ones travel faster, as real waves do. (track.gd has the same sum: SWELLS.)
+vec3 swell_at(vec2 p) {
+	const vec4 trains[4] = vec4[4](
+			vec4(0.34, -0.94, 1.0, 1.0),
+			vec4(-0.78, -0.62, 0.62, 0.55),
+			vec4(0.97, 0.26, 0.37, 0.3),
+			vec4(-0.57, 0.82, 0.23, 0.16));
+	float long = swell_length * (0.4 + 0.6 * swell);
+	float high = swell_height * swell;
+	vec3 sum = vec3(0.0);
+	for (int i = 0; i < 4; i++) {
+		float k = 6.2831853 / (long * trains[i].z);
+		float phase = k * dot(trains[i].xy, p) - sqrt(9.8 * k) * swell_speed * clock + float(i) * 1.7;
+		float a = high * trains[i].w;
+		sum.x += a * sin(phase);
+		sum.yz += trains[i].xy * (a * k * cos(phase));
+	}
+	return sum;
+}
+
 void vertex() {
 	v_steep = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
+	v_metres = vec2(UV2.x, UV.y);
+	// (none on a waterfall, and none far out to sea, where the mesh is too coarse to bend)
+	v_swell = UV2.y * (1.0 - smoothstep(0.1, 0.4, v_steep));
+	v_flat = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	VERTEX.y += swell_at(v_metres).x * v_swell;
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float w = sin(UV.y * 0.45 - TIME * 4.0 + UV.x * 9.0) * 0.08 + sin(UV.y * 0.9 + TIME * 2.3) * 0.05;
-	VERTEX.y += w * swell * (1.0 - v_steep);
 	POSITION = psx_snap(PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0), VIEWPORT_SIZE);
 }
 
@@ -152,16 +196,22 @@ void fragment() {
 	float streak = step(0.45, vnoise(vec2(UV.x * 40.0, UV.y * 0.5 - TIME * 12.0 * sign(flow))));
 	float white = max(max(patches * 0.85, rim), fall * (0.55 + 0.45 * streak));
 
-	vec3 col = mix(shallow.rgb, deep.rgb, depth);
+	// The swell here: its height, and its slope each way.
+	vec3 rise = swell_at(v_metres);
+	float crest = clamp(rise.x / max(swell_height * swell * 1.4, 0.001), -1.0, 1.0) * v_swell;
+	vec3 to_eye = CAMERA_POSITION_WORLD - v_world;
+	float far = length(to_eye);
+	// looked straight down into, water is paler than looked across
+	float tone = depth * (1.0 - view_clear * clamp(to_eye.y / max(far, 0.001), 0.0, 1.0));
+	vec3 col = mix(shallow.rgb, deep.rgb, tone);
+	// (and a crest is a little paler than a trough)
+	col = mix(col, shallow.rgb, max(crest, 0.0) * 0.18);
 	col = mix(col, shallow.rgb, (n - 0.5) * ripple * (0.4 + 0.6 * depth));
 	col = mix(col, foam_color.rgb, white);
-	float band = step(0.9, fract(UV.y * 0.04 - TIME * 0.6));
 	// The shape of the surface: the slope of the small waves here, turned into a normal, so
 	// that the light and the sky are reflected off each one as off real water. (The slope is
 	// measured along the water's own two directions, across and along, which are found in
 	// the world from how they change over the screen.)
-	vec3 to_eye = CAMERA_POSITION_WORLD - v_world;
-	float far = length(to_eye);
 	vec2 at = vec2(UV.x * across, UV.y - TIME * flow * 2.0);
 	float eps = 0.06 + far * 0.003;
 	float h0 = wave_h(at);
@@ -212,7 +262,10 @@ void fragment() {
 	fp += (vec2(vnoise(fp * 1.7 + 5.0), vnoise(fp * 1.7 + 9.0)) - 0.5) * 1.6;
 	float drift = vnoise(at * 0.028 + 20.0);
 	float sheet = vnoise(fp) * 0.7 + vnoise(fp * 3.1 + 2.0) * 0.3;
-	float cap = step(mix(0.8, 0.6, whitecaps), sheet) * step(mix(0.78, 0.52, whitecaps), drift);
+	// (more of it on the crests of the swell than in the troughs: it forms as a crest comes
+	// up under it, and thins away again as the crest goes by)
+	float lift = crest * crest_foam * 0.22;
+	float cap = step(mix(0.8, 0.6, whitecaps) - lift, sheet) * step(mix(0.78, 0.52, whitecaps) - lift, drift);
 	cap = max(cap, step(0.87, vnoise(at * 0.8 + 40.0)) * step(mix(0.72, 0.46, whitecaps), vnoise(at * 0.06 + 3.0)));
 	cap *= (1.0 - fall) * step(0.001, whitecaps) * (1.0 - smoothstep(150.0, 340.0, far)) * (1.0 - wake_calm);
 	white = max(white, cap);
@@ -222,18 +275,23 @@ void fragment() {
 	float line = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(lp + vec2(0.0, TIME * 0.12)) - 0.5))) * lines * (1.0 - white)
 			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_calm);
 	col = mix(col, mix(col, foam_color.rgb, 0.35), line);
-	vec2 metres = vec2(UV.x * across, UV.y);
-	vec3 dp1 = dFdx(v_world);
-	vec3 dp2 = dFdy(v_world);
-	vec2 d1 = dFdx(metres);
-	vec2 d2 = dFdy(metres);
-	vec3 across_way = normalize(dp1 * d2.y - dp2 * d1.y + vec3(0.00001, 0.0, 0.0));
-	vec3 along_way = normalize(dp2 * d1.x - dp1 * d2.x + vec3(0.0, 0.0, 0.00001));
+	// The water's own two directions in the world, across and along, found from how the
+	// (unlifted) surface and its place in metres each change over the screen.
+	vec3 dp1 = dFdx(v_flat);
+	vec3 dp2 = dFdy(v_flat);
+	vec2 d1 = dFdx(v_metres);
+	vec2 d2 = dFdy(v_metres);
+	float det = d1.x * d2.y - d1.y * d2.x;
+	det = abs(det) < 0.0000001 ? 0.0000001 : det;
+	vec3 across_way = normalize((dp1 * d2.y - dp2 * d1.y) / det + vec3(0.00001, 0.0, 0.0));
+	vec3 along_way = normalize((dp2 * d1.x - dp1 * d2.x) / det + vec3(0.0, 0.0, 0.00001));
 	vec3 flat_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	// (far off the waves are smaller than a pixel: they are smoothed away, or they would
-	// only be noise; foam is not shiny; and the wake has flattened them)
+	// (far off the small waves are smaller than a pixel: they are smoothed away, or they would
+	// only be noise; foam is not shiny; and the wake has flattened them. The swell is none
+	// of those things: it is the shape of the water itself.)
 	float steepness = wave_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_calm);
-	vec3 wavy = normalize(flat_normal - (across_way * slope_x + along_way * slope_y) * steepness);
+	vec2 slope = vec2(slope_x, slope_y) * steepness + rise.yz * v_swell;
+	vec3 wavy = normalize(flat_normal - across_way * slope.x - along_way * slope.y);
 	// seen at a low angle water is a mirror, however clear it is seen from above
 	float fresnel = pow(1.0 - clamp(dot(wavy, to_eye / max(far, 0.001)), 0.0, 1.0), 5.0);
 	ALBEDO = col;
@@ -241,7 +299,7 @@ void fragment() {
 	ROUGHNESS = mix(roughness, 0.85, white);
 	SPECULAR = specular;
 	METALLIC = 0.0;
-	EMISSION = beat.rgb * beat_pulse * sparkle * (0.12 + 0.5 * band + 0.3 * patches) + foam_color.rgb * fall * 0.15;
+	EMISSION = foam_color.rgb * fall * 0.15;
 	// seen from underneath, the surface is a bright ceiling that hides the sky
 	if (!FRONT_FACING) {
 		ALBEDO = mix(shallow.rgb, vec3(1.0), 0.2 + 0.4 * white);

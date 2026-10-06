@@ -85,7 +85,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.7, 0.82, 0.96), "ambient_energy": 1.0,
 		"light": Color(1.0, 0.97, 0.9), "light_energy": 1.3,
 		"water_deep": Color(0.02, 0.14, 0.4), "water_shallow": Color(0.08, 0.4, 0.68),
-		"water_beat": Color(0.5, 0.85, 1.0), "swell": 3.0,
+		"swell": 3.0,
 		# deep blue water, and no bottom to be seen (a floor this deep is not drawn)
 		"floor": 160.0, "water_depth_range": 26.0, "water_alpha_deep": 1.0, "water_foam_amount": 0.14,
 		"murk": 0.035, "water_whitecaps": 0.45,
@@ -134,7 +134,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.62, 0.74, 0.8), "ambient_energy": 0.95,
 		"light": Color(1.0, 0.96, 0.88), "light_energy": 1.15,
 		"water_deep": Color(0.02, 0.15, 0.26), "water_shallow": Color(0.1, 0.42, 0.48),
-		"water_beat": Color(0.5, 1.0, 0.9), "swell": 2.0,
+		"swell": 2.0,
 		# clear enough to see the floor, some way down
 		"floor": 17.0, "water_depth_range": 16.0, "water_alpha_shallow": 0.35, "water_alpha_deep": 0.72, "water_foam_amount": 0.14,
 		"water_whitecaps": 0.38, "motes": Color(0.8, 1.0, 0.95),
@@ -179,7 +179,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.7, 0.62, 0.6), "ambient_energy": 0.8,
 		"light": Color(1.0, 0.88, 0.68), "light_energy": 1.25,
 		"water_deep": Color(0.04, 0.3, 0.42), "water_shallow": Color(0.3, 0.72, 0.68),
-		"water_beat": Color(1.0, 0.8, 0.4), "swell": 1.2,
+		"swell": 1.2,
 		"motes": Color(1.0, 0.9, 0.6),
 	},
 	{
@@ -223,7 +223,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.56, 0.68, 0.62), "ambient_energy": 0.85,
 		"light": Color(0.96, 1.0, 0.9), "light_energy": 1.0,
 		"water_deep": Color(0.04, 0.24, 0.26), "water_shallow": Color(0.3, 0.62, 0.54),
-		"water_beat": Color(0.25, 1.0, 0.8), "swell": 1.0,
+		"swell": 1.0,
 		"motes": Color(0.85, 1.0, 0.8),
 	},
 	{
@@ -277,7 +277,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.62, 0.72, 0.9), "ambient_energy": 0.85,
 		"light": Color(1.0, 0.98, 0.92), "light_energy": 1.3,
 		"water_deep": Color(0.05, 0.26, 0.42), "water_shallow": Color(0.5, 0.84, 0.88),
-		"water_beat": Color(0.6, 0.95, 1.0), "swell": 1.0,
+		"swell": 1.0,
 		"motes": Color(1.0, 1.0, 1.0),
 	},
 	{
@@ -324,7 +324,7 @@ const LIST: Array[Dictionary] = [
 			"sky_top": Color(0.12, 0.3, 0.75), "sky_horizon": Color(0.78, 0.9, 1.0),
 			"sky_bottom": Color(0.3, 0.4, 0.5), "sun": Color(1.0, 1.0, 0.9), "sun_dir": Vector3(-0.3, 0.4, -1.0),
 			"fog": Color(0.76, 0.86, 0.96), "ambient": Color(0.65, 0.74, 0.9), "light": Color(1.0, 0.98, 0.92),
-			"water_deep": Color(0.06, 0.24, 0.42), "water_shallow": Color(0.5, 0.8, 0.88), "water_beat": Color(0.6, 0.95, 1.0),
+			"water_deep": Color(0.06, 0.24, 0.42), "water_shallow": Color(0.5, 0.8, 0.88),
 			"motes": Color(1.0, 1.0, 1.0),
 		},
 		"sky_top": Color(0.14, 0.1, 0.36), "sky_horizon": Color(1.0, 0.62, 0.72),
@@ -333,7 +333,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.62, 0.55, 0.78), "ambient_energy": 0.8,
 		"light": Color(1.0, 0.82, 0.8), "light_energy": 1.15,
 		"water_deep": Color(0.08, 0.12, 0.36), "water_shallow": Color(0.5, 0.5, 0.82),
-		"water_beat": Color(1.0, 0.5, 0.8), "swell": 0.6,
+		"swell": 0.6,
 		"motes": Color(1.0, 0.8, 0.9),
 	},
 	# ---------------------------------------------------------------- the other ways home
@@ -366,7 +366,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.4, 0.66, 0.74), "ambient_energy": 0.9,
 		"light": Color(0.7, 0.95, 0.9), "light_energy": 0.95,
 		"water_deep": Color(0.01, 0.1, 0.16), "water_shallow": Color(0.1, 0.4, 0.44),
-		"water_beat": Color(0.3, 1.0, 0.7), "swell": 1.6,
+		"swell": 1.6,
 		"floor": 38.0, "water_depth_range": 22.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.2,
 		"water_whitecaps": 0.4, "motes": Color(0.9, 1.0, 1.0),
 	},
@@ -403,7 +403,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.42, 0.44, 0.62), "ambient_energy": 0.85,
 		"light": Color(1.0, 0.75, 0.55), "light_energy": 0.9,
 		"water_deep": Color(0.02, 0.06, 0.1), "water_shallow": Color(0.1, 0.25, 0.3),
-		"water_beat": Color(1.0, 0.7, 0.2), "swell": 0.8,
+		"swell": 0.8,
 		"motes": Color(1.0, 0.7, 0.3),
 	},
 	{
@@ -440,7 +440,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.66, 0.7, 0.78), "ambient_energy": 0.9,
 		"light": Color(0.95, 0.95, 0.92), "light_energy": 1.0,
 		"water_deep": Color(0.08, 0.24, 0.3), "water_shallow": Color(0.5, 0.7, 0.7),
-		"water_beat": Color(0.9, 0.9, 0.5), "swell": 1.0,
+		"swell": 1.0,
 		"motes": Color(0.9, 0.95, 1.0),
 	},
 	{
@@ -477,7 +477,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.6, 0.64, 0.7), "ambient_energy": 0.85,
 		"light": Color(1.0, 0.92, 0.82), "light_energy": 1.0,
 		"water_deep": Color(0.05, 0.17, 0.15), "water_shallow": Color(0.3, 0.5, 0.4),
-		"water_beat": Color(1.0, 0.6, 0.2), "swell": 0.6,
+		"swell": 0.6,
 		"motes": Color(0.9, 0.9, 0.8),
 	},
 	{
@@ -511,7 +511,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.3, 0.35, 0.7), "ambient_energy": 0.8,
 		"light": Color(0.5, 0.6, 1.0), "light_energy": 0.7,
 		"water_deep": Color(0.0, 0.01, 0.08), "water_shallow": Color(0.04, 0.1, 0.3),
-		"water_beat": Color(0.3, 1.0, 0.9), "swell": 2.5,
+		"swell": 2.5,
 		"floor": 90.0, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
 		"water_whitecaps": 0.4, "motes": Color(0.3, 1.0, 0.9),
 	},
@@ -551,7 +551,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.8, 0.78, 0.9), "ambient_energy": 0.9,
 		"light": Color(1.0, 0.9, 0.85), "light_energy": 1.25,
 		"water_deep": Color(0.05, 0.5, 0.6), "water_shallow": Color(0.45, 0.95, 0.85),
-		"water_beat": Color(1.0, 0.6, 0.8), "swell": 1.0,
+		"swell": 1.0,
 		# clear water over white sand a few metres down
 		"floor": 6.0, "water_depth_range": 9.0, "water_alpha_shallow": 0.3, "water_alpha_deep": 0.7, "water_foam_amount": 0.12,
 		"motes": Color(1.0, 0.8, 0.9),
@@ -592,7 +592,6 @@ const LIST: Array[Dictionary] = [
 		"spring": {
 			"leaf": Color(1.0, 0.72, 0.82), "leaf2": Color(1.0, 0.86, 0.9),
 			"peak": Color(0.94, 0.96, 1.0), "motes": Color(1.0, 0.75, 0.85),
-			"water_beat": Color(1.0, 0.7, 0.85),
 		},
 		"sky_top": Color(0.3, 0.46, 0.7), "sky_horizon": Color(0.96, 0.9, 0.84),
 		"sky_bottom": Color(0.3, 0.38, 0.34), "sun": Color(1.0, 0.92, 0.8), "sun_dir": Vector3(-0.3, 0.3, -1.0),
@@ -600,7 +599,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.66, 0.72, 0.72), "ambient_energy": 0.9,
 		"light": Color(1.0, 0.94, 0.84), "light_energy": 1.1,
 		"water_deep": Color(0.06, 0.26, 0.3), "water_shallow": Color(0.4, 0.74, 0.68),
-		"water_beat": Color(1.0, 0.6, 0.3), "swell": 1.0,
+		"swell": 1.0,
 		"motes": Color(1.0, 0.5, 0.2),
 	},
 	{
@@ -652,7 +651,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.72, 0.7, 0.66), "ambient_energy": 0.9,
 		"light": Color(1.0, 0.92, 0.74), "light_energy": 1.3,
 		"water_deep": Color(0.1, 0.24, 0.3), "water_shallow": Color(0.42, 0.6, 0.56),
-		"water_beat": Color(1.0, 0.85, 0.4), "swell": 0.8,
+		"swell": 0.8,
 		"motes": Color(1.0, 0.85, 0.4),
 	},
 	{
@@ -699,7 +698,7 @@ const LIST: Array[Dictionary] = [
 		"ambient": Color(0.7, 0.58, 0.6), "ambient_energy": 0.85,
 		"light": Color(1.0, 0.82, 0.62), "light_energy": 1.3,
 		"water_deep": Color(0.08, 0.3, 0.34), "water_shallow": Color(0.4, 0.7, 0.62),
-		"water_beat": Color(1.0, 0.7, 0.3), "swell": 0.7,
+		"swell": 0.7,
 		"motes": Color(1.0, 0.8, 0.5),
 	},
 	# ---------------------------------------------------------------- the Japan route's own harbor and endings
@@ -719,7 +718,7 @@ const LIST: Array[Dictionary] = [
 		"fog": Color(0.32, 0.14, 0.32), "ambient": Color(0.5, 0.42, 0.7),
 		"light": Color(1.0, 0.7, 0.9),
 		"water_deep": Color(0.04, 0.03, 0.12), "water_shallow": Color(0.26, 0.14, 0.36),
-		"water_beat": Color(1.0, 0.3, 0.7), "motes": Color(1.0, 0.5, 0.85),
+		"motes": Color(1.0, 0.5, 0.85),
 		"rock": Color(0.8, 0.25, 0.55), "rock_cap": Color(0.8, 0.25, 0.55),
 	},
 	{
@@ -748,7 +747,7 @@ const LIST: Array[Dictionary] = [
 			"sky_top": Color(0.12, 0.3, 0.75), "sky_horizon": Color(0.9, 0.86, 0.92),
 			"sky_bottom": Color(0.3, 0.4, 0.5), "sun": Color(1.0, 1.0, 0.9), "sun_dir": Vector3(-0.3, 0.4, -1.0),
 			"fog": Color(0.84, 0.84, 0.92), "ambient": Color(0.68, 0.72, 0.86), "light": Color(1.0, 0.97, 0.92),
-			"water_deep": Color(0.06, 0.24, 0.42), "water_shallow": Color(0.5, 0.8, 0.88), "water_beat": Color(1.0, 0.7, 0.85),
+			"water_deep": Color(0.06, 0.24, 0.42), "water_shallow": Color(0.5, 0.8, 0.88),
 		},
 	},
 	{

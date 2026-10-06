@@ -114,7 +114,7 @@ func _process(delta: float) -> void:
 	# it stays clear of the surface: well above it, or (dived) well below, never in it
 	var surface := track.water_y(cam_s)
 	if under < 0.5:
-		_pos.y = maxf(_pos.y, surface + 0.8)
+		_pos.y = maxf(_pos.y, surface + 0.8 + track.swell_top())
 	submerged = clampf((surface - _pos.y) / 0.3, 0.0, 1.0)
 	_look = _look.lerp(look, 1.0 - exp(-dt * 10.0))
 	var jitter := Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake * 0.35

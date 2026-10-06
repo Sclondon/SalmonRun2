@@ -69,7 +69,8 @@ var mat_water: ShaderMaterial
 static var water_overrides := {}
 ## Every setting the lab can change (cleared before a stage's own are applied).
 const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "ripple",
-		"roughness", "specular", "wave_height", "wave_scale", "wave_choppy", "wave_speed", "lines", "sparkle",
+		"roughness", "specular", "wave_height", "wave_scale", "wave_choppy", "wave_speed", "lines", "view_clear",
+		"swell_height", "swell_length", "swell_speed", "crest_foam",
 		"whitecaps", "foam_amount", "foam_scale", "edge_foam", "rim_width", "rim_ragged", "wake_spread", "wake_width"]
 
 var _rng := RandomNumberGenerator.new()
@@ -123,13 +124,23 @@ func apply_water() -> void:
 		if key.begins_with("water_"):
 			mat_water.set_shader_parameter(key.trim_prefix("water_"), cfg[key])
 	mat_water.set_shader_parameter("swell", cfg.swell)
-	# (how many metres the water's mapping runs across: see _water_strip)
+	# (how many metres the water's mapping runs across: see _water_mesh)
 	mat_water.set_shader_parameter("across", 26.8 if float(cfg.width) > 40.0 else float(cfg.width) + 1.6)
 	# upstream, the river runs towards you
 	mat_water.set_shader_parameter("flow", -0.6 if uphill() else 0.6)
 	for key: String in water_overrides:
 		if key != "wake_life":
 			mat_water.set_shader_parameter(key, water_overrides[key])
+	# the same swell here as the shader has, for whatever floats on it (see swell_y)
+	var rough := float(_water_value("swell", cfg.swell))
+	_swell_high = float(_water_value("swell_height", SWELL_HEIGHT)) * rough
+	_swell_long = maxf(float(_water_value("swell_length", SWELL_LENGTH)) * (0.4 + 0.6 * rough), 0.5)
+	_swell_speed = float(_water_value("swell_speed", 1.0))
+
+
+func _water_value(key: String, otherwise: Variant) -> Variant:
+	var value: Variant = mat_water.get_shader_parameter(key)
+	return otherwise if value == null else value
 
 
 # ================================================================== queries
@@ -183,35 +194,44 @@ func point(s: float, x: float, y: float) -> Vector3:
 	return c
 
 
-## Where a point of the course is across the water's mapping (UV.x): see _water_strip.
+## Where a point of the course is across the water's mapping (UV.x): see _water_mesh.
 func water_u(s: float, x: float) -> float:
 	if float(cfg.width) > 40.0:
 		return 0.5 + x / 26.8
 	return 0.5 + x / (width(s) + 1.6)
 
 
-## How far the swell has lifted the water at (s, x) just now: the same wave the water shader
-## gives the surface (it moves the corners of the water mesh, and the mesh is flat between
-## them, so this does the same).
+## The swell: four trains of waves crossing one another, each (which way it runs across and
+## along, how long it is beside the longest, and how high beside the highest). The water
+## shader has the same four (swell_at in shaders/water.gdshader) and lifts the water's mesh
+## by them; this is for whatever floats on it.
+const SWELLS := [[0.34, -0.94, 1.0, 1.0], [-0.78, -0.62, 0.62, 0.55], [0.97, 0.26, 0.37, 0.3], [-0.57, 0.82, 0.23, 0.16]]
+## What the shader's swell uniforms are when nothing sets them.
+const SWELL_HEIGHT := 0.18
+const SWELL_LENGTH := 12.0
+
+## Seconds since the stage was made: the swell's clock (the shader is sent it every frame).
+var clock := 0.0
+var _swell_high := 0.0
+var _swell_long := 12.0
+var _swell_speed := 1.0
+
+
+## How far the swell has lifted the water at (s, x) just now.
 func swell_y(s: float, x: float) -> float:
-	var swell: float = cfg.swell
-	var wide := float(cfg.width) > 40.0
-	var now := Time.get_ticks_msec() / 1000.0
-	var i := int(_fi(s))
-	var along := _fi(s) - i
-	var rows: Array[float] = [0.0, 0.0]
-	for r in 2:
-		var rs := (i + r) * STEP
-		var half := width(rs) * 0.5 + 0.8
-		var repeat := (half * 2.0 / 26.8) if wide else 1.0
-		var across := clampf((x / half + 1.0) * 2.0, 0.0, 3.999)
-		var j := int(across)
-		var corners: Array[float] = [0.0, 0.0]
-		for c in 2:
-			var u := 0.5 + float(BED_X[j + c]) * 0.5 * repeat
-			corners[c] = sin(rs * 0.45 - now * 4.0 + u * 9.0) * 0.08 + sin(rs * 0.9 + now * 2.3) * 0.05
-		rows[r] = lerpf(corners[0], corners[1], across - j)
-	return lerpf(rows[0], rows[1], along) * swell
+	if _swell_high <= 0.0:
+		return 0.0
+	var h := 0.0
+	for i in SWELLS.size():
+		var w: Array = SWELLS[i]
+		var k := TAU / (_swell_long * float(w[2]))
+		h += _swell_high * float(w[3]) * sin(k * (float(w[0]) * x + float(w[1]) * s) - sqrt(9.8 * k) * _swell_speed * clock + i * 1.7)
+	return h
+
+
+## The highest the swell ever lifts the water (metres).
+func swell_top() -> float:
+	return _swell_high * 2.01
 
 
 func surface_y(s: float, x: float) -> float:
@@ -315,7 +335,10 @@ func reset_rings() -> void:
 		(r.node as Node3D).visible = true
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	clock += delta
+	if mat_water:
+		mat_water.set_shader_parameter("clock", clock)
 	if _ring_root == null:
 		return
 	var pulse := Music.beat_pulse()
@@ -792,13 +815,13 @@ func _build_chunks() -> void:
 		var i0 := c * CHUNK
 		var i1 := mini(i0 + CHUNK, n - 1)
 		var ground := MB.new()
-		var water := MB.new()
 		for i in range(i0, i1):
 			_ground_strip(ground, i)
-			_water_strip(water, i)
 		if not ground.is_empty():
 			_add_mesh(ground.build(), mat_world)
-		var wm := _add_mesh(water.build(), mat_water)
+		var wm := _add_mesh(_water_mesh(i0, i1), mat_water)
+		# (the swell lifts it out of the box it was made in)
+		wm.extra_cull_margin = 4.0
 		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
@@ -896,47 +919,86 @@ func _ground_strip(mb: MB, i: int) -> void:
 			mb.quad(a, b, c, d, Props.vary(base, _rng, 0.04), bank_hint)
 
 
-func _water_strip(mb: MB, i: int) -> void:
-	var sa := i * STEP
-	var sb := (i + 1) * STEP
-	var hint := Vector3.UP + forward(sa) * 0.6
-	var ha := width(sa) * 0.5 + 0.8
-	var hb := width(sb) * 0.5 + 0.8
+## The water of one chunk of the course: a mesh fine enough (a few metres to a square) for
+## the shader to lift into a swell. Each strip along the course has corners of its own, so
+## that a waterfall's face is square to the water above and below it; across, they are shared.
+## Besides the usual mapping (see water_u) each corner carries where it is in metres across
+## the course, and how much of the swell it gets (UV2): none far out to sea, where the mesh
+## is coarse.
+func _water_mesh(i0: int, i1: int) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colours := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
+	var indices := PackedInt32Array()
 	# A river's water is mapped bank to bank, with foam along its edges. Open water far wider
 	# than a river keeps the same size of ripple (so the mapping repeats) and has no edges.
 	var wide := float(cfg.width) > 40.0
-	var repeat := (ha * 2.0 / 26.8) if wide else 1.0
-	var ca := Color(_rapid_amount(sa), 1.0 if wide else 0.0, 0.0)
-	for j in 4:
-		var xa0: float = BED_X[j]
-		var xa1: float = BED_X[j + 1]
-		var a := point(sa, xa0 * ha, water_y(sa))
-		var b := point(sa, xa1 * ha, water_y(sa))
-		var c := point(sb, xa1 * hb, water_y(sb))
-		var d := point(sb, xa0 * hb, water_y(sb))
-		var u0 := 0.5 + xa0 * 0.5 * repeat
-		var u1 := 0.5 + xa1 * 0.5 * repeat
-		mb.quad(a, b, c, d, ca, hint, Vector2(u0, sa), Vector2(u1, sa), Vector2(u1, sb), Vector2(u0, sb))
-	if not cfg.has("sea_from"):
-		return
-	# open water beyond the course (green vertex colour = no foam along its edges)
-	var open := Color(0.0, 1.0, 0.0)
-	var d0: float = cfg.sea_from
-	var d1: float = cfg.get("sea_to", 170.0)
-	for side: float in [-1.0, 1.0]:
-		var prev := d0
-		# (not over the land, where there is a shore)
-		if cfg.has("shore") and not is_sea_side(side):
-			continue
-		for dist: float in [minf(d0 + 30.0, d1), d1]:
-			var a := point(sa, side * (width(sa) * 0.5 + prev), water_y(sa))
-			var b := point(sa, side * (width(sa) * 0.5 + dist), water_y(sa))
-			var c := point(sb, side * (width(sb) * 0.5 + dist), water_y(sb))
-			var d := point(sb, side * (width(sb) * 0.5 + prev), water_y(sb))
-			var ua := 0.5 + side * (0.5 * repeat + prev * 0.04)
-			var ub := 0.5 + side * (0.5 * repeat + dist * 0.04)
-			mb.quad(a, b, c, d, open, hint, Vector2(ua, sa), Vector2(ub, sa), Vector2(ub, sb), Vector2(ua, sb))
-			prev = dist
+	var cols := clampi(ceili((float(cfg.width) + 1.6) / 3.5), 6, 48)
+	# open water beyond the course, each side that has no shore: two more columns, the far
+	# one very wide (green vertex colour = no foam along its edges)
+	var skirts: Array[float] = []
+	if cfg.has("sea_from"):
+		var d0: float = cfg.sea_from
+		var d1: float = cfg.get("sea_to", 170.0)
+		skirts = [d0, minf(d0 + 30.0, d1), d1]
+	for i in range(i0, i1):
+		var first := verts.size()
+		var row := 0
+		for end in 2:
+			var s := (i + end) * STEP
+			var half := width(s) * 0.5 + 0.8
+			var repeat := (half * 2.0 / 26.8) if wide else 1.0
+			var colour := Color(_rapid_amount(i * STEP), 1.0 if wide else 0.0, 0.0)
+			var across: Array = []   # [x, u, swell, colour]
+			for side: float in [-1.0, 1.0]:
+				# (the open water on the left, from far out inwards; then the course's own
+				# water; then the open water on the right)
+				var sea := not skirts.is_empty() and not (cfg.has("shore") and not is_sea_side(side))
+				if side > 0.0:
+					for j in cols + 1:
+						var f := -1.0 + 2.0 * j / cols
+						across.append([f * half, 0.5 + f * 0.5 * repeat, 1.0, colour])
+				if sea:
+					for k in skirts.size():
+						var dist: float = skirts[k] if side > 0.0 else skirts[skirts.size() - 1 - k]
+						across.append([side * (width(s) * 0.5 + dist), 0.5 + side * (0.5 * repeat + dist * 0.04), 1.0 if dist == skirts[0] else 0.0, Color(0.0, 1.0, 0.0)])
+			row = across.size()
+			for v: Array in across:
+				verts.append(point(s, float(v[0]), water_y(s)))
+				uvs.append(Vector2(float(v[1]), s))
+				uv2s.append(Vector2(float(v[0]), float(v[2])))
+				colours.append(v[3])
+		# the strip's face: square to its slope (upright on a waterfall)
+		var along := point((i + 1) * STEP, 0.0, water_y((i + 1) * STEP)) - point(i * STEP, 0.0, water_y(i * STEP))
+		var face := along.cross(right(i * STEP)).normalized()
+		if face.y < 0.0:
+			face = -face
+		for k in row * 2:
+			normals.append(face)
+		for j in row - 1:
+			var a := first + j
+			var b := a + 1
+			var c := first + row + j + 1
+			var d := first + row + j
+			# (Godot's front faces are the clockwise ones: seen from above, these are)
+			var raw := (verts[b] - verts[a]).cross(verts[c] - verts[a])
+			if raw.dot(face) > 0.0:
+				indices.append_array(PackedInt32Array([a, c, b, a, d, c]))
+			else:
+				indices.append_array(PackedInt32Array([a, b, c, a, c, d]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 # ================================================================== features

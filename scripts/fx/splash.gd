@@ -116,7 +116,7 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		p.initial_velocity_max = float(BURSTS[i][4]) * sqrt(strength)
 		p.restart()
 		p.emitting = true
-	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + 0.03))
+	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + track.swell_y(s, x) + 0.03))
 	visible = true
 	set_process(true)
 

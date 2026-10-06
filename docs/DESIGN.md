@@ -224,6 +224,16 @@ on its own along a trail of its own, whatever is on the surface above it
   under each pixel, a rim of foam forms wherever something breaks the surface (banks, rocks,
   ramps, the fish), and patches of foam drift with the current. Every stage can set any of
   its controls (`water_*` in `levels.gd`: foam amount, depth range, rim width and so on).
+- **The swell is real.** The water's mesh is a few metres to a square and the shader lifts it
+  into waves: four trains of different lengths crossing one another, the long ones travelling
+  faster, as real waves do. A stage's `swell` says how rough its water is (higher and longer
+  waves on the open sea than on a river); `water_swell_height`, `water_swell_length` and
+  `water_swell_speed` shape it. The light falls on the slope worked out at every pixel, so
+  the surface is smooth however coarse the mesh. Foam gathers on the crests
+  (`water_crest_foam`), and the water is paler looked down into than looked across
+  (`water_view_clear`). `Track.swell_y()` works out the same waves, and the salmon, the
+  other salmon, the wake and the splashes ride them. Nothing flashes on the beat: the water
+  and the light are steady.
 - **Open sea** stages have a floor of rolling hills below (`floor`) instead of a river bed:
   in sight in the Shallow Sea and the Coral Reef, and not drawn at all under the Open Ocean.
   From underneath, the surface is a bright ceiling that hides the sky.

@@ -24,18 +24,23 @@ const ROWS := [
 	["alpha_shallow", "CLEAR WHEN SHALLOW", 0.0, 1.0],
 	["alpha_deep", "SOLID WHEN DEEP", 0.0, 1.0],
 	["ripple", "COLOUR RIPPLE", 0.0, 1.0],
+	["view_clear", "PALER LOOKING DOWN", 0.0, 1.0],
 	"SURFACE",
 	["roughness", "ROUGHNESS", 0.0, 1.0],
 	["specular", "SPECULAR", 0.0, 1.0],
-	["wave_height", "WAVE HEIGHT", 0.0, 2.0],
-	["wave_scale", "WAVE FINENESS", 0.1, 3.0],
-	["wave_choppy", "WAVE PEAKS", 0.5, 5.0],
-	["wave_speed", "WAVE SPEED", 0.0, 3.0],
-	["swell", "SWELL", 0.0, 6.0],
+	["wave_height", "RIPPLE HEIGHT", 0.0, 2.0],
+	["wave_scale", "RIPPLE FINENESS", 0.1, 3.0],
+	["wave_choppy", "RIPPLE PEAKS", 0.5, 5.0],
+	["wave_speed", "RIPPLE SPEED", 0.0, 3.0],
+	"SWELL (THE BIG WAVES)",
+	["swell_height", "SWELL HEIGHT (M)", 0.0, 1.0],
+	["swell_length", "SWELL LENGTH (M)", 2.0, 60.0],
+	["swell_speed", "SWELL SPEED", 0.0, 4.0],
+	"LOOK",
 	["lines", "PALE LINES", 0.0, 1.0],
-	["sparkle", "BEAT SHIMMER", 0.0, 2.0],
 	"FOAM",
 	["whitecaps", "WHITECAPS", 0.0, 1.0],
+	["crest_foam", "FOAM ON CRESTS", 0.0, 1.0],
 	["foam_amount", "DRIFTING FOAM", 0.0, 1.0],
 	["foam_scale", "FOAM FINENESS", 0.2, 4.0],
 	["edge_foam", "BANK FOAM", 0.0, 1.0],
@@ -242,7 +247,8 @@ func _change(key: String, value: Variant) -> void:
 	if key == "wake_life":
 		Wake.life = value
 	else:
-		track.mat_water.set_shader_parameter(key, value)
+		# (through the stage, so that what floats on the swell keeps to the same swell)
+		track.apply_water()
 	if _values.has(key):
 		(_values[key] as Label).text = "%.2f" % float(value)
 	_note.text = "%d CHANGED FROM THE STAGE'S OWN. KEPT, AND USED ON EVERY STAGE, UNTIL RESET." % Track.water_overrides.size()

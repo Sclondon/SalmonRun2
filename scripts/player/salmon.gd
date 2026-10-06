@@ -981,6 +981,8 @@ func _update_visual(dt: float) -> void:
 	_fish.scale = _base_scale * Vector3(1.0 - 0.45 * _stretch, 1.0 - 0.45 * _stretch, 1.0 + _stretch)
 	if state == State.SWIM:
 		pos.y += minf(_stretch, 0.0) * 0.9
+	# it floats on the swell: all of it at the surface, none of it dived or well up in the air
+	pos.y += track.swell_y(s, x) * (1.0 - smoothstep(0.0, 1.0, dive)) * (1.0 - smoothstep(0.0, 2.5, y - track.water_y(s)))
 	transform = Transform3D(b.orthonormalized(), pos)
 	# The body follows its pose on springs too, so the tail lags the turn and swings past
 	# when it stops.

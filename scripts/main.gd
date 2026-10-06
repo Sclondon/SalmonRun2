@@ -162,6 +162,10 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# what was set by hand in the water lab last time
 	Track.water_overrides = Save.water
+	# (settings the water no longer has: the beat shimmer, and the old swell, which is now
+	# set by its height, length and speed)
+	Track.water_overrides.erase("sparkle")
+	Track.water_overrides.erase("swell")
 	Wake.life = Save.water.get("wake_life", Wake.LIFE)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):

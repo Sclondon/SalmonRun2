@@ -128,7 +128,9 @@ func _process(delta: float) -> void:
 		var b := track.basis_at(s) * Basis(Vector3.UP, -atan2(vx, Salmon.CRUISE) * 1.3) \
 				* Basis(Vector3.RIGHT, atan2(vy, Salmon.CRUISE) * 0.8 if air else sin(_t * 5.0 + float(f.phase)) * 0.05)
 		var node: MeshInstance3D = f.node
-		node.transform = Transform3D(b.scaled(Vector3.ONE * float(f.size)), track.point(s, x, y - (0.0 if air else 0.1)))
+		# (on the swell, like the player)
+		var lift := track.swell_y(s, x) * (1.0 - smoothstep(0.0, 2.5, y - track.water_y(s)))
+		node.transform = Transform3D(b.scaled(Vector3.ONE * float(f.size)), track.point(s, x, y + lift - (0.0 if air else 0.1)))
 		var mat: ShaderMaterial = f.mat
 		mat.set_shader_parameter("wag_phase", _t * (6.0 if air else 18.0) + float(f.phase))
 		mat.set_shader_parameter("wag_amp", 0.08 if air else 0.12)

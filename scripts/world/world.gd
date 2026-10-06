@@ -240,9 +240,10 @@ func _make_fireflies() -> void:
 
 
 func _process(_delta: float) -> void:
-	var pulse := Music.beat_pulse()
-	sun.light_energy = _light_energy + pulse * 0.12
-	env.glow_intensity = 0.9 + pulse * 0.5
+	# (the light is steady: flashing it on the beat made the water shimmer, which is hard on
+	# the eyes)
+	sun.light_energy = _light_energy
+	env.glow_intensity = 0.9
 	if camera:
 		_fireflies.global_position = camera.global_position + track.forward(player.s) * 25.0
 		# dived: bubbles and specks in the water ahead, kept under the surface
