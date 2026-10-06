@@ -54,18 +54,41 @@ Two routes, **North America** and **Japan**. They share the first three steps an
 step 4. Each has a fish farm as a short, easy early ending and a home lake at the end of the
 full run.
 
-**The stages are being joined up into one piece of water** (in hand: only the first step is
-built). The way on is chosen on the water, not on a screen: a stage whose way divides, and
-which has a `"divider"` in `levels.gd` (so far only the Open Ocean, a cruise ship), has a
-fork near its end. The divider lies along the middle of the course for its last 130 m; the
-left of it is the default way on and the right is the advanced. A boom of red buoys runs
-from the right-hand edge of the water to the bow and shuts the right-hand way, with a sign
-over it saying what the goal is, for as long as the goal is not met; it opens the moment it
-is, and shuts again if a goal is lost (few wipeouts). The side the salmon passes the bow on
-is the way it goes, and the results then offer only that way. (`Track.fork`, `fork_keep()`,
-`set_fork_open()`; `main._watch_fork()`.) A stage with no divider still asks on the globe.
-Still to come: the results over the water with the salmon swimming on by itself, the next
-stage made as you go and joined on without a break, and dividers for the other stages.
+**The stages are joined up into one run of water.** A run is not a string of separate
+screens: the salmon never leaves the water between one stage and the next.
+
+- **After the finish the salmon swims on by itself**, down a long run-out of plain water that
+  every stage has beyond its finish (`Track.RUN_OUT`, 520 m), at its ease, while the results
+  are read over the picture. CONTINUE lets the globe down from above the screen (just the
+  globe, with nothing round it), which draws the way to the next stage, with the ways not
+  taken greyed out and dashed (shut ones marked LOCKED), while that stage is made out of
+  sight (`World.make_next`). When the globe has got there the salmon is on the new stage
+  (`World.take_next`): the old one is gone, the sky, the haze and the light turn to the new
+  one's over a moment, the globe goes back up, and the stage is under way at once, with no
+  countdown. (`main._coast`, `_travel_on`, `_arrive`.) The way back down is joined up the
+  same way; the cutscenes between the way up and the way down, and at the end, are as they
+  were. PRACTICE and the tester's stage picker still go straight to a stage.
+- **The way on is chosen on the water**, at a fork near the end of every stage whose way
+  divides (`Track._plan_fork`). Something lies along the course there and divides it into as
+  many ways as there are: the left-hand one is the default, the others the advanced. At sea,
+  where there is room, it is a cruise ship as big as a real one (some 320 m by 48 m); in a
+  river, an island; a stage with three ways on has two of them. A boom of red buoys runs
+  from the right-hand edge of the water to the first bow and shuts every way but the
+  left-hand one, with a sign over each saying what the goal is, for as long as the goal is
+  not met; it opens the moment it is, and shuts again if a goal is lost (few wipeouts). The
+  side the salmon passes the bow on is the way it goes.
+- **The abyss is a special case.** On the Open Ocean the ship only lies in the course: the
+  way on (Shallow Sea) is past it on either side, and the advanced way (Ocean Trench) is
+  *down*: a giant current, 9 m across the radius, that begins a dive under the surface to
+  the right of the ship and goes down six layers. It is only there once the goal is met.
+  Dive into it and it carries the salmon down, through the finish, and on into the trench.
+- **The Ocean Trench is swum all under the water** (`"submerged"` in `levels.gd`): six
+  layers deep, nothing on its surface, no coming up and no jumping, until a current near
+  its end climbs back to the surface and throws the salmon out, ahead of its own fork.
+
+Not done yet: the next stage is made in one go (about a third of a second on a desktop,
+longer on a phone: a hitch while the globe is coming down), and the new stage's banks and
+scenery are simply there when the salmon arrives, not grown out of the old one's.
 
 Each stage names the stages it leads to. The **first is the default** way on. The others are
 **advanced** ways, opened by meeting that stage's goal; otherwise they are shown locked.
@@ -130,7 +153,7 @@ are 16 to 21 m between their banks.
 |---|---|---|---|---|
 | Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
 | Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
-| Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, three layers to dive | shark | currents, boost rings and sea nettles below |
+| Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Open Ocean, left by a current back to the surface; currents, boost rings and sea nettles |
 | Coastline | golden-hour sea, 70 m wide, with the beach and palms along one side only and open water on the other | barely climbs | shark | |
 | The Harbor | quays, cranes, sodium light | barely climbs | shark | |
 | Coral Reef | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |

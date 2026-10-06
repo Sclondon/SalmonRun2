@@ -29,6 +29,8 @@ var anchor := Vector2(0.5, 0.5)
 var radius := 0.36
 ## Pin every stage (the practice map) rather than only the ones the journey touches.
 var show_all := false
+## Draws the space round the globe (the travel inset has none: just the globe).
+var backdrop := true
 ## Pins, names and lines are drawn this many times bigger (a tall phone screen shows the UI
 ## small, so they need it).
 var ui_scale := 1.0
@@ -139,6 +141,7 @@ func _draw() -> void:
 	_mat.set_shader_parameter("rect_size", size)
 	_mat.set_shader_parameter("center", c)
 	_mat.set_shader_parameter("globe_radius", r)
+	_mat.set_shader_parameter("backdrop", 1.0 if backdrop else 0.0)
 	# where every stage is on screen (those round the back are left out)
 	_pins.clear()
 	for id in Levels.LIST.size():

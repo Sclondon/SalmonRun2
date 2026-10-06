@@ -60,9 +60,9 @@ const LIST: Array[Dictionary] = [
 		# under the sea, laid out on its own: currents to ride (one in three launches you), trails
 		# of rings, runs of boost rings and drifts of sea nettles
 		"deep": ["currents", "rings", "jellies", "surge", "currents", "rings", "launch", "jellies"],
-		# the way on divides round a cruise ship lying in the course near the end: left for the
-		# default, right for the advanced (shut by a boom of buoys until the goal is met)
-		"divider": "cruise_ship",
+		# a cruise ship lies in the course near the end. The way on is past it, along the surface;
+		# the advanced way is down: a giant current to the right of the ship, there once the goal is met
+		"divider": "abyss",
 		# the deepest water there is: six layers under the surface
 		"layers": 6, "layer_depth": 3.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
@@ -484,13 +484,17 @@ const LIST: Array[Dictionary] = [
 	{
 		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
 		"next": ["CORAL REEF", "ARCTIC WATERS"],
-		"objective": {"type": "on_beat", "n": 5},
+		"objective": {"type": "rings", "n": 10},
 		"tagline": "NOTHING BUT DARK WATER AND LIVING LIGHT",
 		"fact": "SALMON ARE THOUGHT TO FIND THEIR WAY ACROSS OPEN OCEAN BY THE EARTH'S MAGNETIC FIELD.",
 		"seed": 5313, "length": 2800.0,
 		"width": 110.0, "slope": 0.0, "curve": 0.4, "spacing": 1.5,
-		"layers": 3, "layer_depth": 3.6,
-		"deep": ["jellies", "currents", "rings", "surge", "jellies", "currents", "rings", "launch"],
+		# The abyss: the whole of it is swum under the water. It is come into down a giant current
+		# from the open ocean, six layers deep, and left by a current that climbs back to the
+		# surface near its end.
+		"submerged": true,
+		"layers": 6, "layer_depth": 3.6,
+		"deep": ["currents", "rings", "jellies", "surge", "rings", "currents", "jellies", "surge"],
 		"kinds": ["rings", "rocks", "predators", "ramps", "rails", "rings"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],

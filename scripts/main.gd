@@ -110,7 +110,9 @@ var _coast_t := 0.0
 var _link_to := -1
 var _link_down := false
 var _link_shown := 0.0
-const LINK_SECONDS := 3.2
+const LINK_SECONDS := 3.8
+# (how far down the globe has come: 0 is up out of sight, 1 is in its place)
+var _link_drop := 0.0
 var _link: Control
 var _link_globe: Globe
 var _link_name: Label
@@ -505,7 +507,7 @@ func _finish() -> void:
 
 func _show_results() -> void:
 	# shorter levels have less to score on, so rank against a full-length course
-	var rank := Score.rank_for(int(score.score * 3400.0 / world.track.length))
+	var rank := Score.rank_for(int(score.score * 3400.0 / world.track.course))
 	var new_best := _autotest_dir == "" and Save.submit_score(_key(), score.score, rank)
 	# Hand the score to the hosting page (the Scareathon arcade cabinet) for its leaderboard
 	if OS.has_feature("web"):
@@ -847,15 +849,14 @@ func _process(delta: float) -> void:
 func _coast(delta: float) -> void:
 	var p := world.player
 	_coast_t += delta
-	if world.has_next():
-		p.pace = 1.0
-		if p.s >= world.end_s() and _link_shown >= LINK_SECONDS:
+	var room := world.end_s() - 30.0 - p.s
+	if phase == Phase.TRAVEL:
+		# on its way: at speed, and on to the next stage the moment the globe gets there
+		p.pace = 1.0 if room > 0.0 else 0.0
+		if world.has_next() and _link_shown >= LINK_SECONDS:
 			_arrive()
-		elif p.s > world.end_s() - 30.0 and _link_shown < LINK_SECONDS:
-			# (held just short of the join until the globe has had its say)
-			p.pace = 0.0
 		return
-	var room := world.end_s() - 40.0 - p.s
+	# the results are up: at its ease, down the run-out (and to rest before that runs out)
 	p.pace = 0.0 if room < 0.0 else (1.0 if _coast_t < 2.5 else minf(0.3, room / 60.0))
 
 
@@ -880,19 +881,21 @@ func _travel_on(next: int, next_down: bool) -> void:
 				others.append(way)
 	_link_globe.passed = others
 	_link_globe.look_at_stage(_level)
-	_link_globe.show_path(done, _level, next, 2.4)
-	_link_name.text = "TO %s" % Levels.LIST[next].name
+	_link_globe.show_path(done, -1, _level)
+	_link_name.text = ""
+
 	_show(_link)
 	# (a frame for the globe to come up in, then the stage is made: that takes a moment)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	# a fork leads off to the side that was taken
-	var turn := 0.0
-	var ways := Levels.next_of(_level)
-	if not _down and ways.size() > 1:
-		var wide: bool = float(world.track.cfg.width) > 40.0
-		turn = (0.3 if wide else 0.14) * (-1.0 if ways.find(next) == 0 else 1.0)
-	world.make_next(next, next_down, 0.0, turn)
+	# the next stage is made (that takes a moment), and once the globe has come down the way
+	# there is drawn on it
+	world.make_next(next, next_down)
+	await get_tree().create_timer(0.75).timeout
+	if phase != Phase.TRAVEL:
+		return
+	_link_globe.show_path(done, _level, next, 2.4)
+	_link_name.text = "TO %s" % Levels.LIST[next].name
 
 
 ## The salmon has swum on to the next stage: the run goes on from there.
@@ -905,6 +908,8 @@ func _arrive() -> void:
 	Save.down = _down
 	Save.store()
 	_show(null)
+	# (the globe goes back up out of sight by itself: see _layout_globes)
+	_link.visible = true
 	hud.visible = true
 	hud.set_best(Save.best(_key()))
 	hud.popup(Levels.LIST[_level].name, UI.TEAL, 2.6)
@@ -939,10 +944,20 @@ func _watch_fork() -> void:
 		return
 	track.set_fork_open(_objective_met())
 	var p := world.player
-	if p.s < float(track.fork.s0) + 25.0:
-		return
 	var ways: Array = track.fork.ways
-	_fork_way = int(ways[1]) if p.x > 0.0 and track.fork_open else int(ways[0])
+	if track.fork.abyss:
+		# the abyss: the way there is down the giant current; the way on is everywhere else
+		if p.state == Salmon.State.CURRENT and p.rail.get("abyss", false):
+			_fork_way = int(ways[1])
+		elif p.s >= track.finish_s - 6.0:
+			_fork_way = int(ways[0])
+		else:
+			return
+	else:
+		if p.s < float(track.fork.s0) + 25.0:
+			return
+		var lane := track.fork_lane(p.x)
+		_fork_way = int(ways[lane]) if lane == 0 or track.fork_open else int(ways[0])
 	track.fork_locked = true
 	hud.popup("TO %s" % Levels.LIST[_fork_way].name, UI.GOLD, 1.6)
 
@@ -1343,7 +1358,8 @@ func _build_globe() -> void:
 	# the salmon swims on from one stage to the next
 	_link = _panel_root()
 	_link_card = PanelContainer.new()
-	var link_frame := UI.card(Color(0.012, 0.016, 0.045), UI.PAPER, 2, 8)
+	# (no frame and no space round it: just the globe, let down on to the picture from above)
+	var link_frame := StyleBoxEmpty.new()
 	link_frame.set_content_margin_all(8)
 	_link_card.add_theme_stylebox_override("panel", link_frame)
 	_link.add_child(_link_card)
@@ -1356,8 +1372,9 @@ func _build_globe() -> void:
 	link_col.add_child(link_window)
 	_link_globe = Globe.new()
 	_link_globe.radius = 0.42
+	_link_globe.backdrop = false
 	link_window.add_child(_link_globe)
-	_link_name = UI.label("", 22, UI.GOLD, 4)
+	_link_name = UI.label("", 24, UI.GOLD, 8)
 	_link_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	link_col.add_child(_link_name)
 
@@ -1518,7 +1535,13 @@ func _layout_globes() -> void:
 	var link_k := clampf(minf(whole.x, whole.y) * 0.42 / 316.0, 0.7, 2.4)
 	_link_card.size = _link_card.get_combined_minimum_size()
 	_link_card.scale = Vector2(link_k, link_k)
-	_link_card.position = Vector2((whole.x - _link_card.size.x * link_k) * (0.5 if whole.y > whole.x else 1.0) - (0.0 if whole.y > whole.x else 20.0), 70.0 if whole.y > whole.x else 20.0)
+	# (it comes down from above the top of the screen, and goes back up when it is done)
+	_link_drop = clampf(_link_drop + get_process_delta_time() * (1.9 if phase == Phase.TRAVEL else -2.6), 0.0, 1.0)
+	if _link.visible and phase != Phase.TRAVEL and _link_drop <= 0.0:
+		_link.visible = false
+	var link_down := 1.0 - pow(1.0 - _link_drop, 3.0)
+	var link_y := lerpf(-_link_card.size.y * link_k - 30.0, 70.0 if whole.y > whole.x else 20.0, link_down)
+	_link_card.position = Vector2((whole.x - _link_card.size.x * link_k) * 0.5, link_y)
 	var area := _travel.size
 	var tall := area.y > area.x
 	var card := _pv_card.get_combined_minimum_size()

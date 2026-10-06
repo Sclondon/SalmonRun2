@@ -15,13 +15,9 @@ var track: Track
 var player: Salmon
 var camera: ChaseCam
 var school: School
-## Joining stages end to end. `ahead` is the next stage, made ready and set down so that its
-## beginning meets the end of the one being swum; `behind` is the one just left, kept in the
-## picture until the next change. See make_next and take_next.
+## The next stage, made out of sight while the salmon swims on down the run-out of the one
+## it has finished: see make_next and take_next.
 var ahead: Track
-var behind: Track
-var _join := Transform3D.IDENTITY
-var _join_lane := 0.0
 
 var others: School
 ## The salmon run: a great many more salmon that turn up for a short while and copy the
@@ -121,8 +117,8 @@ func set_course(level: int, test: bool, down := false) -> void:
 		return
 	_drop(ahead)
 	ahead = null
-	_drop(behind)
-	behind = null
+
+
 	remove_child(track)
 	track.queue_free()
 	track = Track.new()
@@ -391,36 +387,26 @@ func salmon_run_left() -> float:
 	return _run_left
 
 
-# ================================================================== stages joined end to end
+# ================================================================== from one stage on to the next
 
 func _drop(old: Track) -> void:
 	if old != null and is_instance_valid(old):
 		old.queue_free()
 
 
-## Makes the stage that comes next and sets it down so that its beginning meets the end of
-## the one being swum, `lane` metres across from the middle of that end and turned `turn`
-## radians from the way it runs (a fork leads off to one side). The salmon swims on to it
-## when it reaches the end: see take_next.
-func make_next(level: int, down: bool, lane := 0.0, turn := 0.0) -> void:
+## Makes the stage that comes next, out of sight, while the salmon swims on down the run-out
+## of the one it has finished. take_next puts the salmon on it.
+func make_next(level: int, down: bool) -> void:
 	_drop(ahead)
 	ahead = Track.new()
 	ahead.live = false
+	ahead.visible = false
 	add_child(ahead)
 	move_child(ahead, 0)
-	ahead.build(level, false, down, track.width(end_s()))
-	var s_end := end_s()
-	var from := track.basis_at(s_end) * Basis(Vector3.UP, -turn)
-	var at := track.point(s_end, lane, track.water_y(s_end))
-	var to := ahead.basis_at(0.0)
-	var start := ahead.point(0.0, 0.0, ahead.water_y(0.0))
-	var turned := from * to.inverse()
-	_join = Transform3D(turned, at - turned * start)
-	_join_lane = lane
-	ahead.transform = _join
+	ahead.build(level, false, down, track.width(player.s))
 
 
-## Where the stage being swum ends (metres along it): where the next one is joined on.
+## Where the stage being swum ends (metres along it): the salmon goes no further.
 func end_s() -> float:
 	return track.length - Track.STEP * 2.0
 
@@ -430,29 +416,26 @@ func has_next() -> bool:
 	return ahead != null
 
 
-## The salmon has reached the end of its stage: it is on the next one from here. Everything
-## is measured from the new stage now, and the old one is moved to where it lies from there
-## (so nothing in the picture moves: only the numbers change).
+## The salmon arrives: the stage it was on is gone and it is at the beginning of the next,
+## as far across the water as it was and swimming as it was. The sky, the haze and the light
+## turn to the new stage's over a moment.
 func take_next() -> void:
-	var over := player.s - end_s()
-	_drop(behind)
-	behind = track
-	behind.live = false
-	behind.transform = _join.affine_inverse()
-	ahead.transform = Transform3D.IDENTITY
-	ahead.clock = behind.clock
-	ahead.live = true
+	ahead.clock = track.clock
+	_drop(track)
 	track = ahead
 	ahead = null
+	track.live = true
+	track.visible = true
 	_dress_player(track.level, track.down)
-	_apply_level(3.0)
+	_apply_level(1.6)
 	player.track = track
 	player.rail = {}
 	if player._wake:
 		player._wake.clear()
 		player._wake.track = track
-	player.s = maxf(over, 0.0)
-	player.x = player.x - _join_lane
+	player.s = 8.0
+	var lim := track.width(player.s) * 0.5 - 2.0
+	player.x = clampf(player.x, -lim, lim)
 	player.y = track.water_y(player.s)
 	for flock: School in [school, others, run]:
 		flock.track = track

@@ -15,6 +15,8 @@ const STEP := 2.0
 const CHUNK := 100
 const GROUP_LEN := 400.0
 const START_S := 30.0
+## How much plain water there is after the finish (see `length`).
+const RUN_OUT := 520.0
 const RAIL_H := 0.55
 ## Metres between the knots an ocean current winds through.
 const CURRENT_KNOT := 26.0
@@ -48,6 +50,8 @@ var pts := PackedVector3Array()
 var heads := PackedFloat32Array()
 var widths := PackedFloat32Array()
 var finish_s := 0.0
+## How long the course proper is (to a little past the finish), without its run-out.
+var course := 0.0
 
 var waterfalls: Array = []   # {s, drop}
 var rapids: Array = []       # {s0, s1}
@@ -71,7 +75,7 @@ var fork := {}
 var fork_open := true
 ## Set once the salmon has passed the bow: the way is chosen, and nothing changes after.
 var fork_locked := false
-const FORK_BEAM := 11.0
+var _abyss_node: Node3D
 var _boom: Node3D
 var _fork_signs: Array[Label3D] = []
 var _fork_set := false
@@ -116,7 +120,10 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 	cfg = Levels.settings(level)
 	if down and cfg.has("spring"):
 		cfg.merge(cfg.spring, true)
-	length = cfg.length
+	# (and a long run-out beyond the finish, with nothing in it: the salmon swims on down it
+	# while the results are read and the next stage is made)
+	course = cfg.length
+	length = course + (0.0 if test_level else RUN_OUT)
 	test = test_level
 	course_seed = int(cfg.seed) + (500 if down else 0)
 	_rng.seed = course_seed
@@ -125,10 +132,7 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 	_noise.fractal_type = FastNoiseLite.FRACTAL_NONE
 	_noise.frequency = 1.0
 	_make_materials()
-	fork = {}
-	if not test and not down and cfg.has("divider") and Levels.next_of(level).size() > 1:
-		var end := length - 150.0
-		fork = {"s0": end - 140.0, "s1": end - 8.0, "boom": end - 250.0, "ways": Levels.next_of(level)}
+	_plan_fork()
 	if test:
 		_plan_test()
 	else:
@@ -224,66 +228,183 @@ static func write_presets() -> bool:
 
 # ================================================================== the fork
 
-## How wide the divider is to either side of the middle at `s` (0 where there is none).
+# Plans the fork for a stage whose way on divides (see `fork`): what divides it, how wide
+# and how long, and where.
+func _plan_fork() -> void:
+	var ways := Levels.next_of(level)
+	if test or down or ways.size() < 2:
+		return
+	var end := course - 150.0
+	var wide := float(cfg.width)
+	# (the abyss: the stage's own word for it, see levels.gd)
+	var abyss: bool = cfg.get("divider", "") == "abyss"
+	var ship: bool = abyss or (bool(cfg.get("salt", false)) and wide >= 60.0)
+	var lanes := 2 if abyss else ways.size()
+	# a ship is as big as a real one where there is room for it (some 320 m by 48 m)
+	var beam := clampf(wide * 0.17, 6.0, 24.0) if ship else clampf(wide * 0.09, 1.3, 6.0)
+	if lanes > 2:
+		beam *= 0.6
+	var long := beam * 13.3 if ship else clampf(wide * 3.0, 55.0, 110.0)
+	var cuts: Array[float] = []
+	for k in lanes - 1:
+		cuts.append(wide * ((k + 1.0) / lanes - 0.5))
+	var s1 := end - 8.0
+	fork = {"s0": s1 - long, "s1": s1, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
+			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss}
+	if abyss:
+		# The way down: a giant current that begins a dive under the surface, to the right of
+		# the ship, and goes down and down. It is only there once the goal is met.
+		var lane := (beam + wide * 0.5) * 0.5
+		var from := float(fork.s0) + 60.0
+		var knots := int((end + 40.0 - from) / CURRENT_KNOT)
+		var xs := PackedFloat32Array()
+		var ds := PackedFloat32Array()
+		for k in knots + 1:
+			xs.append(lane)
+			ds.append(clampf(1.0 + (k - 1) * 0.9, 1.0, float(layers())))
+		currents.append({"s0": from, "s1": from + CURRENT_KNOT * knots, "xs": xs, "ds": ds, "off": 0.0, "launch": false, "r": 9.0, "abyss": true})
+
+
+## How wide a divider is to either side of its middle at `s` (0 where there is none).
 func fork_half(s: float) -> float:
 	if fork.is_empty() or s < float(fork.s0) or s > float(fork.s1):
 		return 0.0
+	var beam: float = fork.beam
+	var long: float = float(fork.s1) - float(fork.s0)
 	# (a sharp bow, and a stern drawn in a little)
-	var bow := sqrt(clampf((s - float(fork.s0)) / 40.0, 0.0, 1.0))
-	var stern := lerpf(0.75, 1.0, clampf((float(fork.s1) - s) / 14.0, 0.0, 1.0))
-	return FORK_BEAM * bow * stern
+	var bow := sqrt(clampf((s - float(fork.s0)) / minf(beam * 3.6, long * 0.3), 0.0, 1.0))
+	var stern := lerpf(0.75, 1.0, clampf((float(fork.s1) - s) / minf(beam * 1.3, long * 0.15), 0.0, 1.0))
+	return beam * bow * stern
 
 
-## Where the salmon may be across the water at `s`, wanting to be at `x`: not inside the
-## divider, and (while the advanced way is shut) not on the far side of its boom.
+## Which way on the water at `x` leads to, past the dividers: 0 is the left-hand one (the
+## default), and so on across.
+func fork_lane(x: float) -> int:
+	var lane := 0
+	for cut: float in fork.cuts:
+		if x > cut:
+			lane += 1
+	return lane
+
+
+## Where the salmon may be across the water at `s`, wanting to be at `x`: not inside a
+## divider, and (while the advanced ways are shut) not beyond the boom that shuts them.
 func fork_keep(s: float, x: float) -> float:
 	if fork.is_empty():
 		return x
+	var cuts: Array = fork.cuts
+	var shut: bool = not fork_open and not bool(fork.abyss)
 	var half := fork_half(s)
 	if half > 0.0:
 		var lim := half + 1.3
-		if not fork_open:
-			return minf(x, -lim)
-		if absf(x) < lim:
-			return lim if x >= 0.0 else -lim
-	elif not fork_open and s > float(fork.boom) and s <= float(fork.s0):
+		if shut:
+			return minf(x, float(cuts[0]) - lim)
+		for cut: float in cuts:
+			if absf(x - cut) < lim:
+				return cut + (lim if x >= cut else -lim)
+	elif shut and s > float(fork.boom) and s <= float(fork.s0):
 		var t := (s - float(fork.boom)) / (float(fork.s0) - float(fork.boom))
-		return minf(x, lerpf(width(s) * 0.5, -1.3, t) - 1.0)
+		return minf(x, lerpf(width(s) * 0.5, float(cuts[0]) - 1.3, t) - 1.0)
 	return x
 
 
-## Opens or shuts the advanced way (the right-hand side of the divider): the boom of buoys
-## across it, and what its sign says. Once the salmon has gone by, it stays as it was.
+## Opens or shuts the advanced ways (every way but the left-hand one): the boom of buoys
+## across them, and what their signs say; or, the abyss, whether the current down to it is
+## there at all. Once the salmon has gone by, it stays as it was.
 func set_fork_open(open: bool) -> void:
 	if fork.is_empty() or fork_locked or (open == fork_open and _fork_set):
 		return
 	_fork_set = true
 	fork_open = open
-	_boom.visible = not open
+	if _boom:
+		_boom.visible = not open
+	if _abyss_node:
+		_abyss_node.visible = open
 	var ways: Array = fork.ways
-	_fork_signs[1].text = str(Levels.LIST[ways[1]].name) if open else "CLOSED\n%s" % Levels.objective_text(level)
-	_fork_signs[1].modulate = Color(1.0, 0.95, 0.6) if open else Color(1.0, 0.45, 0.4)
+	for k in range(1, _fork_signs.size()):
+		_fork_signs[k].text = str(Levels.LIST[ways[k]].name) if open else "CLOSED\n%s" % Levels.objective_text(level)
+		_fork_signs[k].modulate = Color(1.0, 0.95, 0.6) if open else Color(1.0, 0.45, 0.4)
 
 
-# The divider (a cruise ship lying along the middle of the course), the signs over the two
-# ways round it, and the boom of buoys that shuts the right-hand way.
+# The dividers, the signs over the ways round them, and the boom that shuts all but the
+# left-hand way.
 func _build_fork() -> void:
 	var s0: float = fork.s0
 	var s1: float = fork.s1
+	var cuts: Array = fork.cuts
+	var beam: float = fork.beam
+	for cut: float in cuts:
+		if fork.ship:
+			_build_ship(cut)
+		else:
+			_build_island(cut)
+	# the signs: the way each side leads, over the water ahead of the dividers
+	var ways: Array = fork.ways
+	var hw := width(s0) * 0.5
+	_fork_signs.clear()
+	var lanes := cuts.size() + 1
+	for k in lanes:
+		var left: float = -hw if k == 0 else float(cuts[k - 1]) + beam
+		var right_edge: float = hw if k == lanes - 1 else float(cuts[k]) - beam
+		var label := Label3D.new()
+		label.font = UI.font()
+		label.font_size = 96
+		label.pixel_size = clampf(hw * 0.0013, 0.02, 0.085)
+		label.outline_size = 26
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		# (the abyss: the left-hand sign is the way on along the surface, the right the way down)
+		label.text = str(Levels.LIST[ways[mini(k, ways.size() - 1)]].name)
+		label.modulate = Color(1.0, 0.95, 0.6)
+		label.outline_modulate = Color(0.05, 0.08, 0.2)
+		label.position = point(s0 + 12.0, (left + right_edge) * 0.5, water_y(s0) + clampf(hw * 0.2, 3.5, 15.0))
+		add_child(label)
+		_fork_signs.append(label)
+	_boom = null
+	if not fork.abyss:
+		# the boom: a line of red buoys from the right-hand edge of the water to the first bow
+		_boom = Node3D.new()
+		add_child(_boom)
+		var brng := RandomNumberGenerator.new()
+		brng.seed = course_seed + 77
+		var buoy := Props.buoy(brng, Color(0.85, 0.12, 0.1), Color(1.0, 0.3, 0.2))
+		var boom_s: float = fork.boom
+		var across := hw - float(cuts[0])
+		var count := clampi(int(Vector2(s0 - boom_s, across).length() / 4.0), 6, 40)
+		for k in count + 1:
+			var t := float(k) / count
+			var bs := lerpf(boom_s, s0, t)
+			var mi := MeshInstance3D.new()
+			mi.mesh = buoy
+			mi.material_override = mat_world
+			mi.scale = Vector3.ONE * clampf(hw * 0.035, 0.8, 2.2)
+			mi.position = point(bs, lerpf(width(bs) * 0.5, float(cuts[0]), t), water_y(bs))
+			_boom.add_child(mi)
+	_fork_set = false
+	set_fork_open(true)
+
+
+# A cruise ship lying along the course at `cx` across it: the hull a slice at a time,
+# following the course, then the decks, the funnels and the boats.
+func _build_ship(cx: float) -> void:
+	var s0: float = fork.s0
+	var s1: float = fork.s1
+	var beam: float = fork.beam
+	# (everything about it is in proportion to its beam: 11 m was the first one built)
+	var k := beam / 11.0
 	var mb := MB.new()
 	var hull := Color(0.96, 0.96, 0.94)
 	var keel := Color(0.1, 0.16, 0.34)
-	var deck_h := 9.0
-	# the hull, a slice at a time, following the course
+	var deck_h := 9.0 * k
 	var prev: Array = []
 	var s := s0
 	while s <= s1 + 0.01:
 		var half := maxf(fork_half(s), 0.15)
 		var wy := water_y(s)
-		var row := [point(s, -half, wy - 2.5), point(s, -half, wy + 1.6), point(s, -half - 0.9, wy + deck_h),
-				point(s, half + 0.9, wy + deck_h), point(s, half, wy + 1.6), point(s, half, wy - 2.5)]
+		var row := [point(s, cx - half, wy - 2.5 * k), point(s, cx - half, wy + 1.6 * k), point(s, cx - half - 0.9 * k, wy + deck_h),
+				point(s, cx + half + 0.9 * k, wy + deck_h), point(s, cx + half, wy + 1.6 * k), point(s, cx + half, wy - 2.5 * k)]
 		if not prev.is_empty():
-			var mid := (row[2] as Vector3).lerp(prev[3], 0.5) - Vector3.UP * 4.0
+			var mid := (row[2] as Vector3).lerp(prev[3], 0.5) - Vector3.UP * deck_h * 0.5
 			for j in 5:
 				var col := keel if j == 0 or j == 4 else (Props.shade(hull, 1.08) if j == 2 else hull)
 				mb.quad(prev[j], row[j], row[j + 1], prev[j + 1], col, ((row[j] as Vector3) + (prev[j + 1] as Vector3)) * 0.5 - mid)
@@ -291,64 +412,64 @@ func _build_fork() -> void:
 		s += 5.0
 	# (closed at the stern)
 	mb.quad(prev[1], prev[2], prev[3], prev[4], hull, center(s1 + 5.0) - center(s1))
-	# the decks above it: three tiers of cabins, each shorter than the one under it, with a
-	# dark band of windows round each, and two funnels
+	# the decks above it: tiers of cabins, each shorter than the one under it, with a dark
+	# band of windows round each, and two funnels
 	var mid_s := lerpf(s0, s1, 0.56)
 	var b := basis_at(mid_s)
-	var base := point(mid_s, 0.0, water_y(mid_s) + deck_h)
+	var base := point(mid_s, cx, water_y(mid_s) + deck_h)
 	var long := s1 - s0
-	for tier in 3:
-		var size := Vector3(FORK_BEAM * 2.0 - 3.0 - tier * 3.0, 3.2, long * (0.66 - tier * 0.12))
-		var c := base + Vector3.UP * (1.6 + tier * 3.2)
+	for tier in 4:
+		var size := Vector3(beam * 2.0 - (3.0 + tier * 2.6) * k, 3.2 * k, long * (0.7 - tier * 0.1))
+		var c := base + Vector3.UP * (1.6 + tier * 3.2) * k
 		Props.box(mb, c, size, hull, null, 0.0, b)
-		Props.box(mb, c + Vector3.UP * 0.3, Vector3(size.x + 0.12, 1.1, size.z - 1.5), Color(0.1, 0.2, 0.36), null, 0.0, b)
-		Props.box(mb, c + Vector3.UP * 1.75, Vector3(size.x + 1.0, 0.3, size.z + 1.0), Props.shade(hull, 0.9), null, 0.0, b)
-	for k in 2:
-		var at := base + b * Vector3(0.0, 13.0, -8.0 + k * 16.0)
-		Props.box(mb, at, Vector3(5.0, 7.0, 6.0), Color(0.86, 0.2, 0.16), null, 0.0, b)
-		Props.box(mb, at + Vector3.UP * 3.9, Vector3(5.3, 1.2, 6.3), Color(0.12, 0.12, 0.14), null, 0.0, b)
+		Props.box(mb, c + Vector3.UP * 0.3 * k, Vector3(size.x + 0.12, 1.1 * k, size.z - 1.5 * k), Color(0.1, 0.2, 0.36), null, 0.0, b)
+		Props.box(mb, c + Vector3.UP * 1.75 * k, Vector3(size.x + k, 0.3 * k, size.z + k), Props.shade(hull, 0.9), null, 0.0, b)
+	for n in 2:
+		var at := base + b * (Vector3(0.0, 16.5, -8.0 + n * 16.0) * k)
+		Props.box(mb, at, Vector3(5.0, 7.0, 6.0) * k, Color(0.86, 0.2, 0.16), null, 0.0, b)
+		Props.box(mb, at + Vector3.UP * 3.9 * k, Vector3(5.3, 1.2, 6.3) * k, Color(0.12, 0.12, 0.14), null, 0.0, b)
 	# a row of lifeboats down each side
-	for k in 6:
+	for n in 8:
 		for side: float in [-1.0, 1.0]:
-			var ls := lerpf(s0 + long * 0.3, s1 - long * 0.12, k / 5.0)
-			Props.box(mb, point(ls, side * (fork_half(ls) + 0.2), water_y(ls) + deck_h + 1.0), Vector3(1.6, 1.3, 5.0), Color(0.95, 0.5, 0.12), null, 0.0, basis_at(ls))
+			var ls := lerpf(s0 + long * 0.3, s1 - long * 0.12, n / 7.0)
+			Props.box(mb, point(ls, cx + side * (fork_half(ls) + 0.2 * k), water_y(ls) + deck_h + k), Vector3(1.6, 1.3, 5.0) * k, Color(0.95, 0.5, 0.12), null, 0.0, basis_at(ls))
 	_add_mesh(mb.build(), mat_world)
-	# the signs: the way each side leads, over the water ahead of the bow
-	var ways: Array = fork.ways
-	_fork_signs.clear()
-	for k in 2:
-		var label := Label3D.new()
-		label.font = UI.font()
-		label.font_size = 96
-		label.pixel_size = 0.085
-		label.outline_size = 26
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		label.text = str(Levels.LIST[ways[k]].name)
-		label.modulate = Color(1.0, 0.95, 0.6)
-		label.outline_modulate = Color(0.05, 0.08, 0.2)
-		label.position = point(s0 + 12.0, (-1.0 if k == 0 else 1.0) * width(s0) * 0.25, water_y(s0) + 15.0)
-		add_child(label)
-		_fork_signs.append(label)
-	# the boom: a line of red buoys from the right-hand edge of the water to the bow
-	_boom = Node3D.new()
-	add_child(_boom)
-	var brng := RandomNumberGenerator.new()
-	brng.seed = course_seed + 77
-	var buoy := Props.buoy(brng, Color(0.85, 0.12, 0.1), Color(1.0, 0.3, 0.2))
-	var boom_s: float = fork.boom
-	var count := 34
-	for k in count + 1:
-		var t := float(k) / count
-		var bs := lerpf(boom_s, s0, t)
-		var mi := MeshInstance3D.new()
-		mi.mesh = buoy
-		mi.material_override = mat_world
-		mi.scale = Vector3.ONE * 2.2
-		mi.position = point(bs, lerpf(width(bs) * 0.5, 0.0, t), water_y(bs))
-		_boom.add_child(mi)
-	_fork_set = false
-	set_fork_open(true)
+
+
+# An island in the stream at `cx` across it: a long low bar of the stage's own bank, coming
+# to a point at each end, with boulders on it.
+func _build_island(cx: float) -> void:
+	var s0: float = fork.s0
+	var s1: float = fork.s1
+	var mb := MB.new()
+	var colors: Array = cfg.bank_colors
+	var ground: Color = colors[0]
+	var edge: Color = cfg.get("cliff", ground)
+	var irng := RandomNumberGenerator.new()
+	irng.seed = course_seed + int(cx * 10.0) + 55
+	var high := clampf(float(fork.beam) * 0.45, 0.7, 2.2)
+	var prev: Array = []
+	var s := s0
+	while s <= s1 + 0.01:
+		var half := maxf(fork_half(s), 0.1)
+		var wy := water_y(s)
+		var crown := high * sqrt(half / maxf(float(fork.beam), 0.1))
+		var row := [point(s, cx - half, wy - 1.5), point(s, cx - half * 0.8, wy + crown * 0.6), point(s, cx, wy + crown),
+				point(s, cx + half * 0.8, wy + crown * 0.6), point(s, cx + half, wy - 1.5)]
+		if not prev.is_empty():
+			var mid := (row[2] as Vector3).lerp(prev[2], 0.5) - Vector3.UP * 3.0
+			for j in 4:
+				var col := Props.vary(edge if j == 0 or j == 3 else ground, irng, 0.04)
+				mb.quad(prev[j], row[j], row[j + 1], prev[j + 1], col, ((row[j] as Vector3) + (prev[j + 1] as Vector3)) * 0.5 - mid)
+		prev = row
+		s += 3.0
+	# boulders along its back
+	var stones := int((s1 - s0) / 9.0)
+	for n in stones:
+		var bs := lerpf(s0 + 6.0, s1 - 6.0, (n + irng.randf()) / stones)
+		var r := irng.randf_range(0.35, 0.8) * clampf(float(fork.beam) * 0.4, 0.6, 1.8)
+		Props.blob(mb, point(bs, cx + irng.randf_range(-0.4, 0.4) * fork_half(bs), water_y(bs) + high * 0.7), Vector3(r, r * 0.8, r), irng, cfg.rock, 5, 3, 0.2)
+	_add_mesh(mb.build(), mat_world)
 
 
 # ================================================================== queries
@@ -587,7 +708,9 @@ func _plan_features() -> void:
 	var last := ""
 	var room := lane_room()
 	# (nothing is laid where the fork is)
-	while s < length - (450.0 if not fork.is_empty() else 320.0):
+	# (a stage that is all under the water has nothing on its surface)
+	var sunk: bool = cfg.get("submerged", false)
+	while not sunk and s < (float(fork.boom) - 70.0 if not fork.is_empty() else course - 320.0):
 		var kind: String
 		if falls_every > 0.0 and since_fall > falls_every:
 			kind = "bear_falls" if _rng.randf() < 0.5 else "falls"
@@ -623,7 +746,7 @@ func _plan_features() -> void:
 		var gap := _rng.randf_range(45.0, 80.0) * float(cfg.get("spacing", 1.0))
 		s += used + gap
 		since_fall += used + gap
-	finish_s = length - 150.0
+	finish_s = course - 150.0
 	_fit_to_river()
 	_plan_deep()
 
@@ -650,7 +773,12 @@ func _plan_deep() -> void:
 		return
 	var s := 260.0
 	var k := 0
-	while s < length - 480.0:
+	var deep_end := minf(float(fork.boom) - 70.0, course - 480.0) if not fork.is_empty() else course - 480.0
+	# (a stage all under the water ends with a current that climbs to the surface)
+	if cfg.get("submerged", false):
+		deep_end -= 300.0
+		_plan_current(deep_end + 30.0, true)
+	while s < deep_end:
 		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
 		var used := 0.0
 		match str(deep[k % deep.size()]):
@@ -718,7 +846,7 @@ func trail_x(s: float, lane := 0) -> float:
 ## rocks, a waterfall.
 func _plan_test() -> void:
 	length = 1500.0
-	finish_s = length - 150.0
+	finish_s = course - 150.0
 	_fit_to_river()
 	_plan_deep()
 	# steering: a ring slalom on the water that gets wider
@@ -1355,8 +1483,13 @@ func _build_current(c: Dictionary) -> void:
 			var b := a + sides + 1
 			for i: int in [a, b, a + 1, a + 1, b, b + 1]:
 				st.add_index(i)
-	_add_mesh(st.commit(), mat)
+	var tube := _add_mesh(st.commit(), mat)
+	if c.get("abyss", false):
+		_abyss_node = tube
 	c.mat = mat
+	# (the way down to the abyss has no arrows over it: it is not there until it is earned)
+	if c.get("abyss", false):
+		return
 	var arrows := SurfaceTool.new()
 	arrows.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for k in 3:

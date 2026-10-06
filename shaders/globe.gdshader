@@ -16,6 +16,9 @@ uniform float pixel = 3.0;
 // How close the view is (kept at 1: the globe does not zoom).
 uniform float zoom = 1.0;
 uniform vec3 space : source_color = vec3(0.012, 0.016, 0.045);
+// How much of the space round the globe is drawn (1 is all of it; 0 leaves the globe and its
+// air hanging by themselves over whatever is behind, as the travel inset has it).
+uniform float backdrop = 1.0;
 uniform vec3 air : source_color = vec3(0.4, 0.75, 1.0);
 uniform float cloud_cover = 0.42;
 uniform float cloud_speed = 0.045;
@@ -135,5 +138,7 @@ void fragment() {
 		vec3 white = vec3(1.0) * (0.55 + 0.6 * clamp(dot(cam, sun), 0.0, 1.0));
 		col = mix(col, white, cloud);
 	}
-	COLOR = vec4(col, 1.0);
+	// (with no space round it: solid over the globe and its clouds, fading out with the air)
+	float solid = r2 <= 1.0 ? 1.0 : max(pow(clamp(1.0 - (sqrt(r2) - 1.0) * zoom / 0.14, 0.0, 1.0), 2.0), r2 < h2 ? cloud_at(to_world * (vec3(p, sqrt(h2 - r2)) / cloud_height)) : 0.0);
+	COLOR = vec4(col, mix(solid, 1.0, backdrop));
 }

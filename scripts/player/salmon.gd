@@ -285,6 +285,12 @@ func reset(at_s: float) -> void:
 	layer = 0
 	dive = 0.0
 	dive_to = 0.0
+	# (on a stage that is all under the water, it begins under it)
+	if track and track.cfg.get("submerged", false) and _sunk_here():
+		layer = 2
+		dive = 2.0
+		dive_to = 2.0
+		under = true
 	state = State.IDLE
 	Sfx.set_loop("grind", false)
 
@@ -441,7 +447,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	# (up and down at the same speed as from side to side, and eased into in the same way)
 	_rise_v = lerpf(_rise_v, _rise * STEER, 1.0 - exp(-4.5 * dt)) if layer > 0 else 0.0
 	if absf(_rise_v) > 0.05:
-		dive_to = clampf(dive_to - _rise_v / track.layer_depth() * dt, 0.0, float(track.layers()))
+		dive_to = clampf(dive_to - _rise_v / track.layer_depth() * dt, 0.6 if track.cfg.get("submerged", false) and _sunk_here() else 0.0, float(track.layers()))
 		if dive_to < 0.3:
 			_set_layer(0)
 		else:
@@ -471,7 +477,8 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 
 ## Dives to a layer under the water (0 is the surface).
 func _set_layer(to: int) -> void:
-	to = clampi(to, 0, track.layers())
+	# (a stage that is all under the water has no surface to come up to)
+	to = clampi(to, 1 if track.cfg.get("submerged", false) and _sunk_here() else 0, track.layers())
 	if to == layer:
 		return
 	var deeper := to > layer
@@ -492,7 +499,7 @@ func _set_layer(to: int) -> void:
 func _try_current() -> void:
 	var depth := track.layer_depth() * dive
 	for c: Dictionary in track.currents:
-		if s < float(c.s0) or s > float(c.s1) - 30.0:
+		if s < float(c.s0) or s > float(c.s1) - 30.0 or (c.get("abyss", false) and not track.fork_open):
 			continue
 		# (anywhere inside it, however wide it is)
 		var wide := track.current_radius(c, s)
@@ -1184,3 +1191,12 @@ func _ai_input(dt: float) -> Dictionary:
 		State.GRIND:
 			inp.jump = s < float(rail.s1) - 5.0
 	return inp
+
+
+# On a stage that is all under the water: whether this is the part of it that is (all of it
+# but the last stretch, after the current that climbs back to the surface).
+func _sunk_here() -> bool:
+	for c: Dictionary in track.currents:
+		if c.get("launch", false) and s > float(c.s1) - 5.0:
+			return false
+	return true
