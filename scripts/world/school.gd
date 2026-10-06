@@ -150,7 +150,7 @@ func _process(delta: float) -> void:
 			# close up. (Along the course and across it: f.vs and f.vx are its own speed.)
 			var here := Vector2(s, x)
 			var vel := Vector2(float(f.vs), float(f.vx))
-			var apart := lerpf(4.2, 2.4, _step)
+			var apart := lerpf(5.5, 2.4, _step)
 			var away := Vector2.ZERO
 			var middle := Vector2(player.s, player.x)
 			var heading := Vector2(player.speed, player.vx)
@@ -173,8 +173,17 @@ func _process(delta: float) -> void:
 			heading /= near
 			# (its own spot to make for is a little off from the player's, so that the pack
 			# is all round the player and not in a line behind)
-			var spot := Vector2(player.s + float(f.ahead) * 0.35 * close, player.x + float(f.off) * 0.5 * close)
-			var push := away * 9.0 + (heading - vel) * 1.4 + (middle - here) * 0.5 + (spot - here) * lerpf(2.0, 4.0, _step)
+			# (loosely, until the flow is high: then it holds its spot hard)
+			var roam := lerpf(1.7, 0.5, _step)
+			var spot := Vector2(player.s + float(f.ahead) * 0.6 * roam, player.x + float(f.off) * roam)
+			var hold := lerpf(0.7, 4.0, _step)
+			# It uses what there is to use on its own account: a rail coming up, or a current,
+			# if one is within reach, is where it makes for instead.
+			var using := _find_use(f, s, x)
+			if not using.is_empty():
+				spot.y = float(using.x)
+				hold = maxf(hold, 3.5)
+			var push := away * 9.0 + (heading - vel) * 1.4 + (middle - here) * lerpf(0.25, 0.5, _step) + Vector2((spot.x - here.x) * maxf(hold, 1.6), (spot.y - here.y) * hold)
 			# (and round any rock coming up)
 			var clear := _round_rocks(s, x)
 			if clear != x:
@@ -188,6 +197,9 @@ func _process(delta: float) -> void:
 		x = track.fork_keep(s, clampf(x + vx * dt, -lim, lim))
 		var surf := track.surface_y(s, x)
 		# (a generous margin: going downhill the surface drops away a little every frame)
+		# (a rail it has taken to: along the top of it, and a hop off the far end)
+		if f.get("use_kind", "") == "rail" and bool(f.get("on_rail", false)):
+			surf = track.water_y(s) + Track.RAIL_H
 		var on_water := y <= surf + 0.4 and vy <= 0.0
 		if on_water:
 			# climbing a ramp carries its lift into the air, like the player
@@ -235,12 +247,16 @@ func _process(delta: float) -> void:
 			b = track.basis_at(s) * turned * Basis(Vector3.BACK, deg_to_rad(player.roll))
 		var node: MeshInstance3D = f.node
 		# (on the swell, like the player)
-		f.deep = lerpf(float(f.deep), depth * (0.8 + 0.25 * sin(float(f.phase))), 1.0 - exp(-3.0 * dt))
+		# (down with the player; or down into a current of its own)
+		var deep_to := depth * (0.8 + 0.25 * sin(float(f.phase)))
+		if f.get("use_kind", "") == "current":
+			deep_to = float(f.use_depth)
+		f.deep = lerpf(float(f.deep), deep_to, 1.0 - exp(-3.0 * dt))
 		var lift := track.swell_y(s, x) * (1.0 - smoothstep(0.0, 2.5, y - track.water_y(s))) * (1.0 - smoothstep(0.0, 1.0, float(f.deep))) - (0.0 if air else float(f.deep))
 		node.transform = Transform3D(b.scaled(Vector3.ONE * float(f.size)), track.point(s, x, y + lift - (0.0 if air else 0.1)))
 		# its wake, on the surface, and a small splash as it leaves the water and as it lands
 		var trail := wakes[int(f.n)]
-		trail.visible = not air and float(f.deep) < 0.3 and absf(s - player.s) < 70.0
+		trail.visible = not air and float(f.deep) < 0.3 and absf(s - player.s) < 70.0 and not bool(f.get("on_rail", false))
 		if trail.visible:
 			trail.transform = Transform3D(track.basis_at(s) * Basis(Vector3.UP, -atan2(vx, Salmon.CRUISE)), track.point(s, x, track.water_y(s) + track.swell_y(s, x) + 0.05))
 		if air != bool(f.get("was_air", false)) and float(f.deep) < 0.3 and absf(s - player.s) < 45.0:
@@ -287,3 +303,56 @@ func _splash(s: float, x: float, strength: float) -> void:
 		_splashes.append(made)
 	_splash_next = (_splash_next + 1) % _splashes.size()
 	_splashes[_splash_next].start(track, s, x, strength)
+
+
+# Whether there is something here for one of the pack to use on its own account, and where
+# across the water it should be to use it: a bamboo rail it can get onto, or a current. Each
+# is taken up or passed over once, as it comes within reach (a little over half are taken).
+# Sets f.use_kind ("rail", "current" or ""), and for a current f.use_depth; returns {x} or {}.
+func _find_use(f: Dictionary, s: float, x: float) -> Dictionary:
+	if loose or _step > 0.6:
+		f.use_kind = ""
+		f.on_rail = false
+		return {}
+	for r: Dictionary in track.rails:
+		var s0: float = r.s0
+		if s < s0 - 22.0 or s > float(r.s1):
+			continue
+		var rx := track.rail_x(r, maxf(s, s0))
+		if s < s0:
+			# coming up to it: is it near enough to go for, and does this one fancy it?
+			if absf(x - rx) > 9.0 or not _fancies(f, s0):
+				continue
+			# (a hop just before it, to land on it)
+			if s > s0 - 6.0 and float(f.vy) == 0.0 and float(f.y) <= track.surface_y(s, x) + 0.1:
+				f.vy = 7.5
+				f.y = float(f.y) + 0.05
+		elif not (f.get("use_kind", "") == "rail" and (bool(f.get("on_rail", false)) or absf(x - rx) < 1.6)):
+			continue
+		else:
+			f.on_rail = true
+		f.use_kind = "rail"
+		return {"x": rx}
+	f.on_rail = false
+	for c: Dictionary in track.currents:
+		var s0: float = c.s0
+		if s < s0 - 20.0 or s > float(c.s1) - 20.0:
+			continue
+		var cx := track.current_x(c, maxf(s, s0))
+		if s < s0 and (absf(x - cx) > 12.0 or not _fancies(f, s0)):
+			continue
+		if s >= s0 and f.get("use_kind", "") != "current":
+			continue
+		f.use_kind = "current"
+		f.use_depth = track.current_depth(c, maxf(s, s0))
+		return {"x": cx}
+	f.use_kind = ""
+	return {}
+
+
+# Whether this one takes up the thing that begins at `s0` (made up once for each thing).
+func _fancies(f: Dictionary, s0: float) -> bool:
+	if float(f.get("asked", -1.0)) != s0:
+		f.asked = s0
+		f.fancy = _rng.randf() < 0.6
+	return f.fancy
