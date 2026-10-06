@@ -87,9 +87,9 @@ screens: the salmon never leaves the water between one stage and the next.
   its end climbs back to the surface and throws the salmon out, ahead of its own fork.
 - **Every stage has a fork of its own**, and it need not be at the end (`"divider"` and
   `"fork_at"` in `levels.gd`): sea stacks in the Deadliest Catch and at the end of the trench, a
-  gravel bar on the Rocky Coast, an iceberg in Arctic Waters, a pier in the harbours and the
-  fish ladder, a reef in the Coral Reef (two of them: three ways), an island in the
-  Meandering River, a logjam in the Dry Riverbed. Only the Big Blue has the cruise ship.
+  gravel bar on the Rocky Coast, an iceberg in Aurora, a pier in the harbours and the
+  fish ladder, a reef in the Reefside (two of them: three ways), an island in the
+  Bubbling Brook, a logjam in the Withering Waters. Only the Big Blue has the cruise ship.
   Once the way is chosen the rest of the stage is swum as usual.
 - **The next stage comes up out of the distance.** It is joined on to the run-out some 130 m
   ahead of the salmon, in the haze, and swum up to: nothing appears round the salmon. When
@@ -106,26 +106,26 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 |---|---|---|---|---|
 | 1 | Big Blue | mid Pacific | Deadliest Catch, Abyss | collect 12 rings |
 | 2 | Deadliest Catch | Gulf of Alaska | Rocky Coast, Harbor | 5 tricks on the beat |
-| 2 | Abyss | Mariana Trench | Coral Reef, Arctic Waters | 5 tricks on the beat |
-| 3 | Rocky Coast | off British Columbia | The Fish Ladder, Dry Riverbed | no more than 2 wipeouts |
+| 2 | Abyss | Mariana Trench | Reefside, Aurora | 5 tricks on the beat |
+| 3 | Rocky Coast | off British Columbia | The Fish Ladder, Withering Waters | no more than 2 wipeouts |
 | 3 | Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
-| 3 | Coral Reef | off Okinawa | Neon Harbor, Meandering River, Dry Riverbed | collect 14 rings |
-| 3 | Arctic Waters | Bering Strait | Meandering River, Neon Harbor | collect 12 rings |
-| 4 | Meandering River | inland of Seattle | Rainforest Falls, Mountain River | score 70K |
-| 4 | Dry Riverbed | near Bend, Oregon | Mountain River, Alpine Lake | collect 12 rings |
-| 4 | The Fish Ladder | Seattle | Mountain River, Alpine Lake | 6 tricks on the beat |
+| 3 | Reefside | off Okinawa | Neon Harbor, Bubbling Brook, Withering Waters | collect 14 rings |
+| 3 | Aurora | Bering Strait | Bubbling Brook, Neon Harbor | collect 12 rings |
+| 4 | Bubbling Brook | inland of Seattle | Emerald Plunge, Riptide Rapids | score 70K |
+| 4 | Withering Waters | near Bend, Oregon | Riptide Rapids, Alpine Lake | collect 12 rings |
+| 4 | The Fish Ladder | Seattle | Riptide Rapids, Alpine Lake | 6 tricks on the beat |
 | 4 | The Fish Farm | north Puget Sound | early ending | |
-| 4 | Neon Harbor (Japan) | Tokyo Bay | The Hatchery, Bamboo River | score 60K |
-| 5 | Rainforest Falls | Mount Rainier | Alpine Lake | |
-| 5 | Mountain River | Mount Rainier | Alpine Lake | |
-| 5 | Bamboo River (Japan) | Hokkaido | The Crater Lake | |
+| 4 | Neon Harbor (Japan) | Tokyo Bay | The Hatchery, Bamboo Baitway | score 60K |
+| 5 | Emerald Plunge | Mount Rainier | Alpine Lake | |
+| 5 | Riptide Rapids | Mount Rainier | Alpine Lake | |
+| 5 | Bamboo Baitway (Japan) | Hokkaido | Ancestral Waters | |
 | 5 | The Hatchery (Japan) | north Honshu | early ending | |
 | 6 | Alpine Lake | Mount Rainier | ending | |
-| 6 | The Crater Lake (Japan) | Hokkaido | ending | |
+| 6 | Ancestral Waters (Japan) | Hokkaido | ending | |
 
 Notes:
-- Alpine Lake can be reached a step early from Dry Riverbed or The Fish Ladder.
-- The Crater Lake and The Hatchery play exactly like Alpine Lake and The Fish Farm; only
+- Alpine Lake can be reached a step early from Withering Waters or The Fish Ladder.
+- Ancestral Waters and The Hatchery play exactly like Alpine Lake and The Fish Farm; only
   the scenery differs. Neon Harbor shares Harbor's look in different light but has its
   own course.
 - The way down retraces the stages the run came up through.
@@ -165,7 +165,7 @@ Notes:
   Trench is a drowned canyon: walls of rock in ledges to either side (`"canyon"`).
 - **A humpback leads the way on the Big Blue:** it keeps ahead of the salmon, makes for
   the giant current beside the ship and goes down it (`sea_visitors.gd`).
-- **Mountain River** has a waterfall about every 170 m.
+- **Riptide Rapids** has a waterfall about every 170 m.
 - **Harbor** is 72 m of water between the quays, two layers deep, with work boats that
   cross the course to and fro (`world/crosser.gd`, the `"boats"` kind): run into one at the
   surface and it is a wipeout; go round, or dive under.
@@ -173,7 +173,7 @@ Notes:
   rudders at the stern.
 - **Anglerfish** hang in the dark of the Abyss, each behind its light.
 - **On a log** the salmon arches its back upward.
-- **The Abyss is the canyon of the Dry Riverbed, drowned** (`"sunk"`: the same walls
+- **The Abyss is the canyon of the Withering Waters, drowned** (`"sunk"`: the same walls
   26 m further down), and it is left under the water, by a **choice of ocean currents**: one
   for each way on, side by side; the one ridden is the way taken (`"divider": "currents"`).
 - **The humpback** is bigger, bends as it swims (`heave` in `fish.gdshader`), and **tuna
@@ -197,7 +197,7 @@ Notes:
   high into the air (`Salmon.launch`).
 - **Weather and night** (`levels.gd`: `"weather"`, `"stars"`, `"aurora"`, `"clouds"`): it rains
   on the Rocky Coast (`fx/weather.gd`), which roughens the water and leaves ringlets on it
-  (`rain` in the water shader); Rainforest Falls and Arctic Waters are at night, under
+  (`rain` in the water shader); Emerald Plunge and Aurora are at night, under
   stars and an aurora (the sky shader). Clouds of krill drift near the surface of the sea.
 - **A fork is a way that breaks off, as in Star Fox.** Part of the way through a stage
   (`fork_at`, 0.6 without it) a short divider parts the water, and where it ends the
@@ -237,7 +237,7 @@ There is a gate over the finish and none at the start.
 **The stages at a glance**
 
 The sea is wide and the rivers are narrow: the sea stages are 70 to 140 m of open water
-(the Rocky Coast and the Coral Reef with land along one side only), and the rivers after them
+(the Rocky Coast and the Reefside with land along one side only), and the rivers after them
 are 16 to 21 m between their banks.
 
 | Stage | Look | Water | Predator | Notable |
@@ -247,19 +247,19 @@ are 16 to 21 m between their banks.
 | Abyss | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Big Blue, left by a current back to the surface; currents, boost rings and sea nettles |
 | Rocky Coast | the coast of Oregon under a grey sky: 70 m of sea with a rocky shore along the left only (dark sand, black rock, sea stacks, drift logs, spruce on the bluffs) and open water on the right | barely climbs | shark | |
 | Harbor | quays, cranes, sodium light | barely climbs | shark | |
-| Coral Reef | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |
-| Arctic Waters | pack ice and icebergs under an aurora, 100 m wide | flat, open | shark | |
-| Meandering River | farmland, barns, windmills; very winding | gentle climb | none | harvest gold in autumn, green in spring |
-| Dry Riverbed | red-rock canyon, cacti, mesas | climbs | none | a few waterfalls; blooms in spring |
+| Reefside | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |
+| Aurora | pack ice and icebergs under an aurora, 100 m wide | flat, open | shark | |
+| Bubbling Brook | farmland, barns, windmills; very winding | gentle climb | none | harvest gold in autumn, green in spring |
+| Withering Waters | red-rock canyon, cacti, mesas | climbs | none | a few waterfalls; blooms in spring |
 | The Fish Ladder | concrete channel through forest | climbs | none | a waterfall every 170 m |
 | The Fish Farm | net pens on a grey lake | flat, open | none | short; feed barrels are the only obstacles |
 | Neon Harbor | Harbor under pink city light | barely climbs | shark | |
-| Rainforest Falls | temperate rainforest: big conifers, ferns, mist | climbs | bear | the training course borrows its look |
-| Mountain River | granite gorge; gold larches in autumn, snow in spring | steepest | bear | most waterfalls and rocks |
-| Bamboo River | Japanese mountain stream: bamboo, torii, lanterns | climbs | bear | red maples in autumn, cherry blossom in spring |
+| Emerald Plunge | temperate rainforest: big conifers, ferns, mist | climbs | bear | the training course borrows its look |
+| Riptide Rapids | granite gorge; gold larches in autumn, snow in spring | steepest | bear | most waterfalls and rocks |
+| Bamboo Baitway | Japanese mountain stream: bamboo, torii, lanterns | climbs | bear | red maples in autumn, cherry blossom in spring |
 | The Hatchery | The Fish Farm with bamboo ashore | flat, open | none | |
 | Alpine Lake | wide calm lake ringed by peaks | flat, open | none | ramps, rails and rings only |
-| The Crater Lake | Alpine Lake with maples and torii | flat, open | none | |
+| Ancestral Waters | Alpine Lake with maples and torii | flat, open | none | |
 
 Seasons are part of each entry: the base settings are autumn (the way up), and a `spring`
 block replaces whatever changes on the way down.
@@ -386,7 +386,7 @@ on its own along a trail of its own, whatever is on the surface above it
   other salmon, the wake and the splashes ride them. Nothing flashes on the beat: the water
   and the light are steady.
 - **Open sea** stages have a floor of rolling hills below (`floor`) instead of a river bed:
-  in sight in the Deadliest Catch and the Coral Reef, and not drawn at all under the Big Blue.
+  in sight in the Deadliest Catch and the Reefside, and not drawn at all under the Big Blue.
   From underneath, the surface is a bright ceiling that hides the sky.
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening
@@ -534,7 +534,7 @@ Things that are true of the build today and likely to matter for the next round 
 
 - **Downstream courses are not the upstream ones reversed.** Same stage, same look, but a
   different layout.
-- **Several stages have no predator** (Meandering River, Dry Riverbed, The Fish Ladder, the
+- **Several stages have no predator** (Bubbling Brook, Withering Waters, The Fish Ladder, the
   farms and lakes), and the sea stages all share the shark.
 - **Stages differ mostly in scenery and mix**, not in mechanics. Only the uphill waterfalls
   and the open-water stages really play differently.

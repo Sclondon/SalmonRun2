@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://mru57agf5f1u"
-path="res://.godot/imported/rainforest_falls.png-23e5f28772b05a0278c0a0f02bd1d80f.ctex"
+uid="uid://du0mnh3xmbgj7"
+path="res://.godot/imported/bubbling_brook.png-9c015800e943cd3bbf92b1f265e9cd0a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/rainforest_falls.png"
-dest_files=["res://.godot/imported/rainforest_falls.png-23e5f28772b05a0278c0a0f02bd1d80f.ctex"]
+source_file="res://textures/previews/bubbling_brook.png"
+dest_files=["res://.godot/imported/bubbling_brook.png-9c015800e943cd3bbf92b1f265e9cd0a.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

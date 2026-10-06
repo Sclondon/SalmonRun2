@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ch0wesotmo0ii"
-path="res://.godot/imported/bamboo_river.png-22536501b2c6ff87f74fb13e055112ee.ctex"
+uid="uid://cy48dny0a2il8"
+path="res://.godot/imported/bamboo_baitway.png-894b9780ab5e6e13b1ef411cb7c977f1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/bamboo_river.png"
-dest_files=["res://.godot/imported/bamboo_river.png-22536501b2c6ff87f74fb13e055112ee.ctex"]
+source_file="res://textures/previews/bamboo_baitway.png"
+dest_files=["res://.godot/imported/bamboo_baitway.png-894b9780ab5e6e13b1ef411cb7c977f1.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

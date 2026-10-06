@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dons1j18vm11b"
-path="res://.godot/imported/the_crater_lake.png-4ed4eec8337035cded53d34202825756.ctex"
+uid="uid://cwbydk46rpim"
+path="res://.godot/imported/ancestral_waters.png-ab79bf20ab507aca08b0552cb64b2ae0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/the_crater_lake.png"
-dest_files=["res://.godot/imported/the_crater_lake.png-4ed4eec8337035cded53d34202825756.ctex"]
+source_file="res://textures/previews/ancestral_waters.png"
+dest_files=["res://.godot/imported/ancestral_waters.png-ab79bf20ab507aca08b0552cb64b2ae0.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

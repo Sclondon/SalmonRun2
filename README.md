@@ -61,23 +61,23 @@ progress bar: so many rings, tricks on the beat, a flow, a score, or few wipeout
 |---|---|---|
 | 1 | Big Blue | Deadliest Catch, Abyss |
 | 2 | Deadliest Catch | Rocky Coast, Harbor |
-| 2 | Abyss | Coral Reef, Arctic Waters |
-| 3 | Rocky Coast | The Fish Ladder, Dry Riverbed |
+| 2 | Abyss | Reefside, Aurora |
+| 3 | Rocky Coast | The Fish Ladder, Withering Waters |
 | 3 | Harbor | The Fish Farm, The Fish Ladder |
-| 3 | Coral Reef | **Neon Harbor**, Meandering River, Dry Riverbed |
-| 3 | Arctic Waters | Meandering River, **Neon Harbor** |
-| 4 | Meandering River | Rainforest Falls, Mountain River |
-| 4 | Dry Riverbed | Mountain River, Alpine Lake (an early finish) |
-| 4 | The Fish Ladder | Mountain River, Alpine Lake (an early finish) |
+| 3 | Reefside | **Neon Harbor**, Bubbling Brook, Withering Waters |
+| 3 | Aurora | Bubbling Brook, **Neon Harbor** |
+| 4 | Bubbling Brook | Emerald Plunge, Riptide Rapids |
+| 4 | Withering Waters | Riptide Rapids, Alpine Lake (an early finish) |
+| 4 | The Fish Ladder | Riptide Rapids, Alpine Lake (an early finish) |
 | 4 | The Fish Farm | an early ending |
-| 4 | **Neon Harbor** | **The Hatchery**, **Bamboo River** |
-| 5 | Rainforest Falls, Mountain River | Alpine Lake |
+| 4 | **Neon Harbor** | **The Hatchery**, **Bamboo Baitway** |
+| 5 | Emerald Plunge, Riptide Rapids | Alpine Lake |
 | 5 | **The Hatchery** | an early ending |
-| 5 | **Bamboo River** | **The Crater Lake** |
+| 5 | **Bamboo Baitway** | **Ancestral Waters** |
 
 There are two routes. Everything is shared up to step 3; from step 4 the **Japan route** (bold
-above, pink on the map) splits off at Neon Harbor, which can only be reached from Coral Reef or
-Arctic Waters, and the rest is North America. Each route has a fish farm as a quick, easy early
+above, pink on the map) splits off at Neon Harbor, which can only be reached from Reefside or
+Aurora, and the rest is North America. Each route has a fish farm as a quick, easy early
 ending (the default way on from its harbor) and a home lake at the end of the full run.
 
 The pins are real places: the open ocean in the mid Pacific, the Gulf of Alaska, the Mariana

@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c2cnm5mqh0awq"
-path="res://.godot/imported/dry_riverbed.png-576d3bd99ee0e29ec2f416e6eabb39d0.ctex"
+uid="uid://bus5vpvi0tu3a"
+path="res://.godot/imported/aurora.png-10bfc980fae770b57821b50c20931286.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/dry_riverbed.png"
-dest_files=["res://.godot/imported/dry_riverbed.png-576d3bd99ee0e29ec2f416e6eabb39d0.ctex"]
+source_file="res://textures/previews/aurora.png"
+dest_files=["res://.godot/imported/aurora.png-10bfc980fae770b57821b50c20931286.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

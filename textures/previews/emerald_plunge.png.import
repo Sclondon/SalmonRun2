@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://e8rtwogy0yo2"
-path="res://.godot/imported/meandering_river.png-3d3ed35c6fa130da28ad98ca8c9c1c45.ctex"
+uid="uid://62051frw6wp2"
+path="res://.godot/imported/emerald_plunge.png-5a63541274a50ffa68ace479f3eff7a4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/meandering_river.png"
-dest_files=["res://.godot/imported/meandering_river.png-3d3ed35c6fa130da28ad98ca8c9c1c45.ctex"]
+source_file="res://textures/previews/emerald_plunge.png"
+dest_files=["res://.godot/imported/emerald_plunge.png-5a63541274a50ffa68ace479f3eff7a4.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

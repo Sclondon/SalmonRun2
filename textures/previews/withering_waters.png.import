@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dr6027t7lji41"
-path="res://.godot/imported/coral_reef.png-ff8e48e523446e93ea9111af7f8b5570.ctex"
+uid="uid://cn7aaeallrwpi"
+path="res://.godot/imported/withering_waters.png-cbac03ddbe25bebe8793e8930ad24d68.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/coral_reef.png"
-dest_files=["res://.godot/imported/coral_reef.png-ff8e48e523446e93ea9111af7f8b5570.ctex"]
+source_file="res://textures/previews/withering_waters.png"
+dest_files=["res://.godot/imported/withering_waters.png-cbac03ddbe25bebe8793e8930ad24d68.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

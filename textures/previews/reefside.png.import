@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vp155tlcocx4"
-path="res://.godot/imported/mountain_river.png-63f5bc39e9a68f05fbd4ffa996e0bd09.ctex"
+uid="uid://o4bcw8bcapmk"
+path="res://.godot/imported/reefside.png-ad7192cd15245eefdf9f66abd026efbf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/mountain_river.png"
-dest_files=["res://.godot/imported/mountain_river.png-63f5bc39e9a68f05fbd4ffa996e0bd09.ctex"]
+source_file="res://textures/previews/reefside.png"
+dest_files=["res://.godot/imported/reefside.png-ad7192cd15245eefdf9f66abd026efbf.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
