@@ -209,7 +209,7 @@ Notes:
   where they part (`open_side`). The Open Ocean (the ship and the abyss) and the Ocean
   Trench (a choice of currents) keep their own kinds of fork.
 - **The Ocean Trench has no surface overhead** (`"no_surface"`): only the dark.
-- **Flying fish** break out of the sea ahead in a flight and glide low over it (`sea_visitors.gd`).
+- **Flying fish** break out of the sea ahead in a flight and glide low over it, never the salmon's way: coming straight at it, or across its path at some angle (`sea_visitors.gd`).
 
 ## 4. Stages
 

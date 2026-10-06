@@ -110,16 +110,31 @@ func _place(a: Dictionary, first: bool) -> void:
 			a.depth = _rng.randf_range(0.45, 0.95) * track.layers() * track.layer_depth()
 			a.pace = _rng.randf_range(0.5, 2.0)
 		"flyer":
-			# a flight of them together, ahead and to one side, going the salmon's way
+			# A flight of them together, never going the salmon's way: either coming straight
+			# at it, or crossing its path at whatever angle (heading: radians round from the way
+			# the course runs, + to the right).
 			if int(a.i) == 0:
-				a.s = player.s + _rng.randf_range(50.0, 120.0)
-				a.x = clampf(player.x + _rng.randf_range(8.0, 22.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -lim + 4.0, lim - 4.0)
+				var speed := _rng.randf_range(13.0, 19.0)
+				if _rng.randf() < 0.45:
+					a.heading = PI + _rng.randf_range(-0.2, 0.2)
+					a.s = player.s + _rng.randf_range(130.0, 200.0)
+					a.x = clampf(player.x + _rng.randf_range(-12.0, 12.0), -lim + 4.0, lim - 4.0)
+				else:
+					# (across, from one side to the other, and more often than not towards the salmon)
+					var side := 1.0 if _rng.randf() < 0.5 else -1.0
+					a.heading = side * _rng.randf_range(0.9, 2.5)
+					a.s = player.s + _rng.randf_range(60.0, 130.0)
+					a.x = player.x - sin(float(a.heading)) * _rng.randf_range(26.0, 40.0)
+				a.speed = speed
 			else:
 				var first_one: Dictionary = _animals.filter(func(b: Dictionary) -> bool: return b.kind == "flyer" and int(b.i) == 0)[0]
+				a.heading = float(first_one.get("heading", PI)) + _rng.randf_range(-0.08, 0.08)
+				a.speed = float(first_one.get("speed", 16.0)) * _rng.randf_range(0.92, 1.08)
 				a.s = float(first_one.s) + _rng.randf_range(-9.0, 9.0)
 				a.x = float(first_one.x) + _rng.randf_range(-6.0, 6.0)
 			a.depth = 0.4
-			a.pace = Salmon.CRUISE + _rng.randf_range(1.0, 5.0)
+			# (along the course it goes by the generic rule, see _process; across it, by its own)
+			a.pace = cos(float(a.heading)) * float(a.speed)
 		"sturgeon":
 			# a great slow fish, down on the bed
 			a.s = player.s + _rng.randf_range(150.0, 400.0) + (0.0 if first else 250.0) + int(a.i) * 180.0
@@ -177,7 +192,8 @@ func _process(delta: float) -> void:
 		# gone by (or, the tuna, gone on ahead out of sight): met again further on
 		var leads: bool = a.kind == "whale" and int(a.i) == 0 and _guiding()
 		# (the tuna stay with the salmon: they are only set down afresh if left far behind)
-		if not leads and ((a.kind == "tuna" and absf(gap) > 220.0) or (a.kind != "tuna" and gap < -40.0)):
+		var strayed: bool = a.kind == "flyer" and absf(float(a.x) - player.x) > 70.0
+		if not leads and ((a.kind == "tuna" and absf(gap) > 220.0) or (a.kind != "tuna" and gap < -40.0) or strayed):
 			_place(a, false)
 			gap = float(a.s) - player.s
 		a.s = float(a.s) + float(a.pace) * dt
@@ -214,7 +230,9 @@ func _process(delta: float) -> void:
 				depth = 0.4 - (0.4 + 1.9 * pow(up, 0.6)) * (1.0 if glide > 0.0 and glide < 1.0 else 0.0)
 				tilt = cos(glide * PI) * 0.35 if glide > 0.0 and glide < 1.0 else 0.0
 				roll = sin(_t * 2.0 + phase) * 0.12
-				sway = sin(_t * 14.0 + phase) * (0.02 if glide > 0.0 and glide < 1.0 else 0.16)
+				# (it points the way it is going, and goes across the course as well as along it)
+				a.x = float(a.x) + sin(float(a.get("heading", PI))) * float(a.get("speed", 16.0)) * dt
+				sway = -float(a.get("heading", PI)) + sin(_t * 14.0 + phase) * (0.02 if glide > 0.0 and glide < 1.0 else 0.16)
 			"sturgeon":
 				sway = sin(_t * 1.6 + phase) * 0.1
 			"turtle":
