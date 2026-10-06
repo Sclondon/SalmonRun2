@@ -1,7 +1,9 @@
 extends Node3D
 ## A predator in the salmon's way, striking on every other beat: a grizzly standing in the
-## river slamming its paws down, or (at sea) a shark lunging up out of the water.
-## Jump over it (or steer wide) to get past.
+## river slamming its paws down (jump over it, or steer wide), or at sea a shark, which
+## strikes on no beat: it swims to and fro across the way, at the surface or under it, and is
+## to be got round, over or under.
+
 
 const Props := preload("res://scripts/world/props.gd")
 
@@ -14,7 +16,16 @@ var beat_offset := 0.0
 var kind := "bear"
 var _arms: Array[Node3D] = []
 var _body: Node3D
-var _fin: Node3D
+## The shark: how far to either side of its place it swims (m), how fast it goes to and fro,
+## how far under the surface it keeps (m), and where it is across just now (m from its place,
+## the way the course measures across).
+var sweep := 8.0
+var sweep_rate := 0.9
+var depth := 0.5
+var across := 0.0
+const SHARK_SIZE := 1.5
+var _clock := 0.0
+var _phase0 := 0.0
 
 
 func setup(rng: RandomNumberGenerator, mat: Material, predator := "bear") -> void:
@@ -22,15 +33,12 @@ func setup(rng: RandomNumberGenerator, mat: Material, predator := "bear") -> voi
 	_body = Node3D.new()
 	add_child(_body)
 	var body := MeshInstance3D.new()
-	body.mesh = Props.shark_body(rng) if kind == "shark" else Props.bear_body(rng)
+	body.mesh = Props.shark_whole() if kind == "shark" else Props.bear_body(rng)
 	body.material_override = mat
 	_body.add_child(body)
 	if kind == "shark":
-		var fin := MeshInstance3D.new()
-		fin.mesh = Props.shark_fin()
-		fin.material_override = mat
-		_fin = fin
-		add_child(fin)
+		body.scale = Vector3.ONE * SHARK_SIZE
+		_phase0 = rng.randf() * TAU
 		return
 	var arm_mesh := Props.bear_arm(rng)
 	for sx: float in [-1.0, 1.0]:
@@ -52,24 +60,17 @@ func is_swiping() -> bool:
 	return _phase() < SWIPE_BEATS
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var p := _phase()
 	if kind == "shark":
-		# up on the beat, sink away, then nose back up as a warning before the next one
-		var depth: float
-		if p < SWIPE_BEATS:
-			depth = lerpf(1.2, 0.0, p / SWIPE_BEATS)
-		elif p < 1.4:
-			depth = lerpf(0.0, SHARK_DEPTH, smoothstep(SWIPE_BEATS, 1.0, p))
-		else:
-			depth = lerpf(SHARK_DEPTH, 1.2, smoothstep(1.4, 2.0, p))
-		_body.position.y = -depth
-		_body.rotation.y = sin(p * PI) * 0.25
-		# the fin circles while the shark is down
-		var a := Music.beat_float() * 0.9 + beat_offset * PI
-		_fin.position = Vector3(cos(a) * 1.5, 0.0, sin(a) * 1.5)
-		_fin.rotation.y = -a
-		_fin.visible = depth > 2.0
+		# to and fro across the salmon's way, turning at each end, with a slow beat of the tail
+		_clock += delta
+		var a := _clock * sweep_rate + _phase0
+		across = sin(a) * sweep
+		var going := cos(a)
+		_body.position = Vector3(across, -depth, 0.0)
+		# (its nose is at -Z: it faces the way it is going, and comes round through the turn)
+		_body.rotation.y = -signf(going) * PI * 0.5 * smoothstep(0.0, 0.35, absf(going)) + sin(_clock * 5.0) * 0.12
 		return
 	var ang: float
 	if p < SWIPE_BEATS:

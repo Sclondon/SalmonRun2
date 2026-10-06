@@ -780,15 +780,17 @@ func fall_base(wf: Dictionary) -> float:
 	return floorf(float(wf.s) / STEP) * STEP
 
 
-## Two predators (sharks at sea, bears in the rivers) snapping on alternate beats, with rings
-## over their heads for anyone brave enough to jump them.
+## Two predators with rings over their heads for anyone brave enough to jump them: bears in
+## the rivers, snapping on alternate beats; sharks at sea, swimming to and fro across the
+## way, the first at the surface and the second somewhere under it.
+
 func _plan_predators(s: float) -> float:
 	if cfg.predator == "":
 		return _plan_ring_trail(s)
 	for k in 2:
 		var ps := s + 30.0 + k * 34.0
 		var px := _rng.randf_range(-5.0, 5.0)
-		bears.append({"s": ps, "x": px, "off": float(k)})
+		bears.append({"s": ps, "x": px, "off": float(k), "d": 0.5 if k == 0 else layer_depth() * _rng.randi_range(1, layers())})
 		rings.append({"s": ps, "x": px, "h": 4.6, "ref": ps})
 	return 95.0
 
@@ -1265,7 +1267,12 @@ func _build_features() -> void:
 		add_child(bear)
 		bear.setup(frng, mat_world, cfg.predator)
 		bear.beat_offset = b.off
-		bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI), point(b.s, b.x, water_y(b.s) - (0.7 if cfg.predator == "bear" else 0.0)))
+		if cfg.predator == "shark":
+			bear.depth = float(b.get("d", 0.5))
+			bear.sweep = minf(8.0, width(b.s) * 0.5 - 3.0)
+			bear.transform = Transform3D(basis_at(b.s), point(b.s, b.x, water_y(b.s)))
+		else:
+			bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI), point(b.s, b.x, water_y(b.s) - 0.7))
 		b.node = bear
 
 	var speaker := Props.speaker_stack(frng)
@@ -1545,12 +1552,16 @@ func _scatter() -> void:
 							if d > hw or (_rapid_amount(s) < 0.1 and ramp_height(s, side * d) == 0.0):
 								_put(bucket, kind, srng.randi() % variants, s, point(s, side * d, water_y(s) + float(rule[6])), srng.randf_range(rule[4], rule[5]), srng)
 					"far":
+						# (a ninth entry keeps it to one side: -1 the left, 1 the right)
+						if rule.size() > 8 and float(rule[8]) != side:
+							continue
 						if int(s) % 40 == 0 and srng.randf() < float(rule[1]):
 							var d := srng.randf_range(hw + float(rule[2]), hw + float(rule[3]))
 							var sink := srng.randf_range(-12.0, 4.0) if kind in ["hill", "mountain", "mesa"] else float(rule[6])
 							_put(bucket, kind, srng.randi() % variants, s, point(s, side * d, water_y(s) + sink), srng.randf_range(rule[4], rule[5]), srng)
 			# lane markers where there are no banks to show the way
-			if cfg.has("markers") and int(s) % 16 == 0 and not (cfg.has("shore") and not is_sea_side(side)):
+			# (not on the salt water: a swarm of sardines keeps its edges, see edge_swarm.gd)
+			if cfg.has("markers") and not bool(cfg.get("salt", false)) and int(s) % 16 == 0 and not (cfg.has("shore") and not is_sea_side(side)):
 				_put(bucket, "marker", 0, s, point(s, side * (hw + 0.4), water_y(s)), 1.0, srng)
 		s += 4.0
 	if cfg.has("markers"):

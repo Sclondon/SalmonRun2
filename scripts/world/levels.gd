@@ -127,7 +127,7 @@ const LIST: Array[Dictionary] = [
 			["boat", 0.1, 60.0, 130.0, 1.0, 1.6, 0.0, "water"],
 			["driftwood", 0.05, 4.0, 50.0, 0.8, 1.4, -0.1, "water"],
 			["ship", 0.012, 90.0, 140.0, 1.0, 1.0, 0.0, "water"],
-			["mountain", 0.5, 150.0, 190.0, 1.0, 1.8, -4.0, "far"],
+			["mountain", 0.5, 150.0, 190.0, 1.0, 1.8, -4.0, "far", -1.0],
 		],
 		"sky_top": Color(0.08, 0.24, 0.5), "sky_horizon": Color(0.52, 0.74, 0.84),
 		"sky_bottom": Color(0.3, 0.48, 0.52), "sun": Color(1.0, 0.96, 0.84), "sun_dir": Vector3(-0.3, 0.42, -1.0),

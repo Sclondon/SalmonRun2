@@ -7,12 +7,16 @@ const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 const School := preload("res://scripts/world/school.gd")
 const Shoals := preload("res://scripts/world/shoals.gd")
+const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
 
 var track: Track
 var player: Salmon
 var camera: ChaseCam
 var school: School
+var others: School
 var shoals: Shoals
+var sardines: Shoals
+var edge_swarm: EdgeSwarm
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -34,15 +38,30 @@ func _ready() -> void:
 	school = School.new()
 	add_child(school)
 	school.setup(track, player, 6)
+	# (and, besides the pack, other salmon about their own business further off)
+	others = School.new()
+	others.loose = true
+	add_child(others)
+	others.setup(track, player, 4 if Save.is_mobile() else 7)
 	shoals = Shoals.new()
 	add_child(shoals)
 	shoals.setup(track, player, 5 if Save.is_mobile() else 9, 9 if Save.is_mobile() else 14)
+	# swarms of sardines under the sea, and the swarm that gathers at its edges
+	sardines = Shoals.new()
+	sardines.sardines = true
+	add_child(sardines)
+	sardines.setup(track, player, 3 if Save.is_mobile() else 5, 45 if Save.is_mobile() else 90)
+	edge_swarm = EdgeSwarm.new()
+	add_child(edge_swarm)
+	edge_swarm.setup(track, player, 110 if Save.is_mobile() else 260)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
 	camera.player = player
 	camera.track = track
 	school.track = track
+	others.track = track
+	others.scatter()
 	school.scatter()
 	add_child(camera)
 	camera.current = true
@@ -76,8 +95,13 @@ func set_course(level: int, test: bool, down := false) -> void:
 	player.reset(Track.START_S)
 	camera.track = track
 	school.track = track
+	others.track = track
+	others.scatter()
 	school.scatter()
 	shoals.track = track
+	sardines.track = track
+	sardines.scatter()
+	edge_swarm.track = track
 	shoals.scatter()
 	camera.snap()
 
@@ -131,6 +155,7 @@ func _dress_player(level: int, down: bool) -> void:
 		look = "spawner" if tier >= 4 else "migrating"
 	player.set_look(look)
 	school.set_look(look)
+	others.set_look(look)
 
 
 ## Sky, fog and light for the level that was just built.

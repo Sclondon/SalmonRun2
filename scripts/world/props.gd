@@ -219,8 +219,8 @@ static func salmon(look := "spawner") -> ArrayMesh:
 	# dorsal, adipose, anal fins
 	# (each one is rooted inside the body, so none of them floats clear of it)
 	var top := 0.32 * slim + 0.1 * hump
-	mb.tri(Vector3(0.0, top, -0.44), Vector3(0.0, top + 0.52 * tail, -0.10), Vector3(0.0, top, 0.22), back, Vector3.RIGHT)
-	mb.tri(Vector3(0.0, top + 0.52 * tail, -0.10), Vector3(0.0, top + 0.3 * tail, 0.20), Vector3(0.0, top, 0.22), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, top, -0.34), Vector3(0.0, top + 0.3 * tail, -0.08), Vector3(0.0, top, 0.14), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, top + 0.3 * tail, -0.08), Vector3(0.0, top + 0.17 * tail, 0.13), Vector3(0.0, top, 0.14), back, Vector3.RIGHT)
 	mb.tri(Vector3(0.0, 0.14 * slim, 0.50), Vector3(0.0, 0.14 * slim + 0.26 * tail, 0.70), Vector3(0.0, 0.08 * slim, 0.74), back, Vector3.RIGHT)
 	mb.tri(Vector3(0.0, -0.14 * slim, 0.42), Vector3(0.0, -0.14 * slim - 0.32 * tail, 0.64), Vector3(0.0, -0.06 * slim, 0.72), fin, Vector3.RIGHT)
 	# kype (the hooked jaw males grow for the spawning run)

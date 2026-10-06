@@ -19,6 +19,10 @@ const KINDS := [
 var track: Track
 var player: Salmon
 
+## Sardines: great swarms of one small silver fish, each swarm turning slowly on itself, in the
+## salt water only. (Set before setup.)
+var sardines := false
+
 var _shoals: Array[Dictionary] = []
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -27,9 +31,9 @@ var _rng := RandomNumberGenerator.new()
 func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 	track = t
 	player = p
-	_rng.seed = 1357
+	_rng.seed = 1357 + (11 if sardines else 0)
 	var meshes: Array[Mesh] = []
-	for kind: Array in KINDS:
+	for kind: Array in ([[Color(0.25, 0.4, 0.55), Color(0.86, 0.92, 0.97)]] if sardines else KINDS):
 		meshes.append(Props.small_fish(kind[0], kind[1]))
 	for i in count:
 		var mm := MultiMesh.new()
@@ -40,7 +44,7 @@ func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 		node.multimesh = mm
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		# (the fish move about inside it, so it is given room enough never to be culled early)
-		node.custom_aabb = AABB(Vector3(-8, -4, -10), Vector3(16, 8, 20))
+		node.custom_aabb = AABB(Vector3(-16, -8, -16), Vector3(32, 16, 32))
 		add_child(node)
 		var places: Array[Vector3] = []
 		for k in fish:
@@ -67,7 +71,7 @@ func _place(sh: Dictionary, at_s: float) -> void:
 	# most swim the way the salmon is going; some come the other way
 	sh.pace = _rng.randf_range(6.0, 13.0) * (-1.0 if _rng.randf() < 0.3 else 1.0)
 	sh.drift = _rng.randf_range(-1.2, 1.2)
-	sh.size = _rng.randf_range(0.7, 1.25)
+	sh.size = _rng.randf_range(0.5, 0.75) if sardines else _rng.randf_range(0.7, 1.25)
 	var tight := clampf(room / 6.0, 0.35, 1.0)
 	sh.spread = Vector3(_rng.randf_range(1.5, 4.0) * tight, minf(_rng.randf_range(0.5, 1.6), sh.depth - 0.5) * tight, _rng.randf_range(2.5, 6.0) * tight)
 
@@ -88,7 +92,7 @@ func _process(delta: float) -> void:
 		sh.x = x
 		var node: MultiMeshInstance3D = sh.node
 		# (nothing swims through a waterfall)
-		node.visible = not track.near_fall(s, 25.0, 25.0)
+		node.visible = not track.near_fall(s, 25.0, 25.0) and (not sardines or bool(track.cfg.get("salt", false)))
 		if not node.visible:
 			continue
 		var facing := track.basis_at(s)
@@ -102,6 +106,9 @@ func _process(delta: float) -> void:
 		var phase: float = sh.phase
 		for k in places.size():
 			var at := places[k] * spread
+			if sardines:
+				# (a ball of them, turning: those further out go round slower)
+				at = Basis(Vector3.UP, _t * 0.9 / (0.6 + places[k].length()) + phase) * (places[k] * Vector3(spread.z, spread.y * 1.6, spread.z) * 0.9)
 			var own := phase + k * 1.7
 			# each wanders a little about its place in the shoal, and wags as it swims
 			at += Vector3(sin(_t * 0.9 + own), sin(_t * 0.7 + own * 1.3) * 0.4, sin(_t * 0.6 + own * 0.7)) * 0.35

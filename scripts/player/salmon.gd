@@ -953,7 +953,15 @@ func _check_hazards() -> void:
 			return
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)
-		# ...and under the paws of a bear, but a shark comes from below
+		# a shark is wherever it has swum to, across the way and under the water: touch it at
+		# its own depth and it has you (swim round it, over it or under it)
+		if track.cfg.predator == "shark":
+			if absf(ds) < 2.4 and absf(x - float(b.x) - float(b.node.across)) < 3.2 and absf(above + float(b.node.depth)) < 1.5:
+				_wipe(track.cfg.predator_word)
+				Sfx.play("bear")
+				return
+			continue
+		# ...and under the paws of a bear
 		if dive > 0.6 and track.cfg.predator == "bear":
 			break
 		if absf(ds) < 2.8 and absf(x - float(b.x)) < 3.0 and above < 3.6 and b.node.is_swiping():

@@ -23,6 +23,9 @@ var _was_air := false
 ## place, leaping when it likes) to 1 (in step: drawn in close, leaping when the player leaps,
 ## as high, and turning every trick the player turns). Set from the flow, by main.
 var in_step := 0.0
+## Loose: not a pack at all but salmon about their own business, spread far out ahead and to
+## either side, each at its own pace, taking no notice of the player. (Set before setup.)
+var loose := false
 var _step := 0.0
 var _rng := RandomNumberGenerator.new()
 
@@ -30,7 +33,7 @@ var _rng := RandomNumberGenerator.new()
 func setup(t: Track, p: Salmon, count: int) -> void:
 	track = t
 	player = p
-	_rng.seed = 2468
+	_rng.seed = 2468 + (99 if loose else 0)
 	var shader := preload("res://shaders/fish.gdshader")
 	for i in count:
 		var mat := ShaderMaterial.new()
@@ -62,14 +65,14 @@ func set_look(look: String) -> void:
 ## Spreads everyone out around the player (after a restart or a change of level).
 func scatter() -> void:
 	for f: Dictionary in _fish:
-		_place(f, player.s + float(f.ahead))
+		_place(f, player.s + (_rng.randf_range(-20.0, 80.0) if loose else float(f.ahead)))
 
 
 func _place(f: Dictionary, at_s: float) -> void:
 	f.s = clampf(at_s, 4.0, track.length - 8.0)
 	var lim := track.width(f.s) * 0.5 - 2.0
 	# near the player, so they are company even where the water is very wide
-	f.lane = clampf(player.x + float(f.off), -lim, lim)
+	f.lane = clampf(player.x + (_rng.randf_range(-30.0, 30.0) if loose else float(f.off)), -lim, lim)
 	f.x = f.lane
 	f.y = track.surface_y(f.s, f.x)
 	f.vy = 0.0
@@ -91,20 +94,23 @@ func _process(delta: float) -> void:
 	var jumped := player.in_air() and not _was_air
 	_was_air = player.in_air()
 	# (dived, the player takes the pack down too)
-	var depth := track.layer_depth() * player.dive
+	var depth := 0.0 if loose else track.layer_depth() * player.dive
 	for f: Dictionary in _fish:
 		# out of sight: come back in from the other end
 		var gap: float = float(f.s) - player.s
-		if gap > AHEAD or gap < -BEHIND:
-			_place(f, player.s + float(f.ahead))
+		if gap > (95.0 if loose else AHEAD) or gap < -(30.0 if loose else BEHIND):
+			_place(f, player.s + ((_rng.randf_range(55.0, 85.0) if gap < 0.0 else -24.0) if loose else float(f.ahead)))
 		var s: float = f.s
 		var x: float = f.x
 		var y: float = f.y
 		var vy: float = f.vy
 		# it keeps its place in the pack: as fast as the player, and a little faster or slower
 		# to get back to where it belongs
-		s += clampf(player.speed + (player.s + float(f.ahead) * close - s) * lerpf(1.2, 4.0, _step), 8.0, 48.0) * dt
-		f.lane = player.x + float(f.off) * close
+		if loose:
+			s += Salmon.CRUISE * float(f.pace) * dt
+		else:
+			s += clampf(player.speed + (player.s + float(f.ahead) * close - s) * lerpf(1.2, 4.0, _step), 8.0, 48.0) * dt
+			f.lane = player.x + float(f.off) * close
 		# drift about the lane, and steer round any rock coming up
 		var lim := track.width(s) * 0.5 - 1.8
 		var want := clampf(float(f.lane) + sin(_t * 0.5 + float(f.phase)) * 2.0 * (1.0 - _step), -lim, lim)
@@ -123,7 +129,7 @@ func _process(delta: float) -> void:
 			y = surf
 			f.hop = float(f.hop) - dt
 			# (when the player leaps, so do they, each a moment after)
-			if jumped:
+			if jumped and not loose:
 				f.hop = minf(float(f.hop), _rng.randf_range(0.05, 0.6))
 			var leap := float(f.hop) < 0.0 and float(f.deep) < 0.2
 			if uphill:
