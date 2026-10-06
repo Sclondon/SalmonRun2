@@ -33,26 +33,42 @@ uniform float colour_ripple : hint_range(0.0, 1.0) = 0.08;
 uniform float view_clear : hint_range(0.0, 1.0) = 0.35;
 
 group_uniforms foam;
-// Drifting patches of foam: 0 is none, 1 is a lot.
-uniform float foam_amount : hint_range(0.0, 1.0) = 0.18;
-// Whitecaps: how much of the water has drifts of flat white foam lying on it (0 is none).
-uniform float whitecaps : hint_range(0.0, 1.0) = 0.3;
-// Size of the patches (bigger number, smaller patches).
-uniform float foam_scale = 1.0;
-// The pattern the foam is cut from: a grey picture that wraps round at its edges. Where it
-// is bright there is foam; the settings above say how bright it has to be. (Made by
-// scripts/tools/bake_foam.gd; any picture that wraps will do in its place.) And how many
-// metres of water one copy of it covers. (With no picture set there is no foam.)
+// Foam is three separate things, each with its own settings: PATCHES that drift down a river
+// with the current (and gather along its banks, in rapids and round whatever breaks the
+// surface); WHITECAPS, drifts of flat foam lying on open water; and CREST FOAM, which rides
+// the tops of the swell. All three are cut from the same grey picture, foam_texture, which
+// wraps round at its edges: where it is bright there is foam. (Made by
+// scripts/tools/bake_foam.gd; any picture that wraps will do. With none set there is no foam.)
 uniform sampler2D foam_texture : repeat_enable, filter_linear, hint_default_black;
-uniform float foam_size = 22.0;
-// How much more foam there is on the crests of the swell than in its troughs (0 is no more).
-uniform float crest_foam : hint_range(0.0, 1.0) = 0.5;
-// Extra foam along a river's banks and in rapids.
-uniform float edge_foam : hint_range(0.0, 1.0) = 0.35;
-uniform float rapid_foam : hint_range(0.0, 1.0) = 0.5;
+// Patches: how much (0 is none), how small (bigger number, smaller patches), and how fast
+// they drift (1 is with the current).
+uniform float foam_amount : hint_range(0.0, 3.0) = 0.18;
+uniform float foam_scale : hint_range(0.02, 20.0) = 1.0;
+uniform float foam_speed : hint_range(0.0, 6.0) = 1.0;
+// Extra patches along a river's banks and in rapids.
+uniform float edge_foam : hint_range(0.0, 3.0) = 0.35;
+uniform float rapid_foam : hint_range(0.0, 3.0) = 0.5;
 // The rim of foam round anything that breaks the surface: how wide (metres), and how ragged.
-uniform float rim_width = 0.45;
+uniform float rim_width : hint_range(0.0, 10.0) = 0.45;
 uniform float rim_ragged : hint_range(0.0, 1.0) = 0.5;
+
+group_uniforms whitecaps;
+// Whitecaps: how much of the water has flat white foam lying on it (0 is none), and how many
+// metres of water one copy of the foam picture covers (bigger number, bigger pieces).
+uniform float whitecaps : hint_range(0.0, 2.0) = 0.3;
+uniform float whitecap_size : hint_range(0.5, 300.0) = 22.0;
+// They gather into drifts with clear water between: how strongly (0 is evenly spread), and
+// how big the drifts are (metres).
+uniform float whitecap_clump : hint_range(0.0, 3.0) = 0.8;
+uniform float whitecap_clump_size : hint_range(2.0, 400.0) = 45.0;
+
+group_uniforms crest_foam;
+// Foam on the tops of the swell, coming and going as each wave passes: how far down from
+// the top it reaches (0 is none, 1 is half the wave), how many metres one copy of the foam
+// picture covers, and how broken its edge is (0 is a clean line along the crest).
+uniform float crest_amount : hint_range(0.0, 2.0) = 0.0;
+uniform float crest_size : hint_range(0.5, 300.0) = 14.0;
+uniform float crest_ragged : hint_range(0.0, 3.0) = 0.6;
 
 group_uniforms motion;
 uniform float flow = 0.6;
@@ -76,10 +92,14 @@ uniform float specular : hint_range(0.0, 1.0) = 0.12;
 uniform float lines : hint_range(0.0, 1.0) = 0.6;
 // The small waves that give it its shape: how fine they are, how steep, how peaked their
 // crests are, and how fast they move.
-uniform float ripple_scale = 0.55;
-uniform float ripple_height : hint_range(0.0, 3.0) = 0.16;
-uniform float ripple_choppy = 1.4;
-uniform float ripple_speed = 1.0;
+uniform float ripple_scale : hint_range(0.005, 20.0) = 0.55;
+uniform float ripple_height : hint_range(0.0, 20.0) = 0.16;
+uniform float ripple_choppy : hint_range(0.1, 12.0) = 1.4;
+uniform float ripple_speed : hint_range(0.0, 20.0) = 1.0;
+// Blocky light: the shape the light falls on is worked out once for each square of this many
+// pixels of the picture, so that the glints off the water come in squares, like the pixels
+// of the picture only bigger. (0 or 1 is smooth.)
+uniform float glint_pixels : hint_range(0.0, 32.0) = 0.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
 uniform float across = 22.0;
 
@@ -91,9 +111,23 @@ uniform int wake_count = 0;
 // The stretch of water (metres along) the trail lies in: nothing outside it is looked at.
 uniform vec2 wake_span = vec2(0.0, 0.0);
 // How long the wake lasts (s), how fast its arms move apart (m/s), and how wide they get (m).
-uniform float wake_life = 1.6;
-uniform float wake_spread = 2.4;
-uniform float wake_width = 0.4;
+uniform float wake_life = 0.45;
+uniform float wake_spread : hint_range(0.0, 20.0) = 2.4;
+uniform float wake_width : hint_range(0.0, 6.0) = 0.4;
+// The arms snake from side to side together, as a tail beats: how far (m), and how long each
+// bend is (m).
+uniform float wake_wiggle : hint_range(0.0, 3.0) = 0.0;
+uniform float wake_wiggle_length : hint_range(0.2, 20.0) = 2.5;
+// How broken the edges of its foam are (0 is clean bands), and how much of each arm is
+// missing in gaps along its length (0 is none).
+uniform float wake_ragged : hint_range(0.0, 1.0) = 0.5;
+uniform float wake_dashes : hint_range(0.0, 1.0) = 0.0;
+// Froth churned up down the middle, straight behind the fish (0 is none).
+uniform float wake_churn : hint_range(0.0, 1.0) = 0.0;
+// A second, thinner pair of arms outside the first (0 is none).
+uniform float wake_echo : hint_range(0.0, 1.0) = 0.0;
+// How much paler and flatter the water is between the arms.
+uniform float wake_calm : hint_range(0.0, 1.0) = 0.3;
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
@@ -219,7 +253,7 @@ void fragment() {
 	float water = max(behind - surface, 0.0);
 	float depth = clamp(water / depth_range, 0.0, 1.0);
 
-	vec2 p = vec2(v_metres.x * 0.37, UV.y * 0.18 - TIME * flow * 3.0) * foam_scale;
+	vec2 p = vec2(v_metres.x * 0.37, UV.y * 0.18 - TIME * flow * 3.0 * foam_speed) * foam_scale;
 	float n = smoothstep(0.25, 0.75, texture(foam_texture, p * 0.13).r * 0.6 + texture(foam_texture, p.yx * 0.29 + 0.37).r * 0.4);
 
 	// drifting patches, thicker along the banks (vertex green marks open water, which has
@@ -253,18 +287,33 @@ void fragment() {
 	// would be too short to measure at all.)
 	// (in metres across the course, not by the mapping, which is not the same size out to sea)
 	vec2 at = vec2(v_metres.x, UV.y - TIME * flow * 2.0);
-	float eps = (0.06 + far * 0.003) * 0.55 / max(ripple_scale, 0.02);
-	float h0 = wave_h(at);
-	float slope_x = (wave_h(at + vec2(eps, 0.0)) - h0) / eps;
-	float slope_y = (wave_h(at + vec2(0.0, eps)) - h0) / eps;
+	// (blocky light: every pixel of a square of the picture takes its shape from the middle
+	// of that square. Where that is on the water is reckoned from how the water runs across
+	// the screen just here.)
+	vec2 shape_at = at;
+	vec2 swell_slope = rise.yz;
+	if (glint_pixels > 1.0) {
+		vec2 to_middle = (floor(FRAGCOORD.xy / glint_pixels) + 0.5) * glint_pixels - FRAGCOORD.xy;
+		vec2 shift = dFdx(v_metres) * to_middle.x + dFdy(v_metres) * to_middle.y;
+		shape_at += shift;
+		swell_slope = swell_at(v_metres + shift).yz;
+	}
+	float eps = (0.06 + far * 0.003) * 0.55 / max(ripple_scale, 0.005);
+	float h0 = wave_h(shape_at);
+	float slope_x = (wave_h(shape_at + vec2(eps, 0.0)) - h0) / eps;
+	float slope_y = (wave_h(shape_at + vec2(0.0, eps)) - h0) / eps;
 	// The salmon's wake is part of the water: two bands of foam that open out behind it into
 	// a V, with the water between them churned flat, so that the waves do not run on through
 	// it. (The salmon's trail comes in as a string of points: where it was across the water,
 	// how far along, and how long ago.)
 	float wake_foam = 0.0;
-	float wake_calm = 0.0;
+	float wake_flat = 0.0;
+	float wake_froth = 0.0;
 	vec2 here = vec2((UV.x - 0.5) * across, UV.y);
 	if (wake_count > 1 && here.y > wake_span.x && here.y < wake_span.y) {
+		// (gaps along the arms, and the bends of the wiggle, stay where they are on the water)
+		float gap = step(wake_dashes, fract(here.y / 1.3));
+		float bend = wake_wiggle * sin(here.y * 6.2831853 / max(wake_wiggle_length, 0.05));
 		for (int i = 0; i < wake_count - 1; i++) {
 			vec3 a = wake_pts[i];
 			vec3 b = wake_pts[i + 1];
@@ -278,42 +327,54 @@ void fragment() {
 			if (t < -0.04 || t > 1.04) {
 				continue;
 			}
-			float d = length(here - (pa + ab * t));
+			vec2 off = here - (pa + ab * t);
 			float age = mix(a.z, b.z, t);
 			float k = clamp(age / wake_life, 0.0, 1.0);
+			// (the wiggle pushes one arm out as it pulls the other in, so the two snake together;
+			// none of it right at the fish)
+			float side = sign(ab.x * off.y - ab.y * off.x);
+			float d = max(length(off) - side * bend * smoothstep(0.0, 0.15, age), 0.0);
 			// each arm moves out from the middle as it ages, widens, and fades
 			float inner = 0.26 + wake_spread * age * (1.0 - 0.3 * k);
 			float wide = wake_width * smoothstep(0.0, 0.12, age) * (1.0 - 0.45 * k) + 0.06;
 			float fade = pow(1.0 - k, 1.3);
 			float arm = smoothstep(inner - 0.1, inner, d) * (1.0 - smoothstep(inner + wide * 0.35, inner + wide, d));
-			wake_foam = max(wake_foam, arm * fade);
-			wake_calm = max(wake_calm, (1.0 - smoothstep(inner * 0.7, inner + wide, d)) * fade);
+			// (a second pair, further out, thinner and fainter)
+			float outer = inner * 1.75 + 0.3;
+			float echo = smoothstep(outer - 0.1, outer, d) * (1.0 - smoothstep(outer + wide * 0.2, outer + wide * 0.55, d));
+			wake_foam = max(wake_foam, max(arm, echo * wake_echo * 0.85) * fade * gap);
+			wake_flat = max(wake_flat, (1.0 - smoothstep(inner * 0.7, inner + wide, d)) * fade);
+			wake_froth = max(wake_froth, (1.0 - smoothstep(0.0, 0.2 + inner * 0.55, d)) * fade);
 		}
 	}
-	// (its foam has a ragged edge, like the rest)
-	float wake_white = step(0.4, wake_foam * (0.5 + n));
+	// (its foam has a ragged edge, like the rest; the froth down the middle is all ragged)
+	float wake_white = step(0.4, wake_foam * mix(1.0, 2.0 * n, wake_ragged));
+	wake_white = max(wake_white, step(1.0 - wake_churn * 0.75, wake_froth * (0.25 + n)) * step(0.001, wake_churn));
 	white = max(white, wake_white);
-	col = mix(col, shallow.rgb, wake_calm * 0.3 * (1.0 - white));
+	col = mix(col, shallow.rgb, wake_flat * wake_calm * (1.0 - white));
 	col = mix(col, foam_color.rgb, wake_white);
-	// Foam lies on the water in flat white patches with ragged edges, gathered into drifts
-	// with clear water between them, and a scatter of small flecks round about. (None far
-	// off, where they would only be specks, nor in the wake.)
-	// (cut from the foam picture, laid twice at two sizes so that it is not seen to repeat;
-	// a slow, smooth noise gathers it into drifts)
-	vec2 fuv = at * foam_scale / foam_size;
+	// Whitecaps: foam lying on the water in flat white pieces with ragged edges, gathered into
+	// drifts with clear water between them. (None far off, where they would only be specks,
+	// nor in the wake.) They are cut from the foam picture, laid twice at two sizes so that
+	// it is not seen to repeat; a slow, smooth noise gathers them into drifts.
+	float near = (1.0 - fall) * (1.0 - smoothstep(150.0, 340.0, far)) * (1.0 - wake_flat);
+	vec2 fuv = at / max(whitecap_size, 0.01);
 	float sheet = texture(foam_texture, fuv).r * 0.65 + texture(foam_texture, fuv.yx * 2.63 + vec2(0.31, 0.17)).r * 0.35;
-	float drift = gnoise(at * 0.022 + 20.0);
-	// (more of it on the crests of the swell than in the troughs: it forms as a crest comes
-	// up under it, and thins away again as the crest goes by)
-	float lift = crest * crest_foam * 0.12;
-	float cap = step(mix(1.02, 0.6, whitecaps), sheet + (drift - 0.5) * 0.8 + lift);
-	cap *= (1.0 - fall) * step(0.001, whitecaps) * (1.0 - smoothstep(150.0, 340.0, far)) * (1.0 - wake_calm);
+	float drift = gnoise(at / max(whitecap_clump_size, 0.01) + 20.0);
+	float cap = step(mix(1.02, 0.6, whitecaps), sheet + (drift - 0.5) * whitecap_clump) * step(0.001, whitecaps);
+	// Crest foam: on the tops of the swell, wherever the water stands this near the top of
+	// its highest wave, with an edge broken by the foam picture. It comes up with each crest
+	// and is gone when the crest has passed.
+	vec2 cuv = at / max(crest_size, 0.01);
+	float broken = texture(foam_texture, cuv + vec2(0.53, 0.11)).r * 0.6 + texture(foam_texture, cuv.yx * 2.2 + vec2(0.07, 0.61)).r * 0.4;
+	float top = step(1.0 - crest_amount * 0.5, crest + (broken - 0.5) * crest_ragged) * step(0.001, crest_amount) * step(0.001, v_swell);
+	cap = max(cap, top) * near;
 	white = max(white, cap);
 	col = mix(col, foam_color.rgb, cap);
 	// and faint pale lines wander over it, like light on the surface
 	vec2 lp = at * 0.3 + (vec2(vnoise(at * 0.2 + 1.0), vnoise(at * 0.2 + 7.0)) - 0.5) * 2.0;
 	float line = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(lp + vec2(0.0, TIME * 0.12)) - 0.5))) * lines * (1.0 - white)
-			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_calm);
+			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_flat);
 	col = mix(col, mix(col, foam_color.rgb, 0.35), line);
 	// The water's own two directions in the world, across and along: each corner of the mesh
 	// carries them (its tangent), so that they turn smoothly with the course. (They were once
@@ -325,8 +386,8 @@ void fragment() {
 	// (far off the small waves are smaller than a pixel: they are smoothed away, or they would
 	// only be noise; foam is not shiny; and the wake has flattened them. The swell is none
 	// of those things: it is the shape of the water itself.)
-	float steepness = ripple_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_calm);
-	vec2 slope = vec2(slope_x, slope_y) * steepness + rise.yz * v_swell;
+	float steepness = ripple_height * 0.5 * mix(1.0, 0.12, smoothstep(30.0, 170.0, far)) * (1.0 - white) * (1.0 - 0.85 * wake_flat);
+	vec2 slope = vec2(slope_x, slope_y) * steepness + swell_slope * v_swell;
 	vec3 wavy = normalize(flat_normal - across_way * slope.x - along_way * slope.y);
 	// seen at a low angle water is a mirror, however clear it is seen from above
 	float fresnel = pow(1.0 - clamp(dot(wavy, to_eye / max(far, 0.001)), 0.0, 1.0), 5.0);

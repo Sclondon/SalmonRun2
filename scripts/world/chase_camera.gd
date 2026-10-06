@@ -165,6 +165,9 @@ func _unhandled_input(event: InputEvent) -> void:
 ## The keys: W A S D or the arrows move the point looked at over the water (the way the view
 ## is facing), Q and E move the eye in and out.
 func _orbit_keys(dt: float) -> void:
+	# (not while a number is being typed into the panel)
+	if get_tree().root.gui_get_focus_owner() is LineEdit:
+		return
 	var push := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
 		push.y += 1.0

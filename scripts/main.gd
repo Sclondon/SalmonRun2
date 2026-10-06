@@ -160,19 +160,6 @@ var _autotest_done := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# what was set by hand in the water lab last time (the lab is a desktop tool: the web build
-	# has no way into it, and takes no notice of anything an older build of it kept)
-	Track.water_overrides = {} if OS.has_feature("web") else Save.water
-	# (settings the water no longer has: the beat shimmer, and the old swell, which is now
-	# set by its height, length and speed)
-	Track.water_overrides.erase("sparkle")
-	Track.water_overrides.erase("swell")
-	# (and ones that have changed their names, to match what the water lab calls them)
-	for renamed: Array in [["wave_height", "ripple_height"], ["wave_scale", "ripple_scale"], ["wave_choppy", "ripple_choppy"], ["wave_speed", "ripple_speed"], ["ripple", "colour_ripple"]]:
-		if Track.water_overrides.has(renamed[0]):
-			Track.water_overrides[renamed[1]] = Track.water_overrides[renamed[0]]
-			Track.water_overrides.erase(renamed[0])
-	Wake.life = Track.water_overrides.get("wake_life", Wake.LIFE)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)

@@ -65,18 +65,28 @@ var bears: Array = []        # {s, x, node}
 var mat_world: ShaderMaterial
 var mat_foliage: ShaderMaterial
 var mat_water: ShaderMaterial
-## Settings of the water changed by hand in the water lab (ui/water_lab.gd): uniform -> value.
-static var water_overrides := {}
-## Every setting the lab can change (cleared before a stage's own are applied).
+## The water of each stage as set by hand in the water lab (ui/water_lab.gd): the name of
+## the stage -> {uniform: value}. They are kept in the project (PRESETS), so that they go
+## out with the game; read_presets() fetches them and write_presets() puts them back.
+static var water_presets := {}
+static var _presets_read := false
+const PRESETS := "res://materials/water_presets.cfg"
 ## The water every stage starts from: a material that can be opened and changed in the editor
 ## (scenes/water_scene.tscn shows a patch of sea with it). A stage's own "water_..." settings
-## and the water lab's go on top of it.
+## and its preset from the water lab go on top of it.
 const WATER := preload("res://materials/water.tres")
 const FOAM := preload("res://textures/foam_noise.png")
-const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "colour_ripple", "rapid_foam",
-		"roughness", "specular", "ripple_height", "ripple_scale", "ripple_choppy", "ripple_speed", "lines", "view_clear",
-		"swell_height", "swell_length", "swell_speed", "crest_foam",
-		"whitecaps", "foam_amount", "foam_scale", "foam_size", "edge_foam", "rim_width", "rim_ragged", "wake_spread", "wake_width"]
+## Every setting the lab can change (put back to the material's own before a stage's are applied).
+const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "colour_ripple", "view_clear",
+		"foam_amount", "foam_scale", "foam_speed", "edge_foam", "rapid_foam", "rim_width", "rim_ragged",
+		"whitecaps", "whitecap_size", "whitecap_clump", "whitecap_clump_size", "crest_amount", "crest_size", "crest_ragged",
+		"swell_height", "swell_length", "swell_speed",
+		"roughness", "specular", "lines", "ripple_scale", "ripple_height", "ripple_choppy", "ripple_speed", "glint_pixels",
+		"wake_spread", "wake_width", "wake_wiggle", "wake_wiggle_length", "wake_ragged", "wake_dashes", "wake_churn",
+		"wake_echo", "wake_calm"]
+## How long the salmon's wake lasts (seconds) where a stage's preset does not say.
+const WAKE_LIFE := 0.45
+var wake_life := WAKE_LIFE
 
 var _rng := RandomNumberGenerator.new()
 var _noise := FastNoiseLite.new()
@@ -123,8 +133,7 @@ func _make_materials() -> void:
 
 
 ## Sets the water to the water material's own settings, then to what the stage asks for, and
-## then to anything changed by hand in the
-## water lab (water_overrides), which is used on every stage.
+## then to the stage's preset from the water lab (see water_presets).
 func apply_water() -> void:
 	for key: String in WATER_KEYS:
 		mat_water.set_shader_parameter(key, WATER.get_shader_parameter(key))
@@ -137,9 +146,11 @@ func apply_water() -> void:
 	mat_water.set_shader_parameter("across", 26.8 if float(cfg.width) > 40.0 else float(cfg.width) + 1.6)
 	# upstream, the river runs towards you
 	mat_water.set_shader_parameter("flow", -0.6 if uphill() else 0.6)
-	for key: String in water_overrides:
+	var preset := water_preset()
+	for key: String in preset:
 		if key != "wake_life":
-			mat_water.set_shader_parameter(key, water_overrides[key])
+			mat_water.set_shader_parameter(key, preset[key])
+	wake_life = float(preset.get("wake_life", WAKE_LIFE))
 	# the same swell here as the shader has, for whatever floats on it (see swell_y)
 	var rough := float(_water_value("swell", cfg.swell))
 	_swell_high = float(_water_value("swell_height", SWELL_HEIGHT)) * rough
@@ -150,6 +161,44 @@ func apply_water() -> void:
 func _water_value(key: String, otherwise: Variant) -> Variant:
 	var value: Variant = mat_water.get_shader_parameter(key)
 	return otherwise if value == null else value
+
+
+## This stage's preset from the water lab: {uniform: value}, to read or to change.
+func water_preset() -> Dictionary:
+	read_presets()
+	var stage := str(cfg.name)
+	if not water_presets.has(stage):
+		water_presets[stage] = {}
+	return water_presets[stage]
+
+
+static func read_presets() -> void:
+	if _presets_read:
+		return
+	_presets_read = true
+	var file := ConfigFile.new()
+	if file.load(PRESETS) != OK:
+		return
+	for stage: String in file.get_sections():
+		var preset := {}
+		for key: String in file.get_section_keys(stage):
+			preset[key] = file.get_value(stage, key)
+		water_presets[stage] = preset
+
+
+## Writes every stage's preset back into the project. (Only where the game is run from the
+## project itself, as on the desktop it is made on: a game that has been exported cannot.)
+static func write_presets() -> bool:
+	if not OS.has_feature("editor"):
+		return false
+	var file := ConfigFile.new()
+	for stage: String in water_presets:
+		var preset: Dictionary = water_presets[stage]
+		var keys := preset.keys()
+		keys.sort()
+		for key: String in keys:
+			file.set_value(stage, key, preset[key])
+	return file.save(PRESETS) == OK
 
 
 # ================================================================== queries

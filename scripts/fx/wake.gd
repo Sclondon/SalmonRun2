@@ -6,10 +6,9 @@ extends Node
 
 const Track := preload("res://scripts/world/track.gd")
 
-## Seconds the wake lasts, how often a new point is laid, and how many the shader takes.
-const LIFE := 0.45
-## (as set in the water lab)
-static var life := LIFE
+## How often a new point is laid at least, and how many the shader takes. (How long the wake
+## lasts is the stage's: track.wake_life. A long one lays its points further apart, so that
+## they still reach to its end.)
 const STEP := 0.025
 const POINTS := 24
 
@@ -25,19 +24,20 @@ var _since := 0.0
 ## Called every frame by the salmon: where it is, and whether it is cutting the surface
 ## (strength above 0).
 func lay(s: float, x: float, strength: float, delta: float) -> void:
+	var life := track.wake_life if track else Track.WAKE_LIFE
 	_clock += delta
 	_since += delta
 	if strength <= 0.0:
 		if not _trail.is_empty() and not (_trail[-1] as Array).is_empty():
 			_trail.append([])
-	elif _since >= STEP or _trail.is_empty() or (_trail[-1] as Array).is_empty():
+	elif _since >= maxf(STEP, life / (POINTS - 3)) or _trail.is_empty() or (_trail[-1] as Array).is_empty():
 		_since = 0.0
 		_trail.append([s, x, _clock])
 	while not _trail.is_empty() and ((_trail[0] as Array).is_empty() or _clock - float(_trail[0][2]) > life):
 		_trail.pop_front()
 	while _trail.size() > POINTS - 1:
 		_trail.pop_front()
-	_send(s, x, strength)
+	_send(s, x, strength, life)
 
 
 func clear() -> void:
@@ -46,7 +46,7 @@ func clear() -> void:
 		track.mat_water.set_shader_parameter("wake_count", 0)
 
 
-func _send(s: float, x: float, strength: float) -> void:
+func _send(s: float, x: float, strength: float, life: float) -> void:
 	if track == null or track.mat_water == null:
 		return
 	# (the newest point is always the salmon itself, so that the wake never lags behind it)

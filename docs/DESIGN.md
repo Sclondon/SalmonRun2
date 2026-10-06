@@ -234,8 +234,8 @@ on its own along a trail of its own, whatever is on the surface above it
   faster, as real waves do. A stage's `swell` says how rough its water is (higher and longer
   waves on the open sea than on a river); `water_swell_height`, `water_swell_length` and
   `water_swell_speed` shape it. The light falls on the slope worked out at every pixel, so
-  the surface is smooth however coarse the mesh. Foam gathers on the crests
-  (`water_crest_foam`), and the water is paler looked down into than looked across
+  the surface is smooth however coarse the mesh. Foam can ride the crests
+  (`water_crest_amount`), and the water is paler looked down into than looked across
   (`water_view_clear`). `Track.swell_y()` works out the same waves, and the salmon, the
   other salmon, the wake and the splashes ride them. Nothing flashes on the beat: the water
   and the light are steady.
@@ -311,14 +311,25 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 ## 9. Other modes and tools
 
-- **Water lab:** on the title menu of the desktop game only (the web build has no button for it, and ignores any values an older web build kept). With a mouse and keys the view can be turned (drag), moved in and out (wheel, or Q and E) and moved over the water (W A S D), down to under the surface looking up; R puts it back. The salmon swims a stage by itself under a panel of
-  sliders and colour pickers for the water shader (colour, surface, foam, wake), which change
-  the water as you watch, seen from high up looking down. STILL / FOLLOW chooses whether the
-  camera stands over one stretch of water or goes with the salmon. The arrows change stage,
-  HIDE folds the panel away, SAVE hands
-  every value over as text (the phone share sheet or a downloaded file, the clipboard, and a
-  page on screen to take a picture of), and RESET goes back to each stage's own water.
-  What is set is kept in the save and used in play on every stage until RESET.
+- **Water lab:** on the title menu of the desktop game only (the web build has no button for it). The salmon swims a stage by itself beside a panel, the height of the window, of
+  sliders and colour pickers for the water shader, which change the water as you watch. Each
+  slider has a box with its number, and any number can be typed there, whatever the ends of
+  the slider; a setting changed by hand is marked in red with a star, and a right click on
+  its name puts it back. They are grouped as in the shader: colour; foam (the patches that
+  drift down a river, its banks, rapids and rims); whitecaps (foam lying on open water: how
+  much, how big, how gathered into drifts); crest foam (on the tops of the swell: how much,
+  how big, how ragged); the swell; the surface (the ripples, and `glint_pixels`, which makes
+  the light come off the water in squares of that many pixels); and the wake (how long, how
+  wide, a wiggle, gaps, froth down the middle, a second pair of arms).
+  What is set is **the stage's own preset**, used on that stage and no other. SAVE, BACK and
+  the stage arrows write every stage's preset into `materials/water_presets.cfg`, which goes
+  out with the game (web build included); RESET clears this stage's; COPY and PASTE carry
+  one stage's to another. So the water of a stage is, in order: `materials/water.tres`, then
+  the stage's `water_...` keys in `levels.gd`, then its preset.
+  With a mouse and keys the view can be turned (drag), moved in and out (wheel, or Q and E)
+  and moved over the water (W A S D), down to under the surface looking up; R puts it back.
+  H hides the panel, F chooses whether the camera stands over one stretch of water or goes
+  with the salmon (STILL / FOLLOW), and [ and ] change stage.
 - **Field guide:** on the title menu. A page of the same encyclopedia with a model on it that
   turns slowly (drag to turn it yourself), its name and scientific name, how big it really
   is and a fact. The arrows step through the sockeye at each of six stages of its life (fry,
@@ -383,8 +394,6 @@ Things that are true of the build today and likely to matter for the next round 
 - **Touch cannot grab**, so the highest-scoring tricks are keyboard and
   gamepad only.
 - **The young play exactly like the adult**, only smaller.
-- **The water lab sets one water for every stage.** Values per stage have to be written into
-  `levels.gd` by hand from what SAVE gives.
 - **Nothing is designed for the dash yet**, and a fast first stroke of a turn or a boost
   wiggle can still set one off.
 - **The download is about 19 MB** (10 MB of it the engine, 7 MB music). Each push to `main`
