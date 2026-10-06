@@ -148,6 +148,8 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 		_plan_features()
 	_build_centreline()
 	_build_chunks()
+	if lead_width > 0.0:
+		_build_front()
 	_build_features()
 	_scatter()
 
@@ -1294,16 +1296,23 @@ func _build_chunks() -> void:
 func _floor_depth(s: float, x: float) -> float:
 	var deep: float = cfg.floor
 	var hills := _noise.get_noise_2d(s * 0.011, x * 0.011 + 300.0) * 0.4 + _noise.get_noise_2d(s * 0.04 + 50.0, x * 0.04) * 0.12
-	return maxf(deep * (1.0 + hills), deep * 0.35)
+	var depth := maxf(deep * (1.0 + hills), deep * 0.35)
+	# A canyon under the sea: the floor is down the middle, where the course runs, and to
+	# either side of it walls of rock climb in steps almost to the surface.
+	if cfg.get("canyon", false):
+		var hw := float(cfg.width) * 0.5
+		var wall := smoothstep(hw * 0.75, hw + 34.0, absf(x) + _noise.get_noise_2d(s * 0.02, 77.0) * 9.0)
+		# (in steps: ledges, like the walls of a dry river canyon)
+		wall = floorf(wall * 5.0 + 0.5) / 5.0 * 0.6 + wall * 0.4
+		depth = lerpf(depth, 3.0 + 2.0 * absf(hills), wall)
+	return depth
 
 
 ## The sea floor of an open-water stage: a coarse sheet of hills far wider than the course,
 ## way down under the water.
 func _build_floor() -> void:
-	# (a floor too deep to see is not built at all: there is only the dark below)
-	if float(cfg.floor) > 100.0:
-		return
-	var cell := 16.0
+	# (there is always a floor, however far down: on the open ocean it is too far to see)
+	var cell := 8.0 if cfg.get("canyon", false) else 16.0
 	var half := float(cfg.width) * 0.5 + 180.0
 	var across := int(ceil(half * 2.0 / cell))
 	var along := int(cell / STEP)
@@ -1901,3 +1910,41 @@ func hide_from(s: float) -> void:
 	for section: Array in _sections:
 		if float(section[0]) >= s - 0.5:
 			(section[1] as Node3D).visible = false
+
+
+## The front of the stage: a wall across its beginning, from the ground down into the dark,
+## so that swimming up to a stage that has been joined on there is no seeing in under its
+## banks and its bed from the end. (Only a stage that is joined on has one: see `lead_width`.)
+func _build_front() -> void:
+	var mb := MB.new()
+	var down := 70.0
+	var back := -forward(0.0)
+	var wy := water_y(0.0)
+	var rock: Color = cfg.get("cliff", cfg.bed)
+	# under the bed (or, in open water, under the sea floor)
+	var hw := width(0.0) * 0.5
+	if cfg.has("floor"):
+		var half := float(cfg.width) * 0.5 + 180.0
+		var steps := 24
+		for k in steps:
+			var x0 := lerpf(-half, half, float(k) / steps)
+			var x1 := lerpf(-half, half, float(k + 1) / steps)
+			mb.quad(point(0.0, x0, wy - _floor_depth(0.0, x0)), point(0.0, x1, wy - _floor_depth(0.0, x1)),
+					point(0.0, x1, wy - _floor_depth(0.0, x1) - down), point(0.0, x0, wy - _floor_depth(0.0, x0) - down), Props.shade(cfg.bed, 0.7), back)
+	else:
+		for j in 4:
+			var x0: float = BED_X[j] * (hw - 0.5)
+			var x1: float = BED_X[j + 1] * (hw - 0.5)
+			mb.quad(point(0.0, x0, wy + BED_D[j]), point(0.0, x1, wy + BED_D[j + 1]),
+					point(0.0, x1, wy + BED_D[j + 1] - down), point(0.0, x0, wy + BED_D[j] - down), Props.shade(rock, 0.7), back)
+	# under each bank
+	for side: float in [-1.0, 1.0]:
+		if cfg.has("floor") and is_sea_side(side):
+			continue
+		var profile := bank_profile(0.0, side)
+		for j in profile.size() - 1:
+			mb.quad(point(0.0, side * profile[j].x, wy + profile[j].y), point(0.0, side * profile[j + 1].x, wy + profile[j + 1].y),
+					point(0.0, side * profile[j + 1].x, wy + profile[j + 1].y - down), point(0.0, side * profile[j].x, wy + profile[j].y - down),
+					Props.shade(rock, 0.75), back)
+	if not mb.is_empty():
+		_add_mesh(mb.build(), mat_world)

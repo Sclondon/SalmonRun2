@@ -245,7 +245,7 @@ const LIST: Array[Dictionary] = [
 		"seed": 7405, "length": 3200.0,
 		"width": 17.0, "slope": 0.045, "curve": 1.15,
 		"kinds": ["rocks", "ramps", "rails", "rocks", "rings", "ramps"],
-		"falls_every": 300.0, "uphill": true, "predator": "bear", "predator_word": "BEAR'D!",
+		"falls_every": 170.0, "uphill": true, "predator": "bear", "predator_word": "BEAR'D!",
 		"profile": [[-0.5, -1.2, 0, 0], [1.5, 1.0, 0.5, 0], [5.0, 4.5, 2.0, 1.0], [12.0, 9.0, 2.0, 3.0],
 				[26.0, 16.0, 3.0, 6.0], [52.0, 34.0, 0, 10.0]],
 		# the run up is late summer into autumn: gold grass, larches turning, bare peaks
@@ -514,7 +514,8 @@ const LIST: Array[Dictionary] = [
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [4.0, -3.0, 0, 0], [60.0, -3.0, 0, 0], [170.0, -3.0, 0, 0]],
 		"bank_colors": [Color(0.02, 0.02, 0.06), Color(0.01, 0.01, 0.05), Color(0.01, 0.01, 0.05)],
-		"bed": Color(0.1, 0.08, 0.26), "cliff": Color(0.2, 0.2, 0.28),
+		# (a canyon like the dry river's, but drowned: red rock gone dark and blue with the depth)
+		"bed": Color(0.34, 0.2, 0.2), "cliff": Color(0.3, 0.17, 0.16),
 		"sea_from": 0.8, "markers": [Color(0.3, 0.2, 0.6), Color(0.3, 1.0, 0.9)],
 		"rock": Color(0.16, 0.14, 0.24), "rock_cap": Color(0.3, 1.0, 0.9, 0.3),
 		"ramp": Color(0.14, 0.12, 0.22), "ramp_top": Color(0.4, 0.3, 0.7),
@@ -532,7 +533,7 @@ const LIST: Array[Dictionary] = [
 		"light": Color(0.5, 0.6, 1.0), "light_energy": 0.7,
 		"water_deep": Color(0.0, 0.01, 0.08), "water_shallow": Color(0.04, 0.1, 0.3),
 		"swell": 2.5,
-		"floor": 90.0, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
+		"floor": 27.0, "canyon": true, "water_depth_range": 40.0, "water_alpha_deep": 0.9, "water_foam_amount": 0.1,
 		"water_whitecaps": 0.4, "motes": Color(0.3, 1.0, 0.9),
 	},
 	{

@@ -468,7 +468,7 @@ func join_s() -> float:
 func theme_ahead() -> void:
 	if ahead != null:
 		_apply_level(2.5, ahead.cfg)
-		_turn_water(2.5)
+		_turn_water(3.4)
 
 
 ## The salmon has reached the join: it is on the next stage from here. Everything is
@@ -489,7 +489,7 @@ func take_next() -> void:
 	_dress_player(track.level, track.down)
 	# (if the water has not begun to turn to this stage's yet, it does now)
 	if not _water_turning:
-		_turn_water(1.5)
+		_turn_water(2.4)
 	_water_turning = false
 	player.track = track
 	player.rail = {}
@@ -518,8 +518,21 @@ func take_next() -> void:
 	camera.carry(carried)
 
 
+## What makes the water's patterns the size and the speed they are. These cannot be turned
+## smoothly from one stage's to the next's (the foam and the ripples would be seen to slide
+## and flicker as they changed size): they are changed all at once, half way through, while
+## there is no foam and no ripple to be seen (see _turn_water).
+const WATER_PATTERNS := ["foam_scale", "foam_speed", "whitecap_size", "whitecap_clump", "whitecap_clump_size", "crest_size",
+		"crest_ragged", "ripple_scale", "ripple_choppy", "ripple_speed", "swell", "swell_length", "swell_speed", "rim_ragged",
+		"glint_pixels", "wake_wiggle_length"]
+## ...and how much of them there is: these go down to nothing by half way, and come up again
+## to the next stage's.
+const WATER_AMOUNTS := ["foam_amount", "whitecaps", "crest_amount", "lines", "ripple_height", "swell_height", "edge_foam",
+		"rapid_foam", "colour_ripple"]
+
 # Turns the water of the stage being swum, and of the one joined on ahead (or just swum on
-# to), to the next stage's own, both together, over `seconds`.
+# to), to the next stage's own, both together, over `seconds`. Its colours turn steadily;
+# its foam and its waves die away, are changed, and come back.
 func _turn_water(seconds: float) -> void:
 	_water_turning = true
 	if _water_blend:
@@ -529,16 +542,24 @@ func _turn_water(seconds: float) -> void:
 		mats.append(ahead.mat_water)
 	if behind != null:
 		mats.append(behind.mat_water)
+	var set_all := func(key: String, value: Variant) -> void:
+		for mat in mats:
+			if is_instance_valid(mat):
+				mat.set_shader_parameter(key, value)
 	_water_blend = create_tween().set_parallel(true)
+	var half := seconds * 0.5
 	for key: String in _water_to:
 		var to: Variant = _water_to[key]
 		var was: Variant = mats[0].get_shader_parameter(key)
 		if to == null or was == null or typeof(to) != typeof(was):
 			continue
-		_water_blend.tween_method(func(t: float) -> void:
-			for mat in mats:
-				if is_instance_valid(mat):
-					mat.set_shader_parameter(key, lerp(was, to, t)), 0.0, 1.0, seconds)
+		if key in WATER_PATTERNS:
+			_water_blend.tween_callback(set_all.bind(key, to)).set_delay(half)
+		elif key in WATER_AMOUNTS:
+			_water_blend.tween_method(func(t: float) -> void: set_all.call(key, lerpf(float(was), 0.0, t)), 0.0, 1.0, half)
+			_water_blend.tween_method(func(t: float) -> void: set_all.call(key, lerpf(0.0, float(to), t)), 0.0, 1.0, half).set_delay(half)
+		else:
+			_water_blend.tween_method(func(t: float) -> void: set_all.call(key, lerp(was, to, t)), 0.0, 1.0, seconds)
 
 
 ## Sets up the spawning scene where the salmon is, under the water, and films it: the

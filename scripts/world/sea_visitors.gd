@@ -67,6 +67,9 @@ func scatter() -> void:
 		# (each in its own water: those of the sea in salt, trout and sturgeon in fresh)
 		var at_home: bool = salt != bool(KINDS[kind].get("fresh", false))
 		_about[kind] = at_home and _rng.randf() < float(KINDS[kind].chance)
+		# (on the open ocean there is always the one whale: it leads the way to the abyss)
+		if kind == "whale" and _guiding():
+			_about[kind] = true
 		# (a rare one is there or it is not: no score brings it)
 		_turns_up[kind] = _rng.randf_range(0.25, 0.9) if at_home and not KINDS[kind].get("rare", false) else 9.0
 	for a: Dictionary in _animals:
@@ -138,13 +141,14 @@ func _process(delta: float) -> void:
 			continue
 		var gap: float = float(a.s) - player.s
 		# gone by (or, the tuna, gone on ahead out of sight): met again further on
-		if (a.kind == "tuna" and gap > 170.0) or (a.kind != "tuna" and gap < -40.0):
+		var leads: bool = a.kind == "whale" and int(a.i) == 0 and _guiding()
+		if not leads and ((a.kind == "tuna" and gap > 170.0) or (a.kind != "tuna" and gap < -40.0)):
 			_place(a, false)
 			gap = float(a.s) - player.s
 		a.s = float(a.s) + float(a.pace) * dt
 		var s: float = a.s
 		node.visible = gap > -60.0 and gap < 260.0 and s > 4.0 and s < track.length - 8.0 and not track.near_fall(s, 30.0, 30.0)
-		if not node.visible:
+		if not node.visible and not leads:
 			continue
 		var phase: float = a.phase
 		var depth: float = a.depth
@@ -173,6 +177,26 @@ func _process(delta: float) -> void:
 			"tuna":
 				sway = sin(_t * 9.0 + phase) * 0.1
 			"whale":
+				# The one that leads the way (the open ocean): it keeps ahead of the salmon, a little
+				# to one side, makes for the giant current as the ship comes up, and goes down it.
+				if int(a.i) == 0 and _guiding():
+					var down: Dictionary = _abyss()
+					var want := player.s + 46.0
+					a.s = lerpf(float(a.s), want, 1.0 - exp(-1.5 * dt)) if absf(float(a.s) - want) < 200.0 else want
+					s = float(a.s)
+					var near := smoothstep(float(down.s0) - 700.0, float(down.s0) - 120.0, s)
+					a.x = lerpf(float(a.x), lerpf(player.x + 16.0, track.current_x(down, maxf(s, float(down.s0))), near), 1.0 - exp(-0.8 * dt))
+					# (its back is always out of the water, to be followed; it rolls higher to breathe)
+					var breathe := 1.5 - 1.3 * maxf(sin(_t * 0.5 + phase), 0.0)
+					depth = breathe
+					tilt = cos(_t * 0.5 + phase) * 0.1
+					if s > float(down.s0) - 30.0:
+						var into := smoothstep(float(down.s0) - 30.0, float(down.s0) + 40.0, s)
+						depth = lerpf(breathe, track.current_depth(down, s) + 1.0, into)
+						tilt = -0.3 * into
+					node.visible = s < track.length - 8.0
+					node.transform = Transform3D((track.basis_at(s) * Basis(Vector3.RIGHT, tilt)).scaled(Vector3.ONE * float(KINDS[a.kind].size)), track.point(s, float(a.x), track.water_y(s) - depth))
+					continue
 				# It rolls up to breathe, its back clear of the water, and sinks away again; and
 				# once in a while it comes up fast instead and throws most of itself out.
 				var turn := fposmod(_t * 0.09 + phase, 1.0)
@@ -186,3 +210,16 @@ func _process(delta: float) -> void:
 					tilt = cos(clampf((turn - 0.2) / 0.5, 0.0, 1.0) * PI) * 0.18
 		var b := track.basis_at(s) * Basis(Vector3.UP, sway) * Basis(Vector3.RIGHT, tilt) * Basis(Vector3.BACK, roll)
 		node.transform = Transform3D(b.scaled(Vector3.ONE * float(KINDS[a.kind].size)), track.point(s, float(a.x), track.water_y(s) - depth))
+
+
+# Whether this stage has a whale that leads the way: the one with the way down to the abyss.
+func _guiding() -> bool:
+	return track != null and not track.fork.is_empty() and bool(track.fork.get("abyss", false)) and not _abyss().is_empty()
+
+
+# The giant current down to the abyss, on the stage that has one.
+func _abyss() -> Dictionary:
+	for c: Dictionary in track.currents:
+		if c.get("abyss", false):
+			return c
+	return {}

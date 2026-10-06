@@ -129,8 +129,9 @@ func _process(delta: float) -> void:
 	var depth := 0.0 if loose else track.layer_depth() * player.dive
 	for f: Dictionary in _fish:
 		if f.has("n"):
-			(f.node as MeshInstance3D).visible = int(f.n) < active
-			if int(f.n) >= active:
+			var about: bool = int(f.n) < active or f.get("guest", false)
+			(f.node as MeshInstance3D).visible = about
+			if not about:
 				wakes[int(f.n)].visible = false
 				continue
 		# out of sight: come back in from the other end
@@ -420,3 +421,26 @@ func drop_guests() -> void:
 			wakes[k].queue_free()
 			wakes.remove_at(k)
 			_fish.remove_at(k)
+
+
+## One of the pack that is about, to speak for it (the one nearest the player's side).
+func speaker() -> Node3D:
+	var best: Node3D = null
+	var near := INF
+	for f: Dictionary in _fish:
+		if int(f.n) >= active or not (f.node as Node3D).visible:
+			continue
+		var d := absf(float(f.s) - player.s - 2.0) + absf(float(f.x) - player.x) * 0.5 + _rng.randf() * 4.0
+		if d < near:
+			near = d
+			best = f.node
+	return best
+
+
+## How many are swimming with the player just now (those that have joined always are).
+func count() -> int:
+	var total := 0
+	for f: Dictionary in _fish:
+		if int(f.n) < active or f.get("guest", false):
+			total += 1
+	return total

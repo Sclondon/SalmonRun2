@@ -830,6 +830,9 @@ func _process(delta: float) -> void:
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
 			# (in the flow, the pack falls in close and copies the salmon, tricks and all)
 			world.school.in_step = clampf((score.flow - 1) / 2.0, 0.0, 1.0)
+			# (and the flow is how many swim with you: one more for every step of it)
+			world.school.active = score.flow + 1
+			hud.set_pack(world.school.count())
 			# (and the higher the score, the more life there is in the water)
 			world.set_abundance(score.score / 120000.0)
 			if _has_objective():
@@ -1011,6 +1014,9 @@ func _on_trick(trick: Dictionary) -> void:
 	if trick.get("swiped", false):
 		return
 	# how well it was timed, from MISS up to PERFECT!
+	# (it is the others who say how it was: one of the pack, if there is one about)
+	var judge := world.school.speaker()
+	world.speech.who = judge if judge else world.player
 	world.speech.say(str(Score.GRADES[grade][0]), Hud.GRADE_COLORS[grade])
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
@@ -1020,6 +1026,9 @@ func _on_trick(trick: Dictionary) -> void:
 func _on_timed(grade: int) -> void:
 	if phase != Phase.RACE:
 		return
+	# (it is the others who say how it was: one of the pack, if there is one about)
+	var judge := world.school.speaker()
+	world.speech.who = judge if judge else world.player
 	world.speech.say(str(Score.GRADES[grade][0]), Hud.GRADE_COLORS[grade])
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
@@ -1566,7 +1575,7 @@ func _layout_title() -> void:
 func _layout_globes() -> void:
 	# the travel inset: in the top right-hand corner, or across the top of a tall screen
 	var whole := _link.size
-	var link_k := clampf(minf(whole.x, whole.y) * 0.42 / 316.0, 0.7, 2.4)
+	var link_k := clampf(minf(whole.x, whole.y) * 0.66 / 316.0, 0.8, 3.2)
 	_link_card.size = _link_card.get_combined_minimum_size()
 	_link_card.scale = Vector2(link_k, link_k)
 	# (it comes down from above the top of the screen, and goes back up when it is done)

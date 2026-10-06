@@ -1272,41 +1272,134 @@ static func turtle() -> ArrayMesh:
 	return mb.build()
 
 
-## A humpback whale: a great dark body, pale and grooved under the throat, a small hump of a
-## fin well back, flippers a third as long as the whale is, white underneath, and broad
-## flukes. Nose at -Z, about 14 long.
+## A humpback whale: a stout dark body, deepest at the chest and tapering to a slim tail
+## stock; a broad flat head with knobs along the snout and jaw and a mouth that curves down
+## and back to under the eye; a pale throat pleated with long grooves; flippers a third as
+## long as the whale, knobbly along the front, white underneath; a small hump of a fin on a
+## step two thirds of the way back; and broad flukes with a notch between them, trailing
+## edges ragged, white below. Nose at -Z, about 14 long.
 static func whale() -> ArrayMesh:
 	var mb := MB.new()
-	var dark := Color(0.12, 0.15, 0.2)
-	var grey := Color(0.2, 0.24, 0.3)
-	var white := Color(0.88, 0.9, 0.9)
-	_ringed_body(mb, [
-		[-7.0, 0.3, 0.25, -0.2],
-		[-6.2, 1.0, 0.8, -0.1],
-		[-4.5, 1.5, 1.45, 0.0],
-		[-2.0, 1.75, 1.7, 0.05],
-		[0.5, 1.5, 1.45, 0.1],
-		[3.0, 0.95, 0.95, 0.15],
-		[5.0, 0.45, 0.5, 0.2],
-		[6.2, 0.2, 0.25, 0.2],
-	], 10, dark, grey, white)
-	# the grooves of the throat: dark lines along the pale underside
-	for g in 5:
-		var x := (g - 2) * 0.42
-		mb.quad(Vector3(x - 0.04, -1.47, -5.6), Vector3(x + 0.04, -1.47, -5.6), Vector3(x + 0.04, -1.62, -1.6), Vector3(x - 0.04, -1.62, -1.6), grey, Vector3.DOWN)
-	# the hump of a dorsal fin
-	mb.tri(Vector3(0.0, 1.35, 2.0), Vector3(0.0, 1.85, 2.9), Vector3(0.0, 1.15, 3.4), dark, Vector3.RIGHT)
-	# the flukes, lying flat
-	var stock := Vector3(0.0, 0.2, 6.1)
+	var dark := Color(0.1, 0.13, 0.18)
+	var slate := Color(0.17, 0.21, 0.27)
+	var white := Color(0.9, 0.92, 0.92)
+	var knob := Color(0.26, 0.3, 0.36)
+	# (z, half-width, half-height, y-centre: the belly hangs low at the throat)
+	var rings := [
+		[-7.0, 0.25, 0.16, 0.0],
+		[-6.6, 0.75, 0.5, -0.05],
+		[-5.8, 1.2, 0.95, -0.2],
+		[-4.6, 1.55, 1.45, -0.35],
+		[-3.2, 1.75, 1.75, -0.35],
+		[-1.6, 1.78, 1.75, -0.2],
+		[0.0, 1.6, 1.55, -0.05],
+		[1.6, 1.3, 1.25, 0.1],
+		[3.0, 0.95, 0.95, 0.2],
+		[4.2, 0.62, 0.68, 0.28],
+		[5.2, 0.38, 0.46, 0.32],
+		[6.1, 0.2, 0.26, 0.34],
+	]
+	var sides := 14
+	for k in rings.size() - 1:
+		var ra: Array = rings[k]
+		var rb: Array = rings[k + 1]
+		var zmid: float = (ra[0] + rb[0]) * 0.5
+		var axis := Vector3(0.0, (ra[3] + rb[3]) * 0.5, zmid)
+		for i in sides:
+			var a0 := TAU * i / sides + PI / sides
+			var a1 := TAU * (i + 1) / sides + PI / sides
+			var pa0 := Vector3(cos(a0) * ra[1], ra[3] + sin(a0) * ra[2], ra[0])
+			var pa1 := Vector3(cos(a1) * ra[1], ra[3] + sin(a1) * ra[2], ra[0])
+			var pb0 := Vector3(cos(a0) * rb[1], rb[3] + sin(a0) * rb[2], rb[0])
+			var pb1 := Vector3(cos(a1) * rb[1], rb[3] + sin(a1) * rb[2], rb[0])
+			var sn := sin((a0 + a1) * 0.5)
+			# dark above; white under the throat and belly, and less of it towards the tail;
+			# and the throat is pleated: its faces are pale and paler by turns
+			var col := dark if sn > 0.35 else slate
+			var under_line := lerpf(-0.15, -0.75, clampf((zmid + 2.0) / 7.0, 0.0, 1.0))
+			if sn < under_line:
+				col = white
+				if zmid < -1.0 and i % 2 == 0:
+					col = shade(white, 0.8)
+			mb.tri_out(pa0, pa1, pb1, col, axis)
+			mb.tri_out(pa0, pb1, pb0, col, axis)
+	# the tip of the snout
+	blob_plain(mb, Vector3(0.0, 0.0, -7.05), Vector3(0.26, 0.17, 0.14), dark)
+	# knobs: a row down the middle of the head, and one along each side of the jaw
+	for k in 6:
+		var z := -6.7 + k * 0.42
+		var top := 0.5 + 0.6 * clampf((z + 7.0) / 2.4, 0.0, 1.0)
+		blob_plain(mb, Vector3(0.0, top - 0.2, z), Vector3(0.14, 0.11, 0.14), knob)
+		for sx: float in [-1.0, 1.0]:
+			blob_plain(mb, Vector3(sx * (0.5 + 0.75 * clampf((z + 7.0) / 2.4, 0.0, 1.0)), -0.05, z + 0.15), Vector3(0.13, 0.1, 0.13), knob)
+	# the two blowholes, on a rise behind the head
+	blob_plain(mb, Vector3(0.0, 1.12, -4.4), Vector3(0.34, 0.14, 0.4), dark)
+	# the hump and the small fin on it
+	blob_plain(mb, Vector3(0.0, 1.22, 2.5), Vector3(0.3, 0.2, 0.9), dark)
+	mb.tri(Vector3(0.0, 1.3, 2.3), Vector3(0.0, 1.78, 3.05), Vector3(0.0, 1.22, 3.3), dark, Vector3.RIGHT)
+	# knuckles along the top of the tail stock
+	for k in 4:
+		blob_plain(mb, Vector3(0.0, 1.0 - k * 0.14, 3.9 + k * 0.5), Vector3(0.12, 0.1, 0.2), dark)
 	for sx: float in [-1.0, 1.0]:
-		mb.quad(stock, stock + Vector3(sx * 2.6, 0.0, 0.5), stock + Vector3(sx * 2.9, 0.0, 1.5), stock + Vector3(0.0, 0.0, 0.9), dark, Vector3.UP)
-		# the long flippers, dark above and white below, knobbly along the front
-		var sh := Vector3(sx * 1.45, -0.7, -3.6)
-		mb.quad(sh, sh + Vector3(sx * 2.2, -0.5, 0.4), sh + Vector3(sx * 4.3, -1.0, 2.2), sh + Vector3(sx * 0.3, -0.1, 1.3), white, Vector3.UP)
-		mb.tri(sh + Vector3(sx * 2.2, -0.5, 0.4), sh + Vector3(sx * 4.3, -1.0, 2.2), sh + Vector3(sx * 4.6, -1.05, 1.7), white, Vector3.UP)
-		var e := Vector3(sx * 1.03, -0.25, -6.0)
-		mb.quad(e + Vector3(0, 0.1, -0.1), e + Vector3(0, 0.1, 0.1), e + Vector3(0, -0.1, 0.1), e + Vector3(0, -0.1, -0.1), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+		var out := Vector3(sx, 0.0, 0.0)
+		# the mouth: a dark line from the snout, down and back to under the eye
+		var m0 := Vector3(sx * 0.6, -0.12, -6.75)
+		var m1 := Vector3(sx * 1.32, -0.55, -5.4)
+		var m2 := Vector3(sx * 1.6, -0.45, -4.2)
+		mb.quad(m0 + Vector3(0, 0.05, 0), m1 + Vector3(sx * 0.03, 0.06, 0), m1 + Vector3(sx * 0.03, -0.06, 0), m0 - Vector3(0, 0.05, 0), Color(0.03, 0.04, 0.06), out)
+		mb.quad(m1 + Vector3(sx * 0.03, 0.06, 0), m2 + Vector3(sx * 0.03, 0.06, 0), m2 + Vector3(sx * 0.03, -0.06, 0), m1 + Vector3(sx * 0.03, -0.06, 0), Color(0.03, 0.04, 0.06), out)
+		# the eye, small, just above the corner of the mouth
+		var e := Vector3(sx * 1.6, -0.18, -4.3)
+		mb.quad(e + Vector3(sx * 0.03, 0.09, -0.11), e + Vector3(sx * 0.03, 0.09, 0.11), e + Vector3(sx * 0.03, -0.08, 0.11), e + Vector3(sx * 0.03, -0.08, -0.11), Color(0.02, 0.02, 0.03), out)
+		# The flipper: long, swept back and down from the shoulder, thick enough to have an
+		# upper side (dark) and an under side (white), with knobs along its front edge.
+		var sh := Vector3(sx * 1.55, -0.95, -3.5)
+		var spine := [Vector3.ZERO, Vector3(sx * 1.2, -0.3, 0.5), Vector3(sx * 2.5, -0.65, 1.4), Vector3(sx * 3.6, -0.95, 2.6), Vector3(sx * 4.3, -1.1, 3.9)]
+		var chord := [1.25, 1.2, 1.0, 0.75, 0.2]
+		for k in spine.size() - 1:
+			var a := sh + (spine[k] as Vector3)
+			var b := sh + (spine[k + 1] as Vector3)
+			var a2 := a + Vector3(0.0, 0.0, float(chord[k]))
+			var b2 := b + Vector3(0.0, 0.0, float(chord[k + 1]))
+			var lift := Vector3(0.0, 0.1, 0.0)
+			mb.quad(a + lift, b + lift, b2 + lift, a2 + lift, dark, Vector3.UP)
+			mb.quad(a - lift, b - lift, b2 - lift, a2 - lift, white, Vector3.DOWN)
+			mb.quad(a + lift, b + lift, b - lift, a - lift, white, Vector3.FORWARD)
+			mb.quad(a2 + lift, b2 + lift, b2 - lift, a2 - lift, white, Vector3.BACK)
+			blob_plain(mb, a.lerp(b, 0.5) + Vector3(0.0, 0.0, -0.06), Vector3(0.16, 0.13, 0.16), white)
+		# The fluke: a broad wing from the tail stock, swept back to a point, its trailing
+		# edge ragged; dark above and white below.
+		var stock := Vector3(0.0, 0.34, 6.0)
+		var lead := [Vector3(sx * 0.15, 0.0, 0.0), Vector3(sx * 1.3, 0.0, 0.25), Vector3(sx * 2.5, 0.0, 0.75), Vector3(sx * 3.3, 0.02, 1.5)]
+		var trail := [Vector3(0.0, 0.0, 0.95), Vector3(sx * 0.9, 0.0, 1.5), Vector3(sx * 1.9, 0.0, 1.45), Vector3(sx * 3.3, 0.02, 1.5)]
+		for k in 3:
+			var a := stock + (lead[k] as Vector3)
+			var b := stock + (lead[k + 1] as Vector3)
+			var c := stock + (trail[k + 1] as Vector3) + Vector3(0.0, 0.0, 0.12 if k % 2 == 0 else -0.08)
+			var d := stock + (trail[k] as Vector3)
+			var lift := Vector3(0.0, 0.07, 0.0)
+			mb.quad(a + lift, b + lift, c + lift, d + lift, dark, Vector3.UP)
+			mb.quad(a - lift, b - lift, c - lift, d - lift, white, Vector3.DOWN)
+			mb.quad(a + lift, b + lift, b - lift, a - lift, dark, Vector3.FORWARD)
 	return mb.build()
+
+
+# A plain rounded lump of one colour (no rng: the same every time).
+static func blob_plain(mb: MB, c: Vector3, r: Vector3, col: Color) -> void:
+	var lon := 6
+	var lat := 3
+	for j in lat:
+		var t0 := PI * j / lat - PI * 0.5
+		var t1 := PI * (j + 1) / lat - PI * 0.5
+		for i in lon:
+			var a0 := TAU * i / lon
+			var a1 := TAU * (i + 1) / lon
+			var p00 := c + Vector3(cos(a0) * cos(t0) * r.x, sin(t0) * r.y, sin(a0) * cos(t0) * r.z)
+			var p01 := c + Vector3(cos(a1) * cos(t0) * r.x, sin(t0) * r.y, sin(a1) * cos(t0) * r.z)
+			var p10 := c + Vector3(cos(a0) * cos(t1) * r.x, sin(t1) * r.y, sin(a0) * cos(t1) * r.z)
+			var p11 := c + Vector3(cos(a1) * cos(t1) * r.x, sin(t1) * r.y, sin(a1) * cos(t1) * r.z)
+			mb.tri_out(p00, p01, p11, col, c)
+			mb.tri_out(p00, p11, p10, col, c)
 
 
 ## A sardine: a slim fish with a blue-green back, a bright silver flank with a row of dark

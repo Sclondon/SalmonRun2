@@ -154,6 +154,18 @@ Notes:
 - **The swoop:** swum up from the deep without a check, the salmon goes on up out of the
   water, the higher the further it climbed. Going up and down under the water is no faster
   than the water is deep, and takes a longer drag on a touch screen.
+- **Flow is the pack.** It goes up a step for every two clean tricks (not every one), and is
+  shown as the number of salmon swimming with you, beside a salmon by the score; the last
+  trick and what it was worth are small under that. One of the pack says how a swipe was timed.
+- **Swimming on to the next stage, the water changes in three parts:** its colours turn
+  steadily; its foam and waves die away, change size all at once while there are none to
+  see, and come back (`World._turn_water`). A stage joined on has a front to it (a wall
+  under its banks and bed: `Track._build_front`).
+- **There is always a sea floor** (on the Open Ocean too far down to see), and the Ocean
+  Trench is a drowned canyon: walls of rock in ledges to either side (`"canyon"`).
+- **A humpback leads the way on the Open Ocean:** it keeps ahead of the salmon, makes for
+  the giant current beside the ship and goes down it (`sea_visitors.gd`).
+- **Mountain River** has a waterfall about every 170 m.
 
 ## 4. Stages
 

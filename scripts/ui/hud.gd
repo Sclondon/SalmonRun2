@@ -12,6 +12,8 @@ var _trick: Label
 var _trick_pts: Label
 var _combo: Label
 var _combo_bar: ProgressBar
+var _pack: Label
+var _pack_icon: BeatFish
 var _popup: Label
 var _banner: Label
 var _platinum: ShaderMaterial
@@ -72,17 +74,29 @@ func _ready() -> void:
 	root.add_child(_objective)
 
 	var mid := VBoxContainer.new()
-	mid.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	mid.position = Vector2(-500, 110)
-	mid.custom_minimum_size = Vector2(1000, 0)
-	mid.alignment = BoxContainer.ALIGNMENT_CENTER
+	# (small, under the score: the trick just done and what it was worth, and how many salmon
+	# are swimming with you, which is the flow)
+	mid.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	mid.position = Vector2(28, 136)
+	mid.custom_minimum_size = Vector2(420, 0)
+	mid.add_theme_constant_override("separation", 2)
+	mid.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var pack_row := HBoxContainer.new()
+	pack_row.add_theme_constant_override("separation", 8)
+	mid.add_child(pack_row)
+	_pack_icon = BeatFish.new()
+	_pack_icon.icon = true
+	pack_row.add_child(_pack_icon)
+	_pack = UI.label("x 1", 26, Color.WHITE, 8)
+	pack_row.add_child(_pack)
 	root.add_child(mid)
-	_trick = _centered(UI.label("", 44, UI.GOLD, 12))
+	_trick = UI.label("", 20, UI.GOLD, 8)
 	mid.add_child(_trick)
-	_trick_pts = _centered(UI.label("", 30, Color.WHITE))
+	_trick_pts = UI.label("", 18, Color.WHITE, 6)
 	mid.add_child(_trick_pts)
 	_combo = _centered(UI.label("", 30, UI.OCHRE))
 	mid.add_child(_combo)
+	_combo.visible = false
 	var cb_row := CenterContainer.new()
 	mid.add_child(cb_row)
 	_combo_bar = UI.bar(UI.OCHRE, Vector2(240, 10))
@@ -167,13 +181,13 @@ func set_best(best: int) -> void:
 
 func show_trick(trick_name: String, points: int, flow: int, grade: int) -> void:
 	_trick.text = trick_name.to_upper()
-	_trick_pts.text = "+%s" % fmt(points) + ("   (x%d FLOW)" % flow if flow > 1 else "")
+	_trick_pts.text = "+%s" % fmt(points) + ("   x%d" % flow if flow > 1 else "")
 	_trick.add_theme_color_override("font_color", GRADE_COLORS[grade])
 	_trick_t = 2.4
 	_trick.modulate.a = 1.0
 	_trick_pts.modulate.a = 1.0
-	_trick.pivot_offset = _trick.size * 0.5
-	_trick.scale = Vector2.ONE * 1.3
+	_trick.pivot_offset = Vector2(0.0, _trick.size.y * 0.5)
+	_trick.scale = Vector2.ONE * 1.12
 	create_tween().tween_property(_trick, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 
 
@@ -234,7 +248,7 @@ func set_flow(flow: int, frac: float) -> void:
 		_combo_bar.visible = false
 		return
 	_combo.text = "FLOW  x%d" % flow
-	_combo_bar.visible = true
+	_combo_bar.visible = false
 	_combo_bar.value = frac
 
 
@@ -273,7 +287,12 @@ func banner(text: String) -> void:
 	_banner.modulate.a = 1.0
 	_banner.position.y = -120.0
 	var drop := create_tween()
-	drop.tween_property(_banner, "position:y", 96.0, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	drop.tween_property(_banner, "position:y", 150.0, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	drop.tween_interval(2.2)
 	drop.tween_property(_banner, "position:y", -120.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	drop.tween_property(_banner, "modulate:a", 0.0, 0.05)
+
+
+## How many salmon are swimming with you: the flow, as it is shown.
+func set_pack(count: int) -> void:
+	_pack.text = "x %d" % count

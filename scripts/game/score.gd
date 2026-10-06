@@ -24,6 +24,9 @@ const ON_BEAT := 4
 
 var score := 0
 var flow := 1
+## Clean tricks since the flow last went up: it takes FLOW_STEP of them for each step.
+var _clean := 0
+const FLOW_STEP := 2
 var timer := 0.0
 var tricks := 0
 var rings := 0
@@ -67,7 +70,10 @@ func add_trick(trick: Dictionary) -> int:
 	if gained > best_trick_pts:
 		best_trick_pts = gained
 		best_trick = trick.name
-	flow = mini(flow + 1, MAX_FLOW)
+	_clean += 1
+	if _clean >= FLOW_STEP:
+		_clean = 0
+		flow = mini(flow + 1, MAX_FLOW)
 	best_flow = maxi(best_flow, flow)
 	timer = FLOW_WINDOW
 	return gained
@@ -87,6 +93,7 @@ func tick(delta: float, airborne: bool) -> void:
 	timer -= delta
 	if timer <= 0.0:
 		flow = 1
+		_clean = 0
 
 
 ## Wipeout: flow resets. Returns the flow that was lost.
