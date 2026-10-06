@@ -212,7 +212,7 @@ on its own along a trail of its own, whatever is on the surface above it
   down and up through every layer there is. Swim into one (each starts a layer or two down, under a row of arrows on the
   surface) and it carries you off at boost speed, filling the boost bar and scoring by how
   long you stay on. An up or down swipe leaves it early; otherwise it lets you go at whatever
-  depth it ends. They come in all widths (2 to 3 m across the radius, and about one in three a great wide one of 4 to 5 m). Each is a tunnel: a faint wall of glass (a screen of dots, strongest at its edges), with strokes of wind winding round it in a spiral (each a thin tail fattening to a curled head), grainy see-through rings and little ring-shaped bubbles carried along it, under the water like
+  depth it ends. They come in all widths (3 to 4.5 m across the radius, and about one in three a great wide one of 5.5 to 7.5 m, drawn in where it comes near the surface). Each is a tunnel: a faint wall of glass (a screen of dots, strongest at its edges), with strokes of wind winding round it in a spiral (each a thin tail fattening to a curled head), and grainy see-through rings; its two ends are open mouths; and bubbles (little rings that face the eye: `current_bubbles.gd`) are swept along inside it. It is under the water like
   everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
   rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you

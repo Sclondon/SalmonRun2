@@ -1,7 +1,8 @@
 // An ocean current, drawn the way wind is drawn: thin white wisps that wind round a tube in
 // a spiral, each one a short stroke that starts from nothing, fattens and thins away again
-// as it slides along; faint, grainy rings that travel down it; and bubbles carried along with
-// it. UV.x is metres along it (scaled), UV.y goes once round it.
+// as it slides along; and faint, grainy rings that travel down it. (The bubbles carried along
+// inside it are not drawn here: see current_bubbles.gd.) UV.x is metres along it (scaled),
+// UV.y goes once round it.
 //
 // It is solid where it is drawn at all, and cut away everywhere else. (It was once a glow
 // added on top of the picture, but then the water over it could not dim it, so it was
@@ -27,8 +28,6 @@ uniform float girth = 7.85;
 // How much of each ring is there (0 is none, 1 is a solid band), and how wide it is (m).
 uniform float ring_cover = 0.35;
 uniform float ring_width = 0.7;
-// How many bubbles (0 is none, 1 is one in every place there could be one).
-uniform float bubbles = 0.5;
 // The wall of the tunnel: how much of it is there (0 is none), and its colour.
 uniform float wall = 0.75;
 uniform vec4 wall_colour : source_color = vec4(0.6, 0.85, 1.0, 1.0);
@@ -95,14 +94,6 @@ void fragment() {
 	float band = 1.0 - smoothstep(0.0, ring_width * 0.5 * swell, from_ring);
 	float grain = grain_at(vec2(UV.x * 30.0 - TIME * speed * 9.0, UV.y * 48.0), 48.0);
 	float ring = step(1.0 - band * ring_cover, grain) * step(0.001, band);
-	// Bubbles carried along: each a plain little ring, one or none in each place of a grid
-	// that slides down the tube a little faster than the strands do.
-	float rows = max(floor(girth / 1.6), 3.0);
-	vec2 place = vec2(UV.x * 1.5 - TIME * speed * 1.2, UV.y * rows);
-	vec2 cell = vec2(floor(place.x), mod(floor(place.y), rows));
-	vec2 in_cell = (fract(place) - vec2(0.3 + 0.4 * hash(cell + 11.0), 0.3 + 0.4 * hash(cell + 23.0))) * vec2(4.0, girth / rows);
-	float size = (0.1 + 0.16 * hash(cell + 5.0)) * swell;
-	float bubble = step(abs(length(in_cell) - size), 0.028 * swell) * step(1.0 - bubbles, hash(cell));
 	// The wall of the tunnel: a thin scatter of grains all over the tube, thickest where it
 	// turns away from the eye (its edges), so that the whole of it shows as a pipe of glass.
 	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
@@ -111,11 +102,11 @@ void fragment() {
 	const float screen[16] = float[16](0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41, 0.22, 0.72, 0.09, 0.59, 0.97, 0.47, 0.84, 0.34);
 	float shell = step(screen[(int(FRAGCOORD.x) & 3) + (int(FRAGCOORD.y) & 3) * 4], glass);
 	// (nothing of it is drawn right up against the eye)
-	if (max(max(wisp, ring), max(bubble, shell)) < 0.5 || far < clear) {
+	if (max(max(wisp, ring), shell) < 0.5 || far < clear) {
 		discard;
 	}
 	// (the murk does not hide it, as it is there to be found: it only dims with distance)
-	float bright = max(max(wisp, bubble * 0.9), max(ring * 0.6, shell * 0.45));
-	vec3 tint = mix(wall_colour.rgb, colour.rgb, max(wisp, bubble));
+	float bright = max(wisp, max(ring * 0.6, shell * 0.45));
+	vec3 tint = mix(wall_colour.rgb, colour.rgb, wisp);
 	ALBEDO = tint * strength * bright * mix(1.0, 0.45, smoothstep(20.0, 130.0, far));
 }

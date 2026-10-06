@@ -471,6 +471,12 @@ func current_x(c: Dictionary, s: float) -> float:
 	return float(c.off) + _spline(c.xs, (s - float(c.s0)) / CURRENT_KNOT)
 
 
+## How wide a current is at `s` (its radius, metres): as wide as it was made, but drawn in
+## where it comes near the surface, so as to stay under it.
+func current_radius(c: Dictionary, s: float) -> float:
+	return minf(float(c.get("r", 1.25)), maxf(current_depth(c, s) - 0.3, 1.6))
+
+
 func current_depth(c: Dictionary, s: float) -> float:
 	return maxf(_spline(c.ds, (s - float(c.s0)) / CURRENT_KNOT), 0.0) * layer_depth()
 
@@ -861,7 +867,7 @@ func _plan_current(s: float, launch: bool) -> float:
 			var t := 0.45 + 0.4 * i
 			rings.append({"s": end + LAUNCH_SPEED * t, "x": cx, "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
 	# (they come in all sizes: most are a tight tube, and about one in three is a great wide one)
-	var radius := _rng.randf_range(3.8, 5.0) if _rng.randf() < 0.34 else _rng.randf_range(2.2, 3.2)
+	var radius := _rng.randf_range(5.5, 7.5) if _rng.randf() < 0.34 else _rng.randf_range(3.2, 4.4)
 	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch, "r": radius})
 	return CURRENT_KNOT * count + 40.0
 
@@ -1321,9 +1327,10 @@ func _build_current(c: Dictionary) -> void:
 		var s: float = float(c.s0) + 2.0 * k
 		var mid := point(s, current_x(c, s), water_y(s) - current_depth(c, s))
 		var across := right(s)
-		# (it opens out of nothing and closes to nothing)
+
 		# (and where it comes near the surface it is drawn in, so as to stay under it)
-		var radius := minf(wide, maxf(current_depth(c, s) - 0.3, 1.4)) * smoothstep(0.0, 4.0, float(mini(k, rows - k)))
+		# (the same all the way: its two ends are open mouths, not points)
+		var radius := current_radius(c, s)
 		for j in sides + 1:
 			var a := TAU * j / sides
 			st.set_normal(across * cos(a) + Vector3.UP * sin(a))

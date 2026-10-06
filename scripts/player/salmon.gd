@@ -98,6 +98,9 @@ var _marks: Array[int] = []
 var _held := [true, true, true, true]
 var _rise := 0.0
 var _rise_v := 0.0
+# how fast it is going up or down under the water (m/s, up is +), for the tilt of its body
+var _climb := 0.0
+var _dive_was := 0.0
 var _current_wait := 0.0
 var _dash := 0.0
 # the corkscrew it turns as it dashes: which way, and how far through it is (1 is done)
@@ -489,7 +492,7 @@ func _try_current() -> void:
 		if s < float(c.s0) or s > float(c.s1) - 30.0:
 			continue
 		# (anywhere inside it, however wide it is)
-		var wide := float(c.get("r", 1.25))
+		var wide := track.current_radius(c, s)
 		if absf(x - track.current_x(c, s)) < wide + 0.95 and absf(depth - track.current_depth(c, s)) < maxf(1.3, wide):
 			state = State.CURRENT
 			rail = c
@@ -1014,7 +1017,11 @@ func _update_visual(dt: float) -> void:
 		State.IDLE, State.SWIM, State.CURRENT:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
 			# nose down on the way under, nose up on the way back
-			var tip := clampf(dive_to - dive - _rise * 0.45, -1.0, 1.0) * 0.7
+			# (its nose leads into a climb or a dive just as it leads into a turn: by how steeply
+			# it is going up or down for the speed it is swimming at)
+			_climb = lerpf(_climb, (_dive_was - dive) * track.layer_depth() * inv_dt, ease)
+			_dive_was = dive
+			var tip := clampf(-atan2(_climb, maxf(speed, 10.0)) * 1.3, -0.9, 0.9)
 			_land_twist = lerpf(_land_twist, 0.0, 1.0 - exp(-8.0 * dt))
 			if _stumble > 0.0:
 				_stumble = maxf(_stumble - dt, 0.0)

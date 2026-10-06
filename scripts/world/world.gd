@@ -9,6 +9,7 @@ const School := preload("res://scripts/world/school.gd")
 const Shoals := preload("res://scripts/world/shoals.gd")
 const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
 const SeaVisitors := preload("res://scripts/world/sea_visitors.gd")
+const CurrentBubbles := preload("res://scripts/world/current_bubbles.gd")
 
 var track: Track
 var player: Salmon
@@ -19,6 +20,7 @@ var shoals: Shoals
 var sardines: Shoals
 var edge_swarm: EdgeSwarm
 var visitors: SeaVisitors
+var bubbles: CurrentBubbles
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -61,6 +63,10 @@ func _ready() -> void:
 	visitors = SeaVisitors.new()
 	add_child(visitors)
 	visitors.setup(track, player)
+	# bubbles swept along inside whichever current is near
+	bubbles = CurrentBubbles.new()
+	add_child(bubbles)
+	bubbles.setup(track, player, 70 if Save.is_mobile() else 160)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
@@ -110,6 +116,7 @@ func set_course(level: int, test: bool, down := false) -> void:
 	sardines.scatter()
 	edge_swarm.track = track
 	visitors.track = track
+	bubbles.track = track
 	visitors.scatter()
 	shoals.scatter()
 	camera.snap()
