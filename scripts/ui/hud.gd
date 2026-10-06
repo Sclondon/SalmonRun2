@@ -281,13 +281,14 @@ func _layout() -> void:
 	_tr.position = Vector2(right_end - 232.0 * k, 50.0 * pause - 28.0 * k)
 	var down := (118.0 * k + 112.0 * km) if tall else 0.0
 	_progress.position.y = 26.0 + down
-	_objective.position.y = 44.0 + down
-	_objective.scale = Vector2.ONE * (1.5 if tall else 1.0)
+	# (the stage's goal: under the beat keepers, at the foot of the screen)
+	_objective.position = Vector2(area.x * 0.5 - 400.0, area.y - (150.0 if tall else 40.0))
+	_objective.scale = Vector2.ONE * (2.2 if tall else 1.0)
 	_objective.pivot_offset = Vector2(400.0, 0.0)
 	# (and the beat keepers, up clear of the thumbs and big enough to follow)
 	_beats.pivot_offset = Vector2(300.0, 150.0)
 	_beats.scale = Vector2.ONE * (1.5 if tall else 1.0)
-	_beats.position.y = area.y - (330.0 if tall else 160.0)
+	_beats.position.y = area.y - (330.0 if tall else 192.0)
 
 
 func _process(delta: float) -> void:
@@ -333,5 +334,7 @@ func banner(text: String) -> void:
 
 
 ## How many salmon are swimming with you: the flow, as it is shown.
-func set_pack(count: int) -> void:
+func set_pack(count: int, towards_next := 1.0) -> void:
+	# (the salmon beside it fills up as the next one is earned)
+	_pack_icon.set_fill(towards_next)
 	_pack.text = "x %d" % count

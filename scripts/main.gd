@@ -838,7 +838,7 @@ func _process(delta: float) -> void:
 			world.school.in_step = clampf((score.flow - 1) / 2.0, 0.0, 1.0)
 			# (and the flow is how many swim with you: one more for every step of it)
 			world.school.active = score.flow + 1
-			hud.set_pack(world.school.count())
+			hud.set_pack(world.school.count(), 1.0 if score.flow >= Score.MAX_FLOW else float(score._clean) / Score.FLOW_STEP)
 			# (and the higher the score, the more life there is in the water)
 			world.set_abundance(score.score / 120000.0)
 			if _has_objective():

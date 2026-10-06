@@ -30,12 +30,28 @@ const LEAP := 56.0
 
 ## One salmon, still, as a sign (see above).
 var icon := false
+## (The sign fills up like a meter: this much of it, from the left, is in colour, and the rest
+## is a pale ghost of it. Set with set_fill.)
+var fill := 1.0
+var _fill_layer := false
+var _clip: Control
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(92.0, 46.0) if icon else Vector2(APART * 4.0, 150.0)
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if icon and not _fill_layer:
+		# the part in colour: the same sign again on top, cut off at however full it is
+		_clip = Control.new()
+		_clip.clip_contents = true
+		_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_clip.size = custom_minimum_size
+		add_child(_clip)
+		var top: Control = (get_script() as GDScript).new()
+		top.icon = true
+		top._fill_layer = true
+		_clip.add_child(top)
 
 
 func _process(_delta: float) -> void:
@@ -68,7 +84,10 @@ func _fish(middle: Vector2, tilt: float, red: bool, dim: float, pixel: float) ->
 
 func _draw() -> void:
 	if icon:
-		_sign(size * 0.5, 78.0)
+		if _fill_layer:
+			_sign(custom_minimum_size * 0.5, 78.0)
+		else:
+			_sign(custom_minimum_size * 0.5, 78.0, false, 0.0, 0.45)
 		return
 	var beat := Music.beat_float()
 	var now := int(floorf(beat)) % 4 if beat >= 0.0 else -1
@@ -140,3 +159,10 @@ func _sign(middle: Vector2, long: float, spawner := true, tilt := 0.0, dim := 1.
 	draw_circle(middle + Vector2(33, -4) * k, 3.4 * k, Color(0.98, 0.9, 0.4, dim))
 	draw_circle(middle + Vector2(33.6, -4) * k, 1.9 * k, ink)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## How full the sign is, from 0 to 1 (it eases to it).
+func set_fill(to: float) -> void:
+	fill = lerpf(fill, clampf(to, 0.0, 1.0), 0.15)
+	if _clip:
+		_clip.size = Vector2(custom_minimum_size.x * (0.06 + 0.94 * fill), custom_minimum_size.y)
