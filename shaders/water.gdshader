@@ -42,8 +42,8 @@ uniform float foam_scale = 1.0;
 // The pattern the foam is cut from: a grey picture that wraps round at its edges. Where it
 // is bright there is foam; the settings above say how bright it has to be. (Made by
 // scripts/tools/bake_foam.gd; any picture that wraps will do in its place.) And how many
-// metres of water one copy of it covers.
-uniform sampler2D foam_texture : repeat_enable, filter_linear, hint_default_white;
+// metres of water one copy of it covers. (With no picture set there is no foam.)
+uniform sampler2D foam_texture : repeat_enable, filter_linear, hint_default_black;
 uniform float foam_size = 22.0;
 // How much more foam there is on the crests of the swell than in its troughs (0 is no more).
 uniform float crest_foam : hint_range(0.0, 1.0) = 0.5;

@@ -26,6 +26,10 @@ var _clock := 0.0
 
 func _ready() -> void:
 	_build()
+	# (the material needs its foam picture: put it back if it has been saved without)
+	var water := material_override as ShaderMaterial
+	if water and water.get_shader_parameter("foam_texture") == null:
+		water.set_shader_parameter("foam_texture", preload("res://textures/foam_noise.png"))
 
 
 func _process(delta: float) -> void:

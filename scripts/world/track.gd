@@ -72,6 +72,7 @@ static var water_overrides := {}
 ## (scenes/water_scene.tscn shows a patch of sea with it). A stage's own "water_..." settings
 ## and the water lab's go on top of it.
 const WATER := preload("res://materials/water.tres")
+const FOAM := preload("res://textures/foam_noise.png")
 const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "colour_ripple", "rapid_foam",
 		"roughness", "specular", "ripple_height", "ripple_scale", "ripple_choppy", "ripple_speed", "lines", "view_clear",
 		"swell_height", "swell_length", "swell_speed", "crest_foam",
@@ -115,6 +116,9 @@ func _make_materials() -> void:
 	mat_foliage.set_shader_parameter("wind", 1.0)
 	# (a copy of the water set up by hand in scenes/water_scene.tscn: see WATER)
 	mat_water = WATER.duplicate()
+	# (the material may have been saved without its foam picture: it needs one)
+	if mat_water.get_shader_parameter("foam_texture") == null:
+		mat_water.set_shader_parameter("foam_texture", FOAM)
 	apply_water()
 
 

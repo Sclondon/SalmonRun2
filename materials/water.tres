@@ -1,10 +1,45 @@
-[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://byeosuf66jpna"]
 
-[ext_resource type="Shader" path="res://shaders/water.gdshader" id="1"]
-[ext_resource type="Texture2D" path="res://textures/foam_noise.png" id="2"]
+[ext_resource type="Shader" uid="uid://cyxskcgwpy8sx" path="res://shaders/water.gdshader" id="1"]
+[ext_resource type="Texture2D" uid="uid://c8lnope260wb2" path="res://textures/foam_noise.png" id="2"]
 
 [resource]
+render_priority = 0
 shader = ExtResource("1")
+shader_parameter/snap_res = 200.0
+shader_parameter/deep = Color(0.03, 0.3, 0.36, 1)
+shader_parameter/shallow = Color(0.16, 0.7, 0.64, 1)
+shader_parameter/foam_color = Color(0.92, 1, 0.96, 1)
+shader_parameter/depth_range = 5.0
+shader_parameter/alpha_shallow = 0.6
+shader_parameter/alpha_deep = 0.93
+shader_parameter/colour_ripple = 0.08
+shader_parameter/view_clear = 0.35
+shader_parameter/foam_amount = 0.18
+shader_parameter/whitecaps = 0.3
+shader_parameter/foam_scale = 1.0
 shader_parameter/foam_texture = ExtResource("2")
+shader_parameter/foam_size = 22.0
+shader_parameter/crest_foam = 0.5
+shader_parameter/edge_foam = 0.35
+shader_parameter/rapid_foam = 0.5
+shader_parameter/rim_width = 0.45
+shader_parameter/rim_ragged = 0.5
+shader_parameter/flow = 0.6
 shader_parameter/swell = 3.0
+shader_parameter/swell_height = 0.18
+shader_parameter/swell_length = 12.0
+shader_parameter/swell_speed = 1.0
+shader_parameter/roughness = 0.5
+shader_parameter/specular = 0.12
+shader_parameter/lines = 0.6
+shader_parameter/ripple_scale = 0.55
+shader_parameter/ripple_height = 0.16
+shader_parameter/ripple_choppy = 1.4
+shader_parameter/ripple_speed = 1.0
 shader_parameter/across = 26.8
+shader_parameter/wake_count = 0
+shader_parameter/wake_span = Vector2(0, 0)
+shader_parameter/wake_life = 1.6
+shader_parameter/wake_spread = 2.4
+shader_parameter/wake_width = 0.4
