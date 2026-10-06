@@ -24,9 +24,11 @@ const ON_BEAT := 4
 
 var score := 0
 var flow := 1
-## Clean tricks since the flow last went up: it takes FLOW_STEP of them for each step.
+## Clean tricks since the flow last went up: it takes FLOW_STEP of them for the first step,
+## and FLOW_MORE more for each step after that (see flow_needs).
 var _clean := 0
-const FLOW_STEP := 2
+const FLOW_STEP := 4
+const FLOW_MORE := 1
 var timer := 0.0
 var tricks := 0
 var rings := 0
@@ -50,6 +52,7 @@ static func grade(off: float, sec_per_beat: float) -> int:
 func reset() -> void:
 	score = 0
 	flow = 1
+	_clean = 0
 	timer = 0.0
 	tricks = 0
 	rings = 0
@@ -71,7 +74,7 @@ func add_trick(trick: Dictionary) -> int:
 		best_trick_pts = gained
 		best_trick = trick.name
 	_clean += 1
-	if _clean >= FLOW_STEP:
+	if _clean >= flow_needs():
 		_clean = 0
 		flow = mini(flow + 1, MAX_FLOW)
 	best_flow = maxi(best_flow, flow)
@@ -84,6 +87,16 @@ func add_rings(count: int) -> void:
 	score += RING_POINTS * count
 	if flow > 1:
 		timer = minf(timer + 0.5 * count, FLOW_WINDOW)
+
+
+## How many clean tricks the next step of the flow takes from this one.
+func flow_needs() -> int:
+	return FLOW_STEP + FLOW_MORE * (flow - 1)
+
+
+## How far towards the next step of the flow it is, 0 to 1 (1 at the top of it).
+func towards_next() -> float:
+	return 1.0 if flow >= MAX_FLOW else float(_clean) / flow_needs()
 
 
 ## Call every frame. The flow timer only runs while you're on the water.
@@ -100,6 +113,7 @@ func tick(delta: float, airborne: bool) -> void:
 func drop() -> int:
 	var had := flow
 	flow = 1
+	_clean = 0
 	timer = 0.0
 	wipeouts += 1
 	return had
