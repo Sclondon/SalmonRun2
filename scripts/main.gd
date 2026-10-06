@@ -103,6 +103,11 @@ var _ways: Array[int] = []
 ## The way taken at the stage's fork (a stage), or -1 where it has none or it has not been
 ## reached yet: see Track.fork.
 var _fork_way := -1
+## How many swipes in a row have been timed EXCELLENT or better: three of them call up a
+## salmon run (see _on_timed).
+var _streak := 0
+const RUN_STREAK := 3
+const RUN_SECONDS := 12.0
 ## ...and the ones that stayed shut because the stage's goal was missed
 var _shut: Array[int] = []
 var _travel_go: Button
@@ -358,6 +363,7 @@ func _start_race(test := false) -> void:
 	hud.set_best(0 if test else Save.best(_key()))
 	score.reset()
 	_fork_way = -1
+	_streak = 0
 	_forced_goal = 0
 	race_time = 0.0
 	_finish_timer = -1.0
@@ -853,6 +859,15 @@ func _on_timed(grade: int) -> void:
 	hud.show_grade(grade, str(Score.GRADES[grade][0]))
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
+	# three in a row timed EXCELLENT or better call up a salmon run: a crowd of salmon that
+	# swims in close and copies every move for a while
+	_streak = _streak + 1 if grade >= Score.GRADES.size() - 2 else 0
+	if _streak >= RUN_STREAK:
+		_streak = 0
+		world.start_salmon_run(RUN_SECONDS)
+		hud.popup("SALMON RUN!", UI.GOLD, 2.2)
+		Sfx.play("combo")
+		world.player.boost = 100.0
 
 
 func _on_wipe(reason: String) -> void:

@@ -82,6 +82,9 @@ var follow_dx := 0.0
 ## How far up or down the held finger has been dragged from where it came down (or from its
 ## last swipe), from -1 (up) to 1 (down): under the water, the salmon swims up or down.
 var follow_dy := 0.0
+## How hard the last swipe was made, from 0 (only just a swipe) to 1 (a long, fast one): a
+## harder swipe up jumps higher.
+var swipe_power := 0.6
 ## The finger is wiggling back and forth: boost.
 var wiggling := false
 ## The finger is drawing circles: corkscrew that way (-1 anticlockwise, 1 clockwise, 0 not).

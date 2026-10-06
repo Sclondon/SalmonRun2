@@ -514,21 +514,32 @@ static func ring(radius := 1.8, tube := 0.24, colour := Color(1.0, 0.78, 0.2), c
 	return mb.build()
 
 
+## A brown bear standing in the river on all fours, as a bear does: a long heavy body, a hump
+## over the shoulders, its head carried low and forward (nose at -Z), and three of its legs.
+## The fourth, the near foreleg, is a part of its own (bear_arm), so that it can be swung.
+## Its feet are 1.2 under the middle of it, down in the water.
 static func bear_body(rng: RandomNumberGenerator) -> ArrayMesh:
 	var mb := MB.new()
 	var fur := Color(0.38, 0.23, 0.12)
 	var tan := Color(0.64, 0.46, 0.3)
 	var black := Color(0.05, 0.04, 0.04)
+	# the hind legs, and the far foreleg
 	for sx: float in [-1.0, 1.0]:
-		frustum(mb, Vector3(sx * 0.45, -1.2, 0.0), Vector3(sx * 0.45, 0.7, 0.0), 0.34, 0.32, 5, fur)
-	blob(mb, Vector3(0.0, 1.35, 0.0), Vector3(0.95, 1.1, 0.75), rng, fur, 7, 4, 0.08)
-	blob(mb, Vector3(0.0, 1.2, -0.38), Vector3(0.6, 0.7, 0.42), rng, tan, 6, 3, 0.08)
-	blob(mb, Vector3(0.0, 2.62, -0.1), Vector3(0.56, 0.5, 0.56), rng, fur, 6, 4, 0.08)
-	blob(mb, Vector3(0.0, 2.5, -0.62), Vector3(0.26, 0.2, 0.3), rng, tan, 5, 3, 0.05)
-	blob(mb, Vector3(0.0, 2.56, -0.9), Vector3(0.1, 0.08, 0.07), rng, black, 4, 2, 0.0)
+		frustum(mb, Vector3(sx * 0.48, -1.2, 0.95), Vector3(sx * 0.48, 0.9, 0.85), 0.34, 0.4, 5, fur)
+	frustum(mb, Vector3(-0.45, -1.2, -0.8), Vector3(-0.45, 0.9, -0.75), 0.3, 0.34, 5, fur)
+	# the body, the rump and the hump of the shoulders
+	blob(mb, Vector3(0.0, 1.15, 0.1), Vector3(0.85, 0.78, 1.4), rng, fur, 7, 4, 0.08)
+	blob(mb, Vector3(0.0, 1.2, 1.0), Vector3(0.8, 0.74, 0.7), rng, fur, 6, 3, 0.08)
+	blob(mb, Vector3(0.0, 1.62, -0.65), Vector3(0.62, 0.5, 0.6), rng, shade(fur, 1.08), 6, 3, 0.08)
+	blob(mb, Vector3(0.0, 1.25, 1.55), Vector3(0.16, 0.16, 0.14), rng, fur, 4, 2, 0.03)
+	# the neck and the head, low and forward, with a pale muzzle
+	blob(mb, Vector3(0.0, 1.3, -1.2), Vector3(0.52, 0.5, 0.5), rng, fur, 6, 3, 0.06)
+	blob(mb, Vector3(0.0, 1.22, -1.7), Vector3(0.44, 0.4, 0.42), rng, fur, 6, 4, 0.06)
+	blob(mb, Vector3(0.0, 1.1, -2.1), Vector3(0.22, 0.19, 0.28), rng, tan, 5, 3, 0.04)
+	blob(mb, Vector3(0.0, 1.14, -2.36), Vector3(0.09, 0.07, 0.06), rng, black, 4, 2, 0.0)
 	for sx: float in [-1.0, 1.0]:
-		blob(mb, Vector3(sx * 0.38, 3.02, -0.05), Vector3(0.15, 0.15, 0.1), rng, fur, 5, 2, 0.05)
-		box(mb, Vector3(sx * 0.2, 2.74, -0.55), Vector3(0.09, 0.09, 0.06), black)
+		blob(mb, Vector3(sx * 0.32, 1.6, -1.55), Vector3(0.13, 0.13, 0.09), rng, fur, 5, 2, 0.04)
+		box(mb, Vector3(sx * 0.2, 1.36, -2.02), Vector3(0.08, 0.08, 0.05), black)
 	return mb.build()
 
 

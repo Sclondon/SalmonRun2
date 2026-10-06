@@ -1278,7 +1278,8 @@ func _build_features() -> void:
 			bear.sweep = minf(8.0, width(b.s) * 0.5 - 3.0)
 			bear.transform = Transform3D(basis_at(b.s), point(b.s, b.x, water_y(b.s)))
 		else:
-			bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI), point(b.s, b.x, water_y(b.s) - 0.7))
+			# (three-quarters on to the salmon coming up, so that it is seen to be on all fours)
+			bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI + (0.7 if int(b.s) % 2 == 0 else -0.7)), point(b.s, b.x, water_y(b.s) - 0.55))
 		b.node = bear
 
 	var speaker := Props.speaker_stack(frng)

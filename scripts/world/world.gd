@@ -16,6 +16,10 @@ var player: Salmon
 var camera: ChaseCam
 var school: School
 var others: School
+## The salmon run: a great many more salmon that turn up for a short while and copy the
+## player move for move (see start_salmon_run).
+var run: School
+var _run_left := 0.0
 var shoals: Shoals
 var sardines: Shoals
 var edge_swarm: EdgeSwarm
@@ -48,6 +52,10 @@ func _ready() -> void:
 	add_child(others)
 	others.setup(track, player, 8 if Save.is_mobile() else 16)
 	others.active = 3
+	run = School.new()
+	run.active = 0
+	add_child(run)
+	run.setup(track, player, 9 if Save.is_mobile() else 16)
 	shoals = Shoals.new()
 	add_child(shoals)
 	shoals.setup(track, player, 5 if Save.is_mobile() else 9, 9 if Save.is_mobile() else 14)
@@ -74,6 +82,9 @@ func _ready() -> void:
 	camera.track = track
 	school.track = track
 	others.track = track
+	run.track = track
+	run.active = 0
+	_run_left = 0.0
 	others.scatter()
 	school.scatter()
 	add_child(camera)
@@ -109,6 +120,9 @@ func set_course(level: int, test: bool, down := false) -> void:
 	camera.track = track
 	school.track = track
 	others.track = track
+	run.track = track
+	run.active = 0
+	_run_left = 0.0
 	others.scatter()
 	school.scatter()
 	shoals.track = track
@@ -172,6 +186,7 @@ func _dress_player(level: int, down: bool) -> void:
 	player.set_look(look)
 	school.set_look(look)
 	others.set_look(look)
+	run.set_look(look)
 
 
 ## Sky, fog and light for the level that was just built.
@@ -280,7 +295,14 @@ func _make_fireflies() -> void:
 	add_child(_fireflies)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# the salmon run runs out, and its salmon go their ways
+	if _run_left > 0.0:
+		_run_left -= delta
+		if _run_left <= 0.0:
+			run.active = 0
+			for trail in run.wakes:
+				trail.visible = false
 	# (the light is steady: flashing it on the beat made the water shimmer, which is hard on
 	# the eyes)
 	sun.light_energy = _light_energy
@@ -315,3 +337,18 @@ func set_abundance(amount: float) -> void:
 	amount = clampf(amount, 0.0, 1.0)
 	others.active = 3 + int(roundf((others.get_child_count() - 3) * amount))
 	visitors.abundance = amount
+
+
+## A salmon run: for `seconds`, a crowd of salmon swims in close round the player and copies
+## every move it makes.
+func start_salmon_run(seconds: float) -> void:
+	if _run_left <= 0.0:
+		run.active = 999
+		run.scatter()
+	run.in_step = 1.0
+	_run_left = seconds
+
+
+## How much of the salmon run is left (seconds; 0 when there is none).
+func salmon_run_left() -> float:
+	return _run_left

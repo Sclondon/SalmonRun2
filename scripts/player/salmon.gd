@@ -424,7 +424,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		if released or inp.jump:
 			vy += 6.6 + 7.7 * charge
 		elif _swiped_up(inp):
-			vy += 6.6 + 7.7 * SWIPE_JUMP
+			vy += 6.6 + 7.7 * SWIPE_JUMP * lerpf(0.72, 1.14, GameInput.swipe_power)
 		_take_off(released or bool(inp.jump) or _swiped_up(inp))
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
@@ -460,7 +460,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		vy = 7.7 + 8.8 * charge + _ramp_vy
 		_take_off(true)
 	elif up:
-		vy = 7.7 + 8.8 * SWIPE_JUMP + _ramp_vy
+		vy = 7.7 + 8.8 * SWIPE_JUMP * lerpf(0.72, 1.14, GameInput.swipe_power) + _ramp_vy
 		_take_off(true)
 	elif down:
 		_set_layer(1)

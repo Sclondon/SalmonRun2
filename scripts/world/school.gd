@@ -63,7 +63,7 @@ func setup(t: Track, p: Salmon, count: int) -> void:
 		add_child(trail)
 		wakes.append(trail)
 		_fish.append({"node": node, "mat": mat, "s": 0.0, "x": 0.0, "y": 0.0, "vy": 0.0, "vx": 0.0,
-				"n": i, "vs": 20.0, "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
+				"n": i, "vs": 20.0, "leap": _rng.randf_range(0.72, 1.22), "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
 				# its place in the pack: how far ahead of the player and how far to one side
 				"ahead": lerpf(-7.0, 15.0, (i + 0.5) / count) + _rng.randf_range(-1.5, 1.5),
 				"off": (3.0 + _rng.randf_range(0.0, 5.5)) * (1.0 if i % 2 == 0 else -1.0), "deep": 0.0})
@@ -231,7 +231,8 @@ func _process(delta: float) -> void:
 			continue
 		# in step, it is as high out of the water as the player is, when the player is
 		if copying and not uphill:
-			y = surf + maxf(height, 0.0)
+			# (each to its own height: some a little short of the player, some over)
+			y = surf + maxf(height, 0.0) * float(f.leap)
 			vy = player.vy
 		f.s = s
 		f.x = x

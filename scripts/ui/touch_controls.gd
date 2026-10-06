@@ -201,6 +201,7 @@ func _track_swipe() -> void:
 	_flash = 0.35
 	_flash_dir = dir.normalized()
 	_flash_pos = _pos
+	GameInput.swipe_power = clampf((d.length() / need - 1.0) / 1.6, 0.0, 1.0)
 	GameInput.swipe(dir)
 	# (up and down are measured afresh from where a swipe ends, or the swipe would be taken
 	# for a drag that way as well)

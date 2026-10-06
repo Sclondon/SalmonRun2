@@ -1,6 +1,7 @@
 extends Node3D
-## A predator in the salmon's way, striking on every other beat: a grizzly standing in the
-## river slamming its paws down (jump over it, or steer wide), or at sea a shark, which
+## A predator in the salmon's way: a brown bear standing in the river on all fours, which
+## swings a forepaw down into the water on every other beat (jump over it, or steer wide), or
+## at sea a shark, which
 ## strikes on no beat: it swims to and fro across the way, at the surface or under it, and is
 ## to be got round, over or under.
 
@@ -41,9 +42,10 @@ func setup(rng: RandomNumberGenerator, mat: Material, predator := "bear") -> voi
 		_phase0 = rng.randf() * TAU
 		return
 	var arm_mesh := Props.bear_arm(rng)
-	for sx: float in [-1.0, 1.0]:
+	# (the one foreleg it fishes with: the others are part of its body and stay planted)
+	for sx: float in [1.0]:
 		var pivot := Node3D.new()
-		pivot.position = Vector3(sx * 0.9, 2.05, -0.1)
+		pivot.position = Vector3(sx * 0.45, 0.95, -0.8)
 		_body.add_child(pivot)
 		var arm := MeshInstance3D.new()
 		arm.mesh = arm_mesh
@@ -74,9 +76,10 @@ func _process(delta: float) -> void:
 		return
 	var ang: float
 	if p < SWIPE_BEATS:
-		ang = lerpf(deg_to_rad(165.0), deg_to_rad(35.0), p / SWIPE_BEATS)
+		ang = lerpf(deg_to_rad(105.0), deg_to_rad(12.0), p / SWIPE_BEATS)
 	else:
-		ang = lerpf(deg_to_rad(35.0), deg_to_rad(165.0), smoothstep(SWIPE_BEATS, 1.7, p))
+		ang = lerpf(deg_to_rad(12.0), deg_to_rad(105.0), smoothstep(SWIPE_BEATS, 1.7, p))
 	for i in _arms.size():
-		_arms[i].rotation = Vector3(ang, 0.0, 0.3 if i == 0 else -0.3)
-	_body.rotation.x = -0.12 * (1.0 - smoothstep(0.0, 0.6, p))
+		_arms[i].rotation = Vector3(ang, 0.0, 0.0)
+	# (its head and shoulders go down with the paw)
+	_body.rotation.x = -0.1 * (1.0 - smoothstep(0.0, 0.6, p))

@@ -217,8 +217,8 @@ func _build_stage() -> void:
 			"bear":
 				_part(node, Props.bear_body(rng), mat, Vector3(0.0, -1.4, 0.0))
 				var arm := Props.bear_arm(rng)
-				for sx: float in [-1.0, 1.0]:
-					_part(node, arm, mat, Vector3(sx * 0.9, 2.05 - 1.4, -0.1))
+				for sx: float in [1.0]:
+					_part(node, arm, mat, Vector3(sx * 0.45, 0.95 - 1.4, -0.8))
 			_:
 				# a salmon, side on to begin with
 				_part(node, Props.salmon(str(entry.model)), mat, Vector3.ZERO)
