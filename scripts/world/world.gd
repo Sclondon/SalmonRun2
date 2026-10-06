@@ -15,6 +15,14 @@ var track: Track
 var player: Salmon
 var camera: ChaseCam
 var school: School
+## Joining stages end to end. `ahead` is the next stage, made ready and set down so that its
+## beginning meets the end of the one being swum; `behind` is the one just left, kept in the
+## picture until the next change. See make_next and take_next.
+var ahead: Track
+var behind: Track
+var _join := Transform3D.IDENTITY
+var _join_lane := 0.0
+
 var others: School
 ## The salmon run: a great many more salmon that turn up for a short while and copy the
 ## player move for move (see start_salmon_run).
@@ -33,6 +41,10 @@ var _specks: CPUParticles3D
 var _sky: ShaderMaterial
 var _mote_mat: StandardMaterial3D
 var _light_energy := 1.15
+# the haze of the stage as it stands (it turns from one stage's into the next's: see _apply_level)
+var _fog_now := Color(0.85, 0.5, 0.55)
+var _fog_density_now := 0.0055
+var _blend: Tween
 
 
 func _ready() -> void:
@@ -107,6 +119,10 @@ func set_course(level: int, test: bool, down := false) -> void:
 	_dress_player(level, down)
 	if has_course(level, test, down):
 		return
+	_drop(ahead)
+	ahead = null
+	_drop(behind)
+	behind = null
 	remove_child(track)
 	track.queue_free()
 	track = Track.new()
@@ -189,26 +205,47 @@ func _dress_player(level: int, down: bool) -> void:
 	run.set_look(look)
 
 
-## Sky, fog and light for the level that was just built.
-func _apply_level() -> void:
+## `blend` is how many seconds the change takes (0 is at once): swimming from one stage on to
+## the next, the sky, the haze and the light turn from the one's into the other's.
+func _apply_level(blend := 0.0) -> void:
 	var cfg := track.cfg
-	_sky.set_shader_parameter("top_color", cfg.sky_top)
-	_sky.set_shader_parameter("horizon_color", cfg.sky_horizon)
-	_sky.set_shader_parameter("bottom_color", cfg.sky_bottom)
-	_sky.set_shader_parameter("sun_color", cfg.sun)
 	_sky.set_shader_parameter("sun_dir", cfg.sun_dir)
 	_sky.set_shader_parameter("sun_disc", 1.0 if cfg.get("sun_disc", true) else 0.0)
-	env.fog_light_color = cfg.fog
-	env.fog_density = cfg.fog_density
-	env.ambient_light_color = cfg.ambient
-	env.ambient_light_energy = cfg.ambient_energy
-	sun.light_color = cfg.light
-	_light_energy = cfg.light_energy
 	# light comes from where the sun is drawn in the sky
 	var dir: Vector3 = (cfg.sun_dir as Vector3).normalized()
 	sun.rotation = Vector3(-asin(clampf(dir.y, 0.55, 0.9)), atan2(-dir.x, -dir.z) + PI * 0.83, 0.0)
 	_mote_mat.albedo_color = cfg.motes
 	_mote_mat.emission = cfg.motes
+	var sky_keys := {"top_color": cfg.sky_top, "horizon_color": cfg.sky_horizon, "bottom_color": cfg.sky_bottom, "sun_color": cfg.sun}
+	if _blend:
+		_blend.kill()
+	if blend <= 0.0:
+		for key: String in sky_keys:
+			_sky.set_shader_parameter(key, sky_keys[key])
+		env.fog_light_color = cfg.fog
+		env.fog_density = cfg.fog_density
+		env.ambient_light_color = cfg.ambient
+		env.ambient_light_energy = cfg.ambient_energy
+		sun.light_color = cfg.light
+		_light_energy = cfg.light_energy
+		_fog_now = cfg.fog
+		_fog_density_now = cfg.fog_density
+		return
+	_blend = create_tween().set_parallel(true)
+	for key: String in sky_keys:
+		var was: Variant = _sky.get_shader_parameter(key)
+		var to: Variant = sky_keys[key]
+		if was == null:
+			_sky.set_shader_parameter(key, to)
+			continue
+		# (a sky colour is a Vector3 or a Color, as the stage gave it: both blend the same way)
+		_blend.tween_method(func(t: float) -> void: _sky.set_shader_parameter(key, lerp(was, to, t)), 0.0, 1.0, blend)
+	_blend.tween_property(self, "_fog_now", cfg.fog, blend)
+	_blend.tween_property(self, "_fog_density_now", float(cfg.fog_density), blend)
+	_blend.tween_property(env, "ambient_light_color", cfg.ambient, blend)
+	_blend.tween_property(env, "ambient_light_energy", float(cfg.ambient_energy), blend)
+	_blend.tween_property(sun, "light_color", cfg.light, blend)
+	_blend.tween_property(self, "_light_energy", float(cfg.light_energy), blend)
 
 
 ## What hangs in the water when you are under it: bubbles coming up from the deep, and specks
@@ -325,8 +362,8 @@ func _process(delta: float) -> void:
 		# under the water it is murky, and everything fades into the colour of the water
 		var under: float = camera.submerged
 		var murk: Color = (track.cfg.get("water_shallow", Color(0.16, 0.7, 0.64)) as Color).lerp(track.cfg.get("water_deep", Color(0.03, 0.3, 0.36)), 0.5)
-		env.fog_light_color = (track.cfg.fog as Color).lerp(murk, under)
-		env.fog_density = lerpf(track.cfg.fog_density, track.cfg.get("murk", 0.016), under)
+		env.fog_light_color = _fog_now.lerp(murk, under)
+		env.fog_density = lerpf(_fog_density_now, track.cfg.get("murk", 0.016), under)
 		env.fog_sky_affect = lerpf(0.25, 1.0, under)
 		_sky.set_shader_parameter("sun_color", (track.cfg.sun as Color).lerp(murk, under))
 
@@ -352,3 +389,80 @@ func start_salmon_run(seconds: float) -> void:
 ## How much of the salmon run is left (seconds; 0 when there is none).
 func salmon_run_left() -> float:
 	return _run_left
+
+
+# ================================================================== stages joined end to end
+
+func _drop(old: Track) -> void:
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+
+
+## Makes the stage that comes next and sets it down so that its beginning meets the end of
+## the one being swum, `lane` metres across from the middle of that end and turned `turn`
+## radians from the way it runs (a fork leads off to one side). The salmon swims on to it
+## when it reaches the end: see take_next.
+func make_next(level: int, down: bool, lane := 0.0, turn := 0.0) -> void:
+	_drop(ahead)
+	ahead = Track.new()
+	ahead.live = false
+	add_child(ahead)
+	move_child(ahead, 0)
+	ahead.build(level, false, down, track.width(end_s()))
+	var s_end := end_s()
+	var from := track.basis_at(s_end) * Basis(Vector3.UP, -turn)
+	var at := track.point(s_end, lane, track.water_y(s_end))
+	var to := ahead.basis_at(0.0)
+	var start := ahead.point(0.0, 0.0, ahead.water_y(0.0))
+	var turned := from * to.inverse()
+	_join = Transform3D(turned, at - turned * start)
+	_join_lane = lane
+	ahead.transform = _join
+
+
+## Where the stage being swum ends (metres along it): where the next one is joined on.
+func end_s() -> float:
+	return track.length - Track.STEP * 2.0
+
+
+## True once the next stage is made and waiting.
+func has_next() -> bool:
+	return ahead != null
+
+
+## The salmon has reached the end of its stage: it is on the next one from here. Everything
+## is measured from the new stage now, and the old one is moved to where it lies from there
+## (so nothing in the picture moves: only the numbers change).
+func take_next() -> void:
+	var over := player.s - end_s()
+	_drop(behind)
+	behind = track
+	behind.live = false
+	behind.transform = _join.affine_inverse()
+	ahead.transform = Transform3D.IDENTITY
+	ahead.clock = behind.clock
+	ahead.live = true
+	track = ahead
+	ahead = null
+	_dress_player(track.level, track.down)
+	_apply_level(3.0)
+	player.track = track
+	player.rail = {}
+	if player._wake:
+		player._wake.clear()
+		player._wake.track = track
+	player.s = maxf(over, 0.0)
+	player.x = player.x - _join_lane
+	player.y = track.water_y(player.s)
+	for flock: School in [school, others, run]:
+		flock.track = track
+		flock.scatter()
+	for shoal: Shoals in [shoals, sardines]:
+		shoal.track = track
+		shoal.scatter()
+	edge_swarm.track = track
+	visitors.track = track
+	visitors.scatter()
+	bubbles.track = track
+	camera.track = track
+	camera.snap()

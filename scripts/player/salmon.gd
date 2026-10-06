@@ -92,6 +92,9 @@ var dive := 0.0
 ## How far down it is making for, in layers: the layer it was last sent to, or wherever it
 ## has been swum to freely since.
 var dive_to := 0.0
+## How fast it swims of the speed it would (1 is all of it): less while it idles along after
+## a stage is done, 0 to hold where it is.
+var pace := 1.0
 # how well each swipe of the leap in hand was timed (the jump itself is the first), and
 # which of the held inputs (spin, flip, corkscrew, grab) were already on last frame
 var _marks: Array[int] = []
@@ -376,7 +379,7 @@ func _read_input(delta: float) -> Dictionary:
 func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	# (on the surface up and down are faster and slower; under it they are up and down)
 	var pitch_in: float = 0.0 if layer > 0 else float(inp.pitch)
-	var target := CRUISE + (pitch_in * 8.0 if pitch_in > 0.0 else pitch_in * 14.0)
+	var target := (CRUISE + (pitch_in * 8.0 if pitch_in > 0.0 else pitch_in * 14.0)) * pace
 	var was_boosting := boosting
 	boosting = inp.boost and boost > 0.0
 	if boosting:
@@ -837,7 +840,7 @@ func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 	if released or s >= float(rail.s1):
 		Sfx.set_loop("grind", false)
 		var pts := 150 + int(rail_time * 450.0)
-		trick_landed.emit(_on_beat("Bamboo Grind", pts))
+		trick_landed.emit(_on_beat("Log Ride", pts))
 		vy = 5.0 + (6.0 + 7.0 * charge if released else 0.0)
 		_take_off()
 

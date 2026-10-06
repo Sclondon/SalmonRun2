@@ -40,6 +40,9 @@ var onward: Array[int] = []
 ## which open one is highlighted.
 var choices: Array[int] = []
 var locked: Array[int] = []
+## Ways on that were open but not taken (shown greyed out beside the way that was: see the
+## travel inset in main.gd).
+var passed: Array[int] = []
 var choice := 0
 
 var _static: Array[int] = []
@@ -148,6 +151,10 @@ func _draw() -> void:
 		_leg(m, c, r, _stage_vec(_static[i]), _stage_vec(_static[i + 1]), 1.0)
 	if _from != -1 and choices.is_empty():
 		_leg(m, c, r, _stage_vec(_from), _stage_vec(_to), smoothstep(0.0, 1.0, _progress))
+	# the ways not taken from where the leg sets out: greyed out, and dashed
+	if choices.is_empty() and _from != -1:
+		for id in locked + passed:
+			_leg(m, c, r, _stage_vec(_from), _stage_vec(id), 1.0, GREY, true)
 	# the ways on are only possibilities until one is picked, so they are dashed
 	if not choices.is_empty():
 		for id in locked:
@@ -164,6 +171,8 @@ func _draw() -> void:
 			_pin(_pins[id], UI.TEAL, 0.75)
 	for id in onward:
 		_pin_named(font, id, "", UI.GOLD if id == onward[0] else UI.OCHRE, 0.9)
+	for id in passed:
+		_pin_named(font, id, Levels.LIST[id].name, GREY, 0.8)
 	for id in locked:
 		_pin_named(font, id, "LOCKED", GREY, 0.9)
 	for i in choices.size():
@@ -255,6 +264,7 @@ func choose(done: Array[int], here: int, open: Array[int], shut: Array[int]) -> 
 
 func stop_choosing() -> void:
 	choices = []
+	passed = []
 	locked = []
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 

@@ -15,7 +15,7 @@ const STEP := 2.0
 const CHUNK := 100
 const GROUP_LEN := 400.0
 const START_S := 30.0
-const RAIL_H := 1.2
+const RAIL_H := 0.55
 ## Metres between the knots an ocean current winds through.
 const CURRENT_KNOT := 26.0
 ## Every course meanders: metres from one bend to the left to the next, and how sharply it
@@ -107,7 +107,10 @@ var _noise := FastNoiseLite.new()
 var _ring_root: Node3D
 
 
-func build(level_index := Levels.RAINFOREST, test_level := false, downstream := false) -> void:
+## `lead` is how wide the water was at the end of the stage this one is joined on to (0 for
+## none): its own first stretch narrows or widens from that to its own width.
+func build(level_index := Levels.RAINFOREST, test_level := false, downstream := false, lead := 0.0) -> void:
+	lead_width = lead
 	down = downstream
 	level = level_index
 	cfg = Levels.settings(level)
@@ -418,6 +421,10 @@ const SWELL_LENGTH := 12.0
 ## Seconds since the stage was made: the swell's clock (the shader is sent it every frame,
 ## as the project's water_clock).
 var clock := 0.0
+## Only the stage being swum keeps the water's clock (see world.gd: one left behind, or one
+## made ready ahead, is in the picture too but must not wind the clock as well).
+var live := true
+var lead_width := 0.0
 var _swell_high := 0.0
 var _swell_long := 12.0
 var _swell_speed := 1.0
@@ -548,8 +555,10 @@ func reset_rings() -> void:
 
 
 func _process(delta: float) -> void:
-	clock += delta
-	RenderingServer.global_shader_parameter_set("water_clock", clock)
+	if live:
+		clock += delta
+	if live:
+		RenderingServer.global_shader_parameter_set("water_clock", clock)
 	if _ring_root == null:
 		return
 	var pulse := Music.beat_pulse()
@@ -972,7 +981,9 @@ func _slope(s: float) -> float:
 func _width_rule(s: float) -> float:
 	var base: float = cfg.width
 	var w := base + 5.0 * _noise.get_noise_1d(s * 0.005 + 400.0)
-	if s < 150.0:
+	if lead_width > 0.0 and s < 170.0:
+		w = lerpf(lead_width - 1.6, base + 2.0, smoothstep(0.0, 170.0, s))
+	elif s < 150.0:
 		w = base + 2.0
 	for z: Dictionary in rapids:
 		w = lerpf(w, base - 4.5, _zone(s, z.s0, z.s1, 25.0))
@@ -1362,33 +1373,34 @@ func _build_current(c: Dictionary) -> void:
 	_add_mesh(arrows.commit(), glow)
 
 
+# A rail is a string of logs afloat end to end: each a stout trunk lying in the water with
+# its top clear of it, bark all round, pale where it was sawn off at either end, and the
+# stub of a branch here and there.
 func _build_rail(r: Dictionary) -> void:
 	var mb := MB.new()
-	var green: Color = cfg.rail
-	var node_col: Color = cfg.rail_node
-	var radius := 0.35
-	var prev := Vector3.ZERO
+	var bark := Color(0.34, 0.23, 0.14)
+	var sawn := Color(0.82, 0.68, 0.44)
+	var radius := 0.5
+	var lrng := RandomNumberGenerator.new()
+	lrng.seed = int(float(r.s0) * 7.0)
 	var s: float = r.s0
-	var k := 0
-	while s <= r.s1 + 0.01:
-		var p := point(s, rail_x(r, s), water_y(s) + RAIL_H - radius)
-		if k > 0:
-			Props.frustum(mb, prev, p, radius, radius, 6, green if k % 2 == 0 else Props.shade(green, 0.9), false)
-			var dir := (p - prev).normalized()
-			Props.frustum(mb, p - dir * 0.08, p + dir * 0.08, radius * 1.18, radius * 1.18, 6, node_col, false)
-		if k % 4 == 0:
-			var base := point(s, rail_x(r, s), water_y(s) - 1.5)
-			var side := right(s) * 0.8
-			Props.frustum(mb, base - side, p + side * 0.2, 0.12, 0.1, 4, node_col, true)
-			Props.frustum(mb, base + side, p - side * 0.2, 0.12, 0.1, 4, node_col, true)
-		prev = p
-		s += 3.0
-		k += 1
-	# glowing end caps so the rail reads from a distance
-	var cap := Props.glow(Color(0.7, 1.0, 0.3), 0.6)
-	for cs: float in [r.s0, r.s1]:
-		var cp := point(cs, rail_x(r, cs), water_y(cs) + RAIL_H - radius)
-		Props.blob(mb, cp, Vector3.ONE * 0.45, _rng, cap, 5, 3, 0.0)
+	while s < float(r.s1) - 0.5:
+		var long := minf(lrng.randf_range(5.0, 8.0), float(r.s1) - s)
+		var a := point(s + 0.12, rail_x(r, s + 0.12), water_y(s) + RAIL_H - radius)
+		var b := point(s + long - 0.12, rail_x(r, s + long - 0.12), water_y(s + long) + RAIL_H - radius)
+		var col := Props.shade(bark, lrng.randf_range(0.85, 1.12))
+		var thick := radius * lrng.randf_range(0.92, 1.06)
+		Props.frustum(mb, a, b, thick, thick * 0.94, 7, col, false)
+		var dir := (b - a).normalized()
+		# (the sawn ends)
+		Props.frustum(mb, a - dir * 0.05, a + dir * 0.02, thick * 0.96, thick * 0.96, 7, sawn, true)
+		Props.frustum(mb, b - dir * 0.02, b + dir * 0.05, thick * 0.9, thick * 0.9, 7, sawn, true)
+		# (the stub of a branch)
+		if lrng.randf() < 0.6:
+			var at := a.lerp(b, lrng.randf_range(0.25, 0.75))
+			var out := (right(s) * (1.0 if lrng.randf() < 0.5 else -1.0) + Vector3.UP * 0.5).normalized()
+			Props.frustum(mb, at + out * thick * 0.7, at + out * (thick + 0.45), 0.13, 0.1, 5, Props.shade(bark, 0.9), true)
+		s += long
 	_add_mesh(mb.build(), mat_world)
 
 

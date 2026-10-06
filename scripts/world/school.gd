@@ -20,6 +20,7 @@ var _fish: Array[Dictionary] = []
 var _look := ""
 var _t := 0.0
 var _was_air := false
+var _beat := -1
 var wakes: Array[MeshInstance3D] = []
 var _wake_mat: StandardMaterial3D
 # a few splashes, used in turn by whichever of them leaps or lands next
@@ -63,7 +64,7 @@ func setup(t: Track, p: Salmon, count: int) -> void:
 		add_child(trail)
 		wakes.append(trail)
 		_fish.append({"node": node, "mat": mat, "s": 0.0, "x": 0.0, "y": 0.0, "vy": 0.0, "vx": 0.0,
-				"n": i, "vs": 20.0, "leap": _rng.randf_range(0.72, 1.22), "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
+				"n": i, "vs": 20.0, "leap": _rng.randf_range(0.72, 1.22), "shy": 0.0 if _rng.randf() < 0.3 else _rng.randf_range(0.45, 0.9), "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
 				# its place in the pack: how far ahead of the player and how far to one side
 				"ahead": lerpf(-7.0, 15.0, (i + 0.5) / count) + _rng.randf_range(-1.5, 1.5),
 				"off": (3.0 + _rng.randf_range(0.0, 5.5)) * (1.0 if i % 2 == 0 else -1.0), "deep": 0.0})
@@ -117,6 +118,10 @@ func _process(delta: float) -> void:
 	var copying := _step > 0.5 and player.in_air()
 	var height := player.y - track.surface_y(player.s, player.x)
 	var jumped := player.in_air() and not _was_air
+	# (the beat of the tune, as it falls: some of the loose ones leap on it)
+	var beat := int(floorf(Music.beat_float()))
+	var on_beat := beat != _beat
+	_beat = beat
 	_was_air = player.in_air()
 	# (dived, the player takes the pack down too)
 	var depth := 0.0 if loose else track.layer_depth() * player.dive
@@ -210,6 +215,10 @@ func _process(delta: float) -> void:
 			if jumped and not loose:
 				f.hop = minf(float(f.hop), _rng.randf_range(0.05, 0.6))
 			var leap := float(f.hop) < 0.0 and float(f.deep) < 0.2
+			# (every other loose one keeps time instead: a leap on every fourth beat, each on a
+			# beat of its own)
+			if loose and int(f.n) % 2 == 0:
+				leap = on_beat and beat % 4 == (int(f.n) / 2) % 4
 			if uphill:
 				for wf: Dictionary in track.waterfalls:
 					var d: float = track.fall_base(wf) - s
@@ -254,10 +263,16 @@ func _process(delta: float) -> void:
 			deep_to = float(f.use_depth)
 		f.deep = lerpf(float(f.deep), deep_to, 1.0 - exp(-3.0 * dt))
 		var lift := track.swell_y(s, x) * (1.0 - smoothstep(0.0, 2.5, y - track.water_y(s))) * (1.0 - smoothstep(0.0, 1.0, float(f.deep))) - (0.0 if air else float(f.deep))
+		# Most of them swim just under the surface, and come up to it only to leap (a few keep
+		# to the top, backs out of the water, all the time).
+		var sunk := 0.0
+		if not air and not bool(f.get("on_rail", false)):
+			sunk = float(f.shy) * smoothstep(0.25, 1.0, float(f.hop)) * (1.0 - _step)
+			lift -= sunk
 		node.transform = Transform3D(b.scaled(Vector3.ONE * float(f.size)), track.point(s, x, y + lift - (0.0 if air else 0.1)))
 		# its wake, on the surface, and a small splash as it leaves the water and as it lands
 		var trail := wakes[int(f.n)]
-		trail.visible = not air and float(f.deep) < 0.3 and absf(s - player.s) < 70.0 and not bool(f.get("on_rail", false))
+		trail.visible = not air and float(f.deep) < 0.3 and sunk < 0.25 and absf(s - player.s) < 70.0 and not bool(f.get("on_rail", false))
 		if trail.visible:
 			trail.transform = Transform3D(track.basis_at(s) * Basis(Vector3.UP, -atan2(vx, Salmon.CRUISE)), track.point(s, x, track.water_y(s) + track.swell_y(s, x) + 0.05))
 		if air != bool(f.get("was_air", false)) and float(f.deep) < 0.3 and absf(s - player.s) < 45.0:

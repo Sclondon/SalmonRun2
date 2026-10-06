@@ -23,7 +23,7 @@ const Wake := preload("res://scripts/fx/wake.gd")
 
 const PRACTICE_HINT := "DRAG: STEER      SWIPE UP: JUMP      SWIPE DOWN: DIVE      WIGGLE OR CIRCLE: BOOST\nIN THE AIR: SWIPE TO SPIN / FLIP, CIRCLE TO CORKSCREW      JUMP UP THE WATERFALL"
 
-enum Phase { TITLE, COUNTDOWN, RACE, FINISHED, CUTSCENE }
+enum Phase { TITLE, COUNTDOWN, RACE, FINISHED, CUTSCENE, TRAVEL }
 
 ## How long each caption of a cutscene stays up.
 const CAPTION_TIME := 3.4
@@ -103,6 +103,18 @@ var _ways: Array[int] = []
 ## The way taken at the stage's fork (a stage), or -1 where it has none or it has not been
 ## reached yet: see Track.fork.
 var _fork_way := -1
+## Swimming on from one stage to the next (see _coast and _travel_on): how long the salmon
+## has been coasting since the finish, the stage it is bound for, and how long the globe
+## has been up. The globe is up for at least LINK_SECONDS.
+var _coast_t := 0.0
+var _link_to := -1
+var _link_down := false
+var _link_shown := 0.0
+const LINK_SECONDS := 3.2
+var _link: Control
+var _link_globe: Globe
+var _link_name: Label
+var _link_card: PanelContainer
 ## How many swipes in a row have been timed EXCELLENT or better: three of them call up a
 ## salmon run (see _on_timed).
 var _streak := 0
@@ -250,6 +262,7 @@ func _enter_title() -> void:
 	world.track.reset_rings()
 	var p := world.player
 	p.reset(Track.START_S)
+	p.pace = 1.0
 	p.autopilot = true
 	p.control = false
 	p.go()
@@ -369,6 +382,7 @@ func _start_race(test := false) -> void:
 	_finish_timer = -1.0
 	var p := world.player
 	p.reset(Track.START_S)
+	p.pace = 1.0
 	p.autopilot = _autotest_dir != ""
 	p.control = false
 	world.track.reset_rings()
@@ -413,6 +427,7 @@ func _cutscene(lines: Array, done: Callable) -> void:
 	_show(_cut)
 	var p := world.player
 	p.reset(Track.START_S)
+	p.pace = 1.0
 	p.autopilot = true
 	p.control = false
 	p.go()
@@ -427,6 +442,7 @@ func _end_cutscene() -> void:
 	phase = Phase.TITLE
 	var p := world.player
 	p.reset(Track.START_S)
+	p.pace = 1.0
 	p.autopilot = _autotest_dir != ""
 	world.track.reset_rings()
 	world.camera.mode = ChaseCam.Mode.FOLLOW
@@ -469,6 +485,7 @@ func _on_beat(b: int) -> void:
 func _test_lap() -> void:
 	var p := world.player
 	p.reset(Track.START_S)
+	p.pace = 1.0
 	p.go()
 	world.track.reset_rings()
 	world.camera.snap()
@@ -480,6 +497,9 @@ func _finish() -> void:
 	hud.popup("FINISH!", UI.GOLD, 2.5)
 	Sfx.play("combo")
 	world.player.control = false
+	# (it swims on by itself from here: see _coast)
+	world.player.autopilot = true
+	_coast_t = 0.0
 	_finish_timer = 2.5
 
 
@@ -581,7 +601,12 @@ func _continue() -> void:
 			var farm: bool = Levels.settings(_level).get("farm", false)
 			_cutscene(FARMED if farm else SPAWNING, _start_level.bind(_next, true))
 		else:
-			_start_level(_next, _next_down)
+			# (the way back down: on to the next stage down, joined on to this one)
+			_travel_on(_next, _next_down)
+		return
+	# one way on (the only one there is, or the one taken at the fork): swim on to it
+	if _ways.size() == 1:
+		_travel_on(_ways[0], false)
 		return
 	_travel_globe.look_at_stage(_level)
 	_travel_globe.choose(_route, _level, _ways, _shut)
@@ -772,7 +797,7 @@ func _process(delta: float) -> void:
 				p.reset(Track.START_S)
 				p.go()
 				world.track.reset_rings()
-		Phase.COUNTDOWN, Phase.RACE, Phase.FINISHED:
+		Phase.COUNTDOWN, Phase.RACE, Phase.FINISHED, Phase.TRAVEL:
 			if phase == Phase.RACE and not get_tree().paused:
 				race_time += delta
 			var had_flow := score.flow
@@ -802,12 +827,102 @@ func _process(delta: float) -> void:
 					Music.set_filter(1600.0)
 				elif _filter_timer <= 0.0:
 					Music.set_filter(20000.0)
+			if phase == Phase.TRAVEL:
+				_link_shown += delta
+			if phase in [Phase.FINISHED, Phase.TRAVEL] and not _test_mode:
+				_coast(delta)
 			if _finish_timer > 0.0:
 				_finish_timer -= delta
 				if _finish_timer <= 0.0:
 					_show_results()
 	if _autotest_dir != "":
 		_autotest(delta)
+
+
+# ================================================================== from one stage on to the next
+
+## After the finish the salmon swims on by itself: at its ease while the results are read,
+## coming to rest before the water runs out. Once the next stage has been made and joined on
+## (see _travel_on) it swims on at speed, off the end of this one and on to that.
+func _coast(delta: float) -> void:
+	var p := world.player
+	_coast_t += delta
+	if world.has_next():
+		p.pace = 1.0
+		if p.s >= world.end_s() and _link_shown >= LINK_SECONDS:
+			_arrive()
+		elif p.s > world.end_s() - 30.0 and _link_shown < LINK_SECONDS:
+			# (held just short of the join until the globe has had its say)
+			p.pace = 0.0
+		return
+	var room := world.end_s() - 40.0 - p.s
+	p.pace = 0.0 if room < 0.0 else (1.0 if _coast_t < 2.5 else minf(0.3, room / 60.0))
+
+
+## On to the next stage without leaving the water: the globe comes up in a corner and draws
+## the way there (the ways not taken greyed out) while the stage is made and joined on to
+## the end of this one, and the salmon swims across the join.
+func _travel_on(next: int, next_down: bool) -> void:
+	phase = Phase.TRAVEL
+	_link_to = next
+	_link_down = next_down
+	_link_shown = 0.0
+	hud.visible = false
+	var done: Array[int] = []
+	if not _down:
+		done = _route.duplicate()
+	_link_globe.stop_choosing()
+	_link_globe.locked = _shut.duplicate()
+	var others: Array[int] = []
+	if not _down:
+		for way in Levels.next_of(_level):
+			if way != next and not _shut.has(way):
+				others.append(way)
+	_link_globe.passed = others
+	_link_globe.look_at_stage(_level)
+	_link_globe.show_path(done, _level, next, 2.4)
+	_link_name.text = "TO %s" % Levels.LIST[next].name
+	_show(_link)
+	# (a frame for the globe to come up in, then the stage is made: that takes a moment)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# a fork leads off to the side that was taken
+	var turn := 0.0
+	var ways := Levels.next_of(_level)
+	if not _down and ways.size() > 1:
+		var wide: bool = float(world.track.cfg.width) > 40.0
+		turn = (0.3 if wide else 0.14) * (-1.0 if ways.find(next) == 0 else 1.0)
+	world.make_next(next, next_down, 0.0, turn)
+
+
+## The salmon has swum on to the next stage: the run goes on from there.
+func _arrive() -> void:
+	world.take_next()
+	_from = _level
+	_level = _link_to
+	_down = _link_down
+	Save.level = _level
+	Save.down = _down
+	Save.store()
+	_show(null)
+	hud.visible = true
+	hud.set_best(Save.best(_key()))
+	hud.popup(Levels.LIST[_level].name, UI.TEAL, 2.6)
+	score.reset()
+	_fork_way = -1
+	_streak = 0
+	_forced_goal = 0
+	race_time = 0.0
+	_finish_timer = -1.0
+	var p := world.player
+	p.pace = 1.0
+	p.autopilot = _autotest_dir != ""
+	p.control = not p.autopilot
+	world.track.reset_rings()
+	GameInput.clear_touch()
+	Music.play_race(Levels.LIST[_level].tier)
+	Music.set_filter(20000.0)
+	phase = Phase.RACE
 
 
 # ================================================================== events
@@ -973,7 +1088,7 @@ func _build_menus() -> void:
 		grid.add_child(UI.label(r[1], 24, Color.WHITE, 6))
 	var tips := UI.label("Land upright, and let go of grabs before you hit the water.\n" +
 			"Swipe on the beat: every swipe is graded as you make it (the jump too), and the trick is worth up to x2 for PERFECT! Keep landing tricks to build FLOW (up to x5).\n" +
-			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
+			"Land on a floating log to ride it. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
 			"Touch: drag left or right to steer. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)
 	tips.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -1224,6 +1339,28 @@ func _build_globe() -> void:
 	# over the lower part of it one framed card holding a picture of the stage in
 	# hand, arrows either side to look at the other ways on, its name, a line about it and two
 	# buttons.
+	# --- the travel inset: a small picture of the globe that comes up over the water while
+	# the salmon swims on from one stage to the next
+	_link = _panel_root()
+	_link_card = PanelContainer.new()
+	var link_frame := UI.card(Color(0.012, 0.016, 0.045), UI.PAPER, 2, 8)
+	link_frame.set_content_margin_all(8)
+	_link_card.add_theme_stylebox_override("panel", link_frame)
+	_link.add_child(_link_card)
+	var link_col := VBoxContainer.new()
+	link_col.add_theme_constant_override("separation", 4)
+	_link_card.add_child(link_col)
+	var link_window := Control.new()
+	link_window.custom_minimum_size = Vector2(300, 300)
+	link_window.clip_contents = true
+	link_col.add_child(link_window)
+	_link_globe = Globe.new()
+	_link_globe.radius = 0.42
+	link_window.add_child(_link_globe)
+	_link_name = UI.label("", 22, UI.GOLD, 4)
+	_link_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	link_col.add_child(_link_name)
+
 	_travel = _panel_root()
 	_travel_globe = Globe.new()
 	_travel.add_child(_travel_globe)
@@ -1376,6 +1513,12 @@ func _layout_title() -> void:
 ## Where the globe sits in each globe scene, after the concept art: the Earth behind, and the
 ## card across the bottom over the lower part of it. The same on a phone and on a desktop.
 func _layout_globes() -> void:
+	# the travel inset: in the top right-hand corner, or across the top of a tall screen
+	var whole := _link.size
+	var link_k := clampf(minf(whole.x, whole.y) * 0.42 / 316.0, 0.7, 2.4)
+	_link_card.size = _link_card.get_combined_minimum_size()
+	_link_card.scale = Vector2(link_k, link_k)
+	_link_card.position = Vector2((whole.x - _link_card.size.x * link_k) * (0.5 if whole.y > whole.x else 1.0) - (0.0 if whole.y > whole.x else 20.0), 70.0 if whole.y > whole.x else 20.0)
 	var area := _travel.size
 	var tall := area.y > area.x
 	var card := _pv_card.get_combined_minimum_size()
