@@ -332,7 +332,8 @@ func set_fork_open(open: bool) -> void:
 		_abyss_node.visible = open
 	var ways: Array = fork.ways
 	for k in range(1, _fork_signs.size()):
-		_fork_signs[k].text = str(Levels.LIST[ways[k]].name) if open else "CLOSED\n%s" % Levels.objective_text(level)
+		# (what the goal is is at the top of the screen already)
+		_fork_signs[k].text = str(Levels.LIST[ways[k]].name) if open else "CLOSED"
 		_fork_signs[k].modulate = Color(1.0, 0.95, 0.6) if open else Color(1.0, 0.45, 0.4)
 
 
