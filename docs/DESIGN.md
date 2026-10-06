@@ -85,10 +85,19 @@ screens: the salmon never leaves the water between one stage and the next.
 - **The Ocean Trench is swum all under the water** (`"submerged"` in `levels.gd`): six
   layers deep, nothing on its surface, no coming up and no jumping, until a current near
   its end climbs back to the surface and throws the salmon out, ahead of its own fork.
+- **Every stage has a fork of its own**, and it need not be at the end (`"divider"` and
+  `"fork_at"` in `levels.gd`): sea stacks in the Shallow Sea and at the end of the trench, a
+  gravel bar on the Coastline, an iceberg in Arctic Waters, a pier in the harbours and the
+  fish ladder, a reef in the Coral Reef (two of them: three ways), an island in the
+  Meandering River, a logjam in the Dry Riverbed. Only the Open Ocean has the cruise ship.
+  Once the way is chosen the rest of the stage is swum as usual.
+- **The next stage comes up out of the distance.** It is joined on to the run-out some 130 m
+  ahead of the salmon, in the haze, and swum up to: nothing appears round the salmon. When
+  the globe has shown the way it goes back up, the sky and the light turn to the next
+  stage's, and the salmon is the player's again from there.
 
 Not done yet: the next stage is made in one go (about a third of a second on a desktop,
-longer on a phone: a hitch while the globe is coming down), and the new stage's banks and
-scenery are simply there when the salmon arrives, not grown out of the old one's.
+longer on a phone: a hitch while the globe is coming down).
 
 Each stage names the stages it leads to. The **first is the default** way on. The others are
 **advanced** ways, opened by meeting that stage's goal; otherwise they are shown locked.
@@ -154,7 +163,7 @@ are 16 to 21 m between their banks.
 | Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
 | Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
 | Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Open Ocean, left by a current back to the surface; currents, boost rings and sea nettles |
-| Coastline | golden-hour sea, 70 m wide, with the beach and palms along one side only and open water on the other | barely climbs | shark | |
+| Coastline | the coast of Oregon under a grey sky: 70 m of sea with a rocky shore along the left only (dark sand, black rock, sea stacks, drift logs, spruce on the bluffs) and open water on the right | barely climbs | shark | |
 | The Harbor | quays, cranes, sodium light | barely climbs | shark | |
 | Coral Reef | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |
 | Arctic Waters | pack ice and icebergs under an aurora, 100 m wide | flat, open | shark | |

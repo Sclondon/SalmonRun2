@@ -13,7 +13,7 @@ const Levels := preload("res://scripts/world/levels.gd")
 
 const STEP := 2.0
 const CHUNK := 100
-const GROUP_LEN := 400.0
+const GROUP_LEN := 200.0
 const START_S := 30.0
 ## How much plain water there is after the finish (see `length`).
 const RUN_OUT := 520.0
@@ -52,6 +52,9 @@ var widths := PackedFloat32Array()
 var finish_s := 0.0
 ## How long the course proper is (to a little past the finish), without its run-out.
 var course := 0.0
+# the pieces the stage is drawn in, each with where along it the piece begins: [metres, node]
+# (see hide_from)
+var _sections: Array = []
 
 var waterfalls: Array = []   # {s, drop}
 var rapids: Array = []       # {s0, s1}
@@ -237,20 +240,27 @@ func _plan_fork() -> void:
 	var end := course - 150.0
 	var wide := float(cfg.width)
 	# (the abyss: the stage's own word for it, see levels.gd)
-	var abyss: bool = cfg.get("divider", "") == "abyss"
-	var ship: bool = abyss or (bool(cfg.get("salt", false)) and wide >= 60.0)
+	var salt: bool = cfg.get("salt", false)
+	# What divides it: every stage has its own (see "divider" in levels.gd). Only the open
+	# ocean has the ship, and with it the abyss.
+	var style: String = cfg.get("divider", "stacks" if salt else "island")
+	var abyss := style == "abyss"
+	var ship := abyss
 	var lanes := 2 if abyss else ways.size()
 	# a ship is as big as a real one where there is room for it (some 320 m by 48 m)
-	var beam := clampf(wide * 0.17, 6.0, 24.0) if ship else clampf(wide * 0.09, 1.3, 6.0)
+	var beam := clampf(wide * 0.17, 6.0, 24.0) if ship else clampf(wide * 0.08, 1.3, 7.0)
 	if lanes > 2:
 		beam *= 0.6
-	var long := beam * 13.3 if ship else clampf(wide * 3.0, 55.0, 110.0)
+	var long := beam * 13.3 if ship else clampf(wide * 2.4, 55.0, 130.0)
 	var cuts: Array[float] = []
 	for k in lanes - 1:
 		cuts.append(wide * ((k + 1.0) / lanes - 0.5))
-	var s1 := end - 8.0
+	# Where along the stage: near its end, unless the stage says sooner ("fork_at", as a part
+	# of its length). (A stage swum under the water forks at its end, after it has come up.)
+	var at := 1.0 if abyss or cfg.get("submerged", false) else float(cfg.get("fork_at", 1.0))
+	var s1 := end - 8.0 if at >= 1.0 else clampf(course * at, 700.0, end - 8.0)
 	fork = {"s0": s1 - long, "s1": s1, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
-			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss}
+			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style}
 	if abyss:
 		# The way down: a giant current that begins a dive under the surface, to the right of
 		# the ship, and goes down and down. It is only there once the goal is met.
@@ -337,7 +347,7 @@ func _build_fork() -> void:
 		if fork.ship:
 			_build_ship(cut)
 		else:
-			_build_island(cut)
+			_build_bar(cut, str(fork.style))
 	# the signs: the way each side leads, over the water ahead of the dividers
 	var ways: Array = fork.ways
 	var hw := width(s0) * 0.5
@@ -349,7 +359,8 @@ func _build_fork() -> void:
 		var label := Label3D.new()
 		label.font = UI.font()
 		label.font_size = 96
-		label.pixel_size = clampf(hw * 0.0013, 0.02, 0.085)
+		# (small enough for its name to fit over its own way)
+		label.pixel_size = clampf((right_edge - left) / 750.0, 0.012, 0.085)
 		label.outline_size = 26
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = true
@@ -438,38 +449,112 @@ func _build_ship(cx: float) -> void:
 
 # An island in the stream at `cx` across it: a long low bar of the stage's own bank, coming
 # to a point at each end, with boulders on it.
-func _build_island(cx: float) -> void:
+func _build_bar(cx: float, style: String) -> void:
 	var s0: float = fork.s0
 	var s1: float = fork.s1
-	var mb := MB.new()
+	var beam: float = fork.beam
 	var colors: Array = cfg.bank_colors
+	# what it is made of, how high it stands, whether its top is flat, and what stands on it
 	var ground: Color = colors[0]
 	var edge: Color = cfg.get("cliff", ground)
+	var high := clampf(beam * 0.45, 0.7, 2.2)
+	var flat := false
+	match style:
+		"stacks":
+			ground = cfg.get("stack", cfg.get("cliff", ground))
+			edge = Props.shade(ground, 0.8)
+			high = 1.0
+		"iceberg":
+			ground = Color(0.86, 0.94, 1.0)
+			edge = Color(0.55, 0.8, 0.95)
+			high = beam * 0.9
+		"reef":
+			ground = Color(0.92, 0.84, 0.64)
+			edge = Color(0.95, 0.6, 0.55)
+			high = 0.5
+		"pier":
+			ground = Color(0.56, 0.57, 0.6)
+			edge = Color(0.4, 0.41, 0.44)
+			high = 2.0
+			flat = true
+		"gravel":
+			ground = Color(0.62, 0.6, 0.55)
+			edge = Color(0.5, 0.48, 0.44)
+			high = 0.55
+		"logjam":
+			ground = Color(0.3, 0.24, 0.18)
+			edge = Color(0.22, 0.18, 0.14)
+			high = 0.5
+	var mb := MB.new()
 	var irng := RandomNumberGenerator.new()
 	irng.seed = course_seed + int(cx * 10.0) + 55
-	var high := clampf(float(fork.beam) * 0.45, 0.7, 2.2)
 	var prev: Array = []
 	var s := s0
 	while s <= s1 + 0.01:
 		var half := maxf(fork_half(s), 0.1)
 		var wy := water_y(s)
-		var crown := high * sqrt(half / maxf(float(fork.beam), 0.1))
-		var row := [point(s, cx - half, wy - 1.5), point(s, cx - half * 0.8, wy + crown * 0.6), point(s, cx, wy + crown),
-				point(s, cx + half * 0.8, wy + crown * 0.6), point(s, cx + half, wy - 1.5)]
+		var crown := high if flat else high * sqrt(half / maxf(beam, 0.1)) * (irng.randf_range(0.6, 1.3) if style == "iceberg" else 1.0)
+		var shoulder := crown if flat else crown * 0.6
+		var row := [point(s, cx - half, wy - 1.5), point(s, cx - half * (0.98 if flat else 0.8), wy + shoulder), point(s, cx, wy + crown),
+				point(s, cx + half * (0.98 if flat else 0.8), wy + shoulder), point(s, cx + half, wy - 1.5)]
 		if not prev.is_empty():
-			var mid := (row[2] as Vector3).lerp(prev[2], 0.5) - Vector3.UP * 3.0
+			var mid := (row[2] as Vector3).lerp(prev[2], 0.5) - Vector3.UP * (crown + 3.0)
 			for j in 4:
 				var col := Props.vary(edge if j == 0 or j == 3 else ground, irng, 0.04)
 				mb.quad(prev[j], row[j], row[j + 1], prev[j + 1], col, ((row[j] as Vector3) + (prev[j + 1] as Vector3)) * 0.5 - mid)
 		prev = row
 		s += 3.0
-	# boulders along its back
-	var stones := int((s1 - s0) / 9.0)
-	for n in stones:
-		var bs := lerpf(s0 + 6.0, s1 - 6.0, (n + irng.randf()) / stones)
-		var r := irng.randf_range(0.35, 0.8) * clampf(float(fork.beam) * 0.4, 0.6, 1.8)
-		Props.blob(mb, point(bs, cx + irng.randf_range(-0.4, 0.4) * fork_half(bs), water_y(bs) + high * 0.7), Vector3(r, r * 0.8, r), irng, cfg.rock, 5, 3, 0.2)
+	# what stands on it, along its back
+	var long := s1 - s0
+	var spots := int(long / (5.0 if style in ["reef", "logjam"] else 10.0))
+	var stand: Array = []
+	match style:
+		"stacks":
+			stand = [Props.sea_stack(irng, ground), Props.sea_stack(irng, ground)]
+		"iceberg":
+			stand = [Props.iceberg(irng), Props.iceberg(irng)]
+		"reef":
+			stand = [Props.coral(irng), Props.coral(irng), Props.coral(irng)]
+		"gravel":
+			stand = [Props.driftwood(irng), Props.driftwood(irng)]
+		"island":
+			stand = [Props.pine(irng), Props.pine(irng)]
+	for n in spots:
+		var bs := lerpf(s0 + 8.0, s1 - 6.0, (n + irng.randf()) / spots)
+		var half := fork_half(bs)
+		var at := point(bs, cx + irng.randf_range(-0.45, 0.45) * half, water_y(bs) + high * (1.0 if flat else 0.6))
+		match style:
+			"pier":
+				# bollards along its edges, and a lamp on a post now and then
+				for side: float in [-1.0, 1.0]:
+					Props.frustum(mb, point(bs, cx + side * half * 0.8, water_y(bs) + high), point(bs, cx + side * half * 0.8, water_y(bs) + high + 0.7), 0.22, 0.26, 6, Color(0.2, 0.2, 0.22), true)
+				if n % 3 == 0:
+					Props.frustum(mb, at, at + Vector3.UP * 4.5, 0.1, 0.08, 4, Color(0.25, 0.26, 0.3), false)
+					Props.blob(mb, at + Vector3.UP * 4.7, Vector3(0.3, 0.3, 0.3), irng, Props.glow(Color(1.0, 0.85, 0.5), 0.8), 5, 3, 0.0)
+			"logjam":
+				var turn := irng.randf() * TAU
+				var lie := Vector3(cos(turn), irng.randf_range(-0.12, 0.25), sin(turn)) * irng.randf_range(1.6, 3.2) * clampf(beam * 0.5, 0.6, 1.6)
+				Props.frustum(mb, at - lie, at + lie, 0.34, 0.28, 6, Props.shade(Color(0.36, 0.25, 0.16), irng.randf_range(0.8, 1.15)), true)
+			_:
+				var r := irng.randf_range(0.35, 0.8) * clampf(beam * 0.4, 0.6, 1.8)
+				if stand.is_empty() or (style == "island" and n % 2 == 0):
+					Props.blob(mb, at, Vector3(r, r * 0.8, r), irng, cfg.rock, 5, 3, 0.2)
+				else:
+					# (sized to the bar it stands on: a sea stack on a narrow one is a small one)
+					var big := clampf(beam / 5.0, 0.35, 1.3) * irng.randf_range(0.7, 1.2)
+					if style in ["reef", "gravel"]:
+						big = irng.randf_range(0.8, 1.3)
+					elif style == "island":
+						big = irng.randf_range(0.35, 0.6)
+					var mi := _add_mesh(stand[n % stand.size()], mat_foliage if style == "island" else mat_world)
+					mi.transform = Transform3D(Basis(Vector3.UP, irng.randf() * TAU).scaled(Vector3.ONE * big), at - Vector3.UP * 0.3)
 	_add_mesh(mb.build(), mat_world)
+
+
+## Whether `s` is where the fork is (or within `before` metres of where it begins): nothing
+## else is laid there.
+func _in_fork(s: float, before: float) -> bool:
+	return not fork.is_empty() and s > float(fork.boom) - before and s < float(fork.s1) + 30.0
 
 
 # ================================================================== queries
@@ -710,7 +795,11 @@ func _plan_features() -> void:
 	# (nothing is laid where the fork is)
 	# (a stage that is all under the water has nothing on its surface)
 	var sunk: bool = cfg.get("submerged", false)
-	while not sunk and s < (float(fork.boom) - 70.0 if not fork.is_empty() else course - 320.0):
+	while not sunk and s < course - 320.0:
+		# (nothing is laid where the fork is: on past it)
+		if _in_fork(s, 240.0):
+			s = float(fork.s1) + 50.0
+			continue
 		var kind: String
 		if falls_every > 0.0 and since_fall > falls_every:
 			kind = "bear_falls" if _rng.randf() < 0.5 else "falls"
@@ -773,12 +862,15 @@ func _plan_deep() -> void:
 		return
 	var s := 260.0
 	var k := 0
-	var deep_end := minf(float(fork.boom) - 70.0, course - 480.0) if not fork.is_empty() else course - 480.0
+	var deep_end := course - 480.0
 	# (a stage all under the water ends with a current that climbs to the surface)
 	if cfg.get("submerged", false):
 		deep_end -= 300.0
 		_plan_current(deep_end + 30.0, true)
 	while s < deep_end:
+		if _in_fork(s, 260.0):
+			s = float(fork.s1) + 50.0
+			continue
 		var from := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
 		var used := 0.0
 		match str(deep[k % deep.size()]):
@@ -1173,11 +1265,12 @@ func _build_chunks() -> void:
 		for i in range(i0, i1):
 			_ground_strip(ground, i)
 		if not ground.is_empty():
-			_add_mesh(ground.build(), mat_world)
+			_sections.append([i0 * STEP, _add_mesh(ground.build(), mat_world)])
 		var wm := _add_mesh(_water_mesh(i0, i1), mat_water)
 		# (the swell lifts it out of the box it was made in)
 		wm.extra_cull_margin = 4.0
 		wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_sections.append([i0 * STEP, wm])
 
 
 ## How far below the water the sea floor is at a point (rolling hills, never breaking the
@@ -1660,7 +1753,7 @@ func _scatter_meshes(kind: String, rng: RandomNumberGenerator) -> Array:
 		"coral":
 			return [Props.coral(rng), Props.coral(rng), Props.coral(rng), Props.coral(rng)]
 		"stack":
-			return [Props.sea_stack(rng), Props.sea_stack(rng)]
+			return [Props.sea_stack(rng, cfg.get("stack", Color(0.62, 0.55, 0.44))), Props.sea_stack(rng, cfg.get("stack", Color(0.62, 0.55, 0.44)))]
 		"iceberg":
 			return [Props.iceberg(rng), Props.iceberg(rng), Props.iceberg(rng)]
 		"floe":
@@ -1737,6 +1830,7 @@ func _scatter() -> void:
 		if kind in NO_SHADOW:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
+		_sections.append([float(int(parts[2])) * GROUP_LEN, mmi])
 
 
 func _try(bucket: Dictionary, rng: RandomNumberGenerator, kind: String, variants: int, chance: float,
@@ -1757,3 +1851,18 @@ func _put(bucket: Dictionary, kind: String, variant: int, s: float, pos: Vector3
 		bucket[key] = []
 	var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * sc)
 	bucket[key].append(Transform3D(b, pos))
+
+
+## Where the next stage can be joined on, at least `ahead` metres on from `s`: the next place
+## the stage's pieces all begin and end (the last such place, if it is nearly at its end).
+func join_after(s: float, ahead: float) -> float:
+	var piece := CHUNK * STEP
+	return minf(ceilf((s + ahead) / piece) * piece, floorf((length - STEP * 2.0) / piece) * piece)
+
+
+## Takes out of the picture everything of the stage that begins at `s` or beyond: the next
+## stage is joined on there.
+func hide_from(s: float) -> void:
+	for section: Array in _sections:
+		if float(section[0]) >= s - 0.5:
+			(section[1] as Node3D).visible = false

@@ -20,6 +20,10 @@ extends RefCounted
 ## like:    borrow every setting of another stage (by name), replacing only what is listed.
 ## next:    the stages it leads to heading upstream. The first is the default; the others are
 ##          more advanced routes, opened by meeting this stage's objective.
+## divider: what divides the water at the fork of the stage ("stacks", "iceberg", "reef",
+##          "pier", "gravel", "logjam", "island"; "abyss" is the ship of the open ocean and
+##          the current down beside it), and fork_at where along the stage the fork is (a
+##          part of its length; 1 or nothing is near the end).
 ## spacing: how much open water there is between one piece of the course and the next (1 is
 ##          the usual 45 to 80 m).
 ## floor:   open sea only: how far down the sea floor is (metres); it replaces the river bed
@@ -94,6 +98,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "SHALLOW SEA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
+		"divider": "stacks", "fork_at": 0.62,
 		"next": ["COASTLINE", "THE HARBOR"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "COLD GREEN WATER, AND THE SEA FLOOR IN SIGHT",
@@ -142,46 +147,49 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "COASTLINE", "at": Vector2(51, -129.5), "tier": 2, "order": 0, "salt": false,
+		"divider": "gravel", "fork_at": 0.72,
 		"next": ["THE FISH LADDER", "DRY RIVERBED"],
 		"objective": {"type": "clean", "n": 2},
 		"tagline": "YOU CAN SMELL THE RIVER FROM HERE",
 		"fact": "CLOSE TO SHORE, SCENT LEADS A SALMON BACK TO THE VERY STREAM WHERE IT HATCHED.",
 		"seed": 6303, "length": 3000.0,
-		# still the sea: wide water with the beach along one side only, and the open Pacific
-		# on the other
-		"width": 70.0, "slope": 0.004, "curve": 0.7, "uphill": true, "shore": 1.0,
+		# Still the sea: wide water under a grey sky, with the shore along the left only and
+		# the open Pacific on the right. The shore is the coast of Oregon: dark wet sand and
+		# shingle, black rock, sea stacks standing off it, drift logs thrown up along the tide
+		# line, dune grass, and spruce on the bluffs above. Nothing tropical.
+		"width": 70.0, "slope": 0.004, "curve": 0.7, "uphill": true, "shore": -1.0,
 		"sea_from": 0.8, "markers": [Color(0.9, 0.3, 0.15), Color(1.0, 0.85, 0.4)],
 		"kinds": ["ramps", "rails", "rocks", "rings", "predators", "rails"],
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
-		"profile": [[-0.5, -1.2, 0, 0], [4.0, 0.4, 0.2, 0], [15.0, 1.3, 0.4, 0.5], [28.0, 3.8, 1.5, 1.5],
-				[42.0, 6.5, 1.0, 3.0], [72.0, 17.0, 0, 6.0]],
-		"bank_colors": [Color(0.78, 0.7, 0.5), Color(0.94, 0.86, 0.62), Color(0.9, 0.82, 0.58),
-				Color(0.62, 0.68, 0.36), Color(0.36, 0.52, 0.26)],
-		"bed": Color(0.6, 0.56, 0.4), "cliff": Color(0.6, 0.55, 0.45),
-		"rock": Color(0.42, 0.4, 0.4), "rock_cap": Color(0.25, 0.42, 0.3),
-		"ramp": Color(0.5, 0.38, 0.26), "ramp_top": Color(0.72, 0.58, 0.4),
+		"profile": [[-0.5, -1.2, 0, 0], [4.0, 0.4, 0.2, 0], [15.0, 1.3, 0.4, 0.5], [28.0, 5.5, 2.5, 1.5],
+				[42.0, 9.0, 1.5, 3.0], [72.0, 20.0, 0, 6.0]],
+		"bank_colors": [Color(0.36, 0.35, 0.32), Color(0.5, 0.48, 0.42), Color(0.44, 0.43, 0.4),
+				Color(0.34, 0.42, 0.28), Color(0.14, 0.27, 0.2)],
+		"bed": Color(0.3, 0.32, 0.32), "cliff": Color(0.2, 0.21, 0.23),
+		"rock": Color(0.2, 0.2, 0.22), "rock_cap": Color(0.24, 0.36, 0.26),
+		"ramp": Color(0.42, 0.34, 0.26), "ramp_top": Color(0.66, 0.56, 0.42),
 		"rail": Color(0.62, 0.52, 0.42), "rail_node": Color(0.4, 0.32, 0.25),
-		"arch": Color(0.8, 0.72, 0.58), "ruins": false,
+		"arch": Color(0.5, 0.48, 0.44), "ruins": false,
 		"scatter": [
-			["palm", 0.45, 6.0, 30.0, 0.8, 1.3, -0.3, "bank"],
-			["grass", 0.8, 9.0, 34.0, 0.8, 1.5, -0.1, "bank"],
-			["umbrella", 0.12, 4.0, 13.0, 0.9, 1.2, 0.0, "bank"],
-			["driftwood", 0.15, 1.0, 9.0, 0.7, 1.4, 0.1, "bank"],
-			["rock", 0.1, 0.0, 5.0, 0.6, 1.6, -0.3, "bank"],
-			["bush", 0.5, 28.0, 60.0, 0.9, 1.8, -0.3, "bank"],
-			["tree", 0.3, 40.0, 66.0, 0.9, 1.5, -0.4, "bank"],
-			["grass", 0.3, -1.5, 0.5, 0.8, 1.2, 0.0, "water"],
-			["hill", 0.6, 80.0, 170.0, 1.0, 1.0, 0.0, "far"],
+			["stack", 0.035, 0.0, 9.0, 0.5, 1.1, -1.0, "bank"],
+			["rock", 0.45, 0.0, 12.0, 0.8, 2.4, -0.3, "bank"],
+			["driftwood", 0.5, 2.0, 16.0, 0.8, 1.8, 0.1, "bank"],
+			["grass", 0.7, 14.0, 34.0, 0.8, 1.5, -0.1, "bank"],
+			["pine", 0.5, 26.0, 70.0, 0.7, 1.2, -0.5, "bank"],
+			["bush", 0.25, 22.0, 46.0, 0.8, 1.4, -0.3, "bank"],
+			["rock", 0.05, -2.5, 0.5, 0.8, 1.6, -0.2, "water"],
+			["hill", 0.6, 80.0, 170.0, 1.0, 1.0, 0.0, "far", -1.0],
 		],
-		"hill": Color(0.3, 0.42, 0.22),
-		"sky_top": Color(0.2, 0.3, 0.62), "sky_horizon": Color(1.0, 0.72, 0.42),
-		"sky_bottom": Color(0.5, 0.42, 0.3), "sun": Color(1.0, 0.86, 0.5), "sun_dir": Vector3(0.0, 0.2, -1.0),
-		"fog": Color(0.96, 0.72, 0.5), "fog_density": 0.005,
-		"ambient": Color(0.7, 0.62, 0.6), "ambient_energy": 0.8,
-		"light": Color(1.0, 0.88, 0.68), "light_energy": 1.25,
-		"water_deep": Color(0.04, 0.3, 0.42), "water_shallow": Color(0.3, 0.72, 0.68),
-		"swell": 1.2,
-		"motes": Color(1.0, 0.9, 0.6),
+		"hill": Color(0.14, 0.24, 0.2), "stack": Color(0.19, 0.2, 0.22),
+		"sky_top": Color(0.4, 0.48, 0.58), "sky_horizon": Color(0.76, 0.8, 0.82),
+		"sky_bottom": Color(0.28, 0.34, 0.38), "sun": Color(0.96, 0.96, 0.9), "sun_dir": Vector3(0.2, 0.5, -1.0),
+		"sun_disc": false,
+		"fog": Color(0.7, 0.76, 0.78), "fog_density": 0.007,
+		"ambient": Color(0.66, 0.72, 0.76), "ambient_energy": 0.9,
+		"light": Color(0.96, 0.96, 0.92), "light_energy": 1.0,
+		"water_deep": Color(0.04, 0.17, 0.24), "water_shallow": Color(0.2, 0.42, 0.46),
+		"swell": 1.8,
+		"motes": Color(0.92, 0.96, 1.0),
 	},
 	{
 		"name": "RAINFOREST FALLS", "at": Vector2(47.0, -122.05), "tier": 4, "order": 0, "salt": false,
@@ -340,6 +348,7 @@ const LIST: Array[Dictionary] = [
 	# ---------------------------------------------------------------- the other ways home
 	{
 		"name": "ARCTIC WATERS", "at": Vector2(66, -168), "tier": 2, "order": 3, "salt": true,
+		"divider": "iceberg", "fork_at": 0.55,
 		"next": ["MEANDERING RIVER", "NEON HARBOR"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "PACK ICE UNDER THE NORTHERN LIGHTS",
@@ -373,6 +382,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "THE HARBOR", "at": Vector2(47.25, -122.5), "tier": 2, "order": 1, "salt": false,
+		"divider": "pier", "fork_at": 0.68,
 		"next": ["THE FISH FARM", "THE FISH LADDER"],
 		"objective": {"type": "score", "n": 60000},
 		"tagline": "QUAYS, CRANES AND SODIUM LIGHT",
@@ -409,6 +419,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "THE FISH LADDER", "at": Vector2(47.67, -122.4), "tier": 3, "order": 2, "salt": false,
+		"divider": "pier", "fork_at": 0.5,
 		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "on_beat", "n": 6},
 		"tagline": "A DAM IN THE WAY. ONE STEP AT A TIME",
@@ -483,6 +494,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
+		"divider": "stacks", "fork_at": 1.0,
 		"next": ["CORAL REEF", "ARCTIC WATERS"],
 		"objective": {"type": "rings", "n": 10},
 		"tagline": "NOTHING BUT DARK WATER AND LIVING LIGHT",
@@ -522,6 +534,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "CORAL REEF", "at": Vector2(26.3, 127.8), "tier": 2, "order": 2, "salt": true,
+		"divider": "reef", "fork_at": 0.6,
 		"next": ["NEON HARBOR", "MEANDERING RIVER", "DRY RIVERBED"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "A GARDEN UNDER GLASS",
@@ -609,6 +622,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "MEANDERING RIVER", "at": Vector2(47.55, -121.8), "tier": 3, "order": 0, "salt": false,
+		"divider": "island", "fork_at": 0.5,
 		"next": ["RAINFOREST FALLS", "MOUNTAIN RIVER"],
 		"objective": {"type": "score", "n": 70000},
 		"tagline": "FARMLAND, BIG SKY AND SLOW BENDS",
@@ -661,6 +675,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "DRY RIVERBED", "at": Vector2(44.05, -121.3), "tier": 3, "order": 1, "salt": false,
+		"divider": "logjam", "fork_at": 0.66,
 		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "A THREAD OF WATER THROUGH RED ROCK",
@@ -711,6 +726,7 @@ const LIST: Array[Dictionary] = [
 	# endings only replace looks, so they play exactly like the North American ones.)
 	{
 		"name": "NEON HARBOR", "like": "THE HARBOR", "at": Vector2(35.45, 139.85), "tier": 3, "order": 4,
+		"divider": "pier", "fork_at": 0.6,
 		"route": "japan", "salt": false,
 		"next": ["THE HATCHERY", "BAMBOO RIVER"],
 		"objective": {"type": "score", "n": 60000},

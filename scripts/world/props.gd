@@ -597,9 +597,8 @@ static func coral(rng: RandomNumberGenerator) -> ArrayMesh:
 
 
 ## A rock pillar standing in the sea.
-static func sea_stack(rng: RandomNumberGenerator) -> ArrayMesh:
+static func sea_stack(rng: RandomNumberGenerator, stone := Color(0.62, 0.55, 0.44)) -> ArrayMesh:
 	var mb := MB.new()
-	var stone := Color(0.62, 0.55, 0.44)
 	var y := -1.0
 	var w := rng.randf_range(3.0, 4.5)
 	for k in rng.randi_range(3, 5):

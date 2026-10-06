@@ -9,12 +9,46 @@ uniform vec3 sun_color : source_color = vec3(1.0, 0.82, 0.35);
 uniform vec3 sun_dir = vec3(0.0, 0.12, -1.0);
 uniform float bands = 14.0;
 uniform float sun_disc = 1.0;
+// Simple clouds: flat puffs with hard edges, drifting slowly. How much of the sky they
+// cover (0 is none), and how big they are.
+uniform float clouds = 0.32;
+uniform float cloud_size = 1.0;
+
+// (worked out in whole numbers, so that it is the same on every renderer: see water.gdshader)
+float cell(vec2 p) {
+	ivec2 c = ivec2(round(p));
+	uint h = uint(c.x) * 668265261u ^ (uint(c.y) * 374761393u);
+	h ^= h >> 15u;
+	h *= 2246822519u;
+	h ^= h >> 13u;
+	h *= 3266489917u;
+	h ^= h >> 16u;
+	return float(h) / 4294967295.0;
+}
+
+float puff(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(cell(i), cell(i + vec2(1.0, 0.0)), f.x), mix(cell(i + vec2(0.0, 1.0)), cell(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 
 void sky() {
 	float y = EYEDIR.y;
 	float g = floor(smoothstep(0.0, 0.65, y) * bands) / bands;
 	vec3 col = mix(horizon_color, top_color, g);
 	col = mix(col, bottom_color, smoothstep(0.0, -0.15, y));
+	// The clouds lie on a flat ceiling over the world: looked at low down they are far off and
+	// close together, overhead they are big. They are drawn in blocks, like the rest.
+	if (clouds > 0.0 && y > 0.015) {
+		vec2 over = EYEDIR.xz / (y + 0.12) * 1.6 / cloud_size + vec2(TIME * 0.006, TIME * 0.002);
+		over = floor(over * 14.0) / 14.0;
+		float heap = puff(over) * 0.65 + puff(over * 2.3 + 9.0) * 0.35;
+		float there = step(1.0 - clouds * 0.62, heap) * smoothstep(0.015, 0.1, y);
+		// (lit on top, a shade darker in the middle of each)
+		vec3 cloud_col = mix(horizon_color, vec3(1.0), 0.55) * mix(1.0, 0.9, step(1.0 - clouds * 0.4, heap));
+		col = mix(col, cloud_col, there * 0.9);
+	}
 	vec3 sd = normalize(sun_dir);
 	float d = distance(EYEDIR, sd);
 	float disc = 1.0 - step(0.16, d);

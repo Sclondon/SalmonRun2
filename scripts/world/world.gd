@@ -18,6 +18,10 @@ var school: School
 ## The next stage, made out of sight while the salmon swims on down the run-out of the one
 ## it has finished: see make_next and take_next.
 var ahead: Track
+## ...and the one just left, kept in the picture behind until the next change.
+var behind: Track
+var _join := Transform3D.IDENTITY
+var _join_s := 0.0
 
 var others: School
 ## The salmon run: a great many more salmon that turn up for a short while and copy the
@@ -116,6 +120,8 @@ func set_course(level: int, test: bool, down := false) -> void:
 	if has_course(level, test, down):
 		return
 	_drop(ahead)
+	_drop(behind)
+	behind = null
 	ahead = null
 
 
@@ -203,10 +209,12 @@ func _dress_player(level: int, down: bool) -> void:
 
 ## `blend` is how many seconds the change takes (0 is at once): swimming from one stage on to
 ## the next, the sky, the haze and the light turn from the one's into the other's.
-func _apply_level(blend := 0.0) -> void:
-	var cfg := track.cfg
+func _apply_level(blend := 0.0, of: Dictionary = {}) -> void:
+	var cfg := track.cfg if of.is_empty() else of
 	_sky.set_shader_parameter("sun_dir", cfg.sun_dir)
 	_sky.set_shader_parameter("sun_disc", 1.0 if cfg.get("sun_disc", true) else 0.0)
+	# (simple clouds, unless the stage says how many: "clouds", 0 for a clear sky)
+	_sky.set_shader_parameter("clouds", float(cfg.get("clouds", 0.32)))
 	# light comes from where the sun is drawn in the sky
 	var dir: Vector3 = (cfg.sun_dir as Vector3).normalized()
 	sun.rotation = Vector3(-asin(clampf(dir.y, 0.55, 0.9)), atan2(-dir.x, -dir.z) + PI * 0.83, 0.0)
@@ -394,16 +402,32 @@ func _drop(old: Track) -> void:
 		old.queue_free()
 
 
-## Makes the stage that comes next, out of sight, while the salmon swims on down the run-out
-## of the one it has finished. take_next puts the salmon on it.
+## How far ahead of the salmon, at the least, the next stage is joined on (metres): far
+## enough to be out in the haze, so that it comes up out of the distance.
+const JOIN_AHEAD := 130.0
+
+## Makes the stage that comes next and joins it on to the one being swum, a way ahead of
+## the salmon down its run-out: everything of this stage from there on is taken out of the
+## picture, and the next begins there, in line with it. The salmon swims on to it (see
+## take_next); until then it is still on this one.
 func make_next(level: int, down: bool) -> void:
 	_drop(ahead)
+	_drop(behind)
+	behind = null
+	_drop(behind)
+	behind = null
+	_join_s = track.join_after(player.s, JOIN_AHEAD)
 	ahead = Track.new()
 	ahead.live = false
-	ahead.visible = false
 	add_child(ahead)
 	move_child(ahead, 0)
-	ahead.build(level, false, down, track.width(player.s))
+	ahead.build(level, false, down, track.width(_join_s))
+	track.hide_from(_join_s)
+	var from := track.basis_at(_join_s)
+	var at := track.point(_join_s, 0.0, track.water_y(_join_s))
+	var turned := from * ahead.basis_at(0.0).inverse()
+	_join = Transform3D(turned, at - turned * ahead.point(0.0, 0.0, ahead.water_y(0.0)))
+	ahead.transform = _join
 
 
 ## Where the stage being swum ends (metres along it): the salmon goes no further.
@@ -411,32 +435,49 @@ func end_s() -> float:
 	return track.length - Track.STEP * 2.0
 
 
-## True once the next stage is made and waiting.
+## True once the next stage is made and joined on; and where along this one it begins.
 func has_next() -> bool:
 	return ahead != null
 
 
-## The salmon arrives: the stage it was on is gone and it is at the beginning of the next,
-## as far across the water as it was and swimming as it was. The sky, the haze and the light
-## turn to the new stage's over a moment.
+func join_s() -> float:
+	return _join_s
+
+
+## Turns the sky, the haze and the light to those of the stage ahead.
+func theme_ahead() -> void:
+	if ahead != null:
+		_apply_level(2.5, ahead.cfg)
+
+
+## The salmon has reached the join: it is on the next stage from here. Everything is
+## measured from the new stage now, and the old one is moved to where it lies from there (so
+## nothing in the picture moves: only the numbers change).
 func take_next() -> void:
-	ahead.clock = track.clock
-	_drop(track)
+	var over := player.s - _join_s
+	var was_water := track.water_y(player.s)
+	behind = track
+	behind.live = false
+	behind.transform = _join.affine_inverse()
+	ahead.transform = Transform3D.IDENTITY
+	ahead.clock = behind.clock
+	ahead.live = true
 	track = ahead
 	ahead = null
-	track.live = true
-	track.visible = true
 	_dress_player(track.level, track.down)
-	_apply_level(1.6)
 	player.track = track
 	player.rail = {}
 	if player._wake:
 		player._wake.clear()
 		player._wake.track = track
-	player.s = 8.0
+	player.s = maxf(over, 0.0)
 	var lim := track.width(player.s) * 0.5 - 2.0
 	player.x = clampf(player.x, -lim, lim)
-	player.y = track.water_y(player.s)
+	# (as far above the water, or under it, as it was: the new stage's water is at a height of
+	# its own)
+	var lift := track.water_y(player.s) - was_water
+	player.y += lift
+	player._prev_surface += lift
 	for flock: School in [school, others, run]:
 		flock.track = track
 		flock.scatter()

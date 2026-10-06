@@ -113,6 +113,8 @@ var _link_shown := 0.0
 const LINK_SECONDS := 3.8
 # (how far down the globe has come: 0 is up out of sight, 1 is in its place)
 var _link_drop := 0.0
+# (the globe has shown the way and gone: the salmon is swimming up to the next stage)
+var _link_left := false
 var _link: Control
 var _link_globe: Globe
 var _link_name: Label
@@ -777,7 +779,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var p := world.player
-	_touch.visible = phase in [Phase.COUNTDOWN, Phase.RACE] and not get_tree().paused and not _travel.visible
+	_touch.visible = (phase in [Phase.COUNTDOWN, Phase.RACE] or (phase == Phase.TRAVEL and _link_left)) and not get_tree().paused and not _travel.visible
 	_layout_globes()
 	_layout_title()
 	hud.set_touch_mode(_use_touch)
@@ -851,9 +853,18 @@ func _coast(delta: float) -> void:
 	_coast_t += delta
 	var room := world.end_s() - 30.0 - p.s
 	if phase == Phase.TRAVEL:
-		# on its way: at speed, and on to the next stage the moment the globe gets there
-		p.pace = 1.0 if room > 0.0 else 0.0
-		if world.has_next() and _link_shown >= LINK_SECONDS:
+		# On its way, at speed. When the globe has shown the way it goes back up, the sky and
+		# the light turn to the next stage's, and the salmon is the player's again; the next
+		# stage itself is out ahead in the haze and comes up as it is swum towards, and the
+		# salmon is on it when it gets there.
+		p.pace = 1.0 if room > 0.0 or world.has_next() else 0.0
+		if world.has_next() and _link_shown >= LINK_SECONDS and not _link_left:
+			_link_left = true
+			world.theme_ahead()
+			p.autopilot = _autotest_dir != ""
+			p.control = not p.autopilot
+			GameInput.clear_touch()
+		if world.has_next() and p.s >= world.join_s():
 			_arrive()
 		return
 	# the results are up: at its ease, down the run-out (and to rest before that runs out)
@@ -868,6 +879,7 @@ func _travel_on(next: int, next_down: bool) -> void:
 	_link_to = next
 	_link_down = next_down
 	_link_shown = 0.0
+	_link_left = false
 	hud.visible = false
 	var done: Array[int] = []
 	if not _down:
@@ -1536,8 +1548,8 @@ func _layout_globes() -> void:
 	_link_card.size = _link_card.get_combined_minimum_size()
 	_link_card.scale = Vector2(link_k, link_k)
 	# (it comes down from above the top of the screen, and goes back up when it is done)
-	_link_drop = clampf(_link_drop + get_process_delta_time() * (1.9 if phase == Phase.TRAVEL else -2.6), 0.0, 1.0)
-	if _link.visible and phase != Phase.TRAVEL and _link_drop <= 0.0:
+	_link_drop = clampf(_link_drop + get_process_delta_time() * (1.9 if phase == Phase.TRAVEL and not _link_left else -2.6), 0.0, 1.0)
+	if _link.visible and (phase != Phase.TRAVEL or _link_left) and _link_drop <= 0.0:
 		_link.visible = false
 	var link_down := 1.0 - pow(1.0 - _link_drop, 3.0)
 	var link_y := lerpf(-_link_card.size.y * link_k - 30.0, 70.0 if whole.y > whole.x else 20.0, link_down)
