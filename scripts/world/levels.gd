@@ -72,16 +72,14 @@ const LIST: Array[Dictionary] = [
 		"rail": Color(0.85, 0.5, 0.15), "rail_node": Color(0.95, 0.95, 0.9),
 		"arch": Color(0.5, 0.62, 0.72), "ruins": false,
 		"scatter": [
-			# nothing out here but swell, the odd lost container and ships on the horizon
+			# nothing out here but swell and the odd lost container
 			["crate", 0.04, 4.0, 70.0, 1.2, 2.4, -0.6, "water"],
-			["ship", 0.006, 70.0, 130.0, 1.0, 1.0, 0.0, "water"],
-			["ship", 0.25, 120.0, 165.0, 1.0, 1.4, 0.0, "far"],
 		],
 		# broad daylight, under a plain sun (no striped disc)
-		"sky_top": Color(0.1, 0.34, 0.78), "sky_horizon": Color(0.62, 0.82, 0.95),
+		"sky_top": Color(0.04, 0.2, 0.66), "sky_horizon": Color(0.34, 0.6, 0.9),
 		"sky_bottom": Color(0.08, 0.28, 0.5), "sun": Color(1.0, 0.97, 0.86), "sun_dir": Vector3(0.3, 0.75, -1.0),
 		"sun_disc": false,
-		"fog": Color(0.56, 0.76, 0.92), "fog_density": 0.004,
+		"fog": Color(0.36, 0.6, 0.88), "fog_density": 0.004,
 		"ambient": Color(0.7, 0.82, 0.96), "ambient_energy": 1.0,
 		"light": Color(1.0, 0.97, 0.9), "light_energy": 1.3,
 		"water_deep": Color(0.02, 0.14, 0.4), "water_shallow": Color(0.08, 0.4, 0.68),
