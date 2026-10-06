@@ -209,6 +209,7 @@ Notes:
   where they part (`open_side`). The Open Ocean (the ship and the abyss) and the Ocean
   Trench (a choice of currents) keep their own kinds of fork.
 - **The Ocean Trench has no surface overhead** (`"no_surface"`): only the dark.
+- **Between stages** the salmon swims on at full speed under the results (the run-out is 1300 m); on CONTINUE the next stage is joined on 380 m ahead, out of sight; the globe stays about six seconds, and the name of the next stage comes up under it just as the line reaches its pin; the two go up together.
 - **Flying fish** break out of the sea ahead in a flight and glide low over it, never the salmon's way: coming straight at it, or across its path at some angle (`sea_visitors.gd`).
 
 ## 4. Stages

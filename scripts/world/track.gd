@@ -19,7 +19,7 @@ const CHUNK := 100
 const GROUP_LEN := 200.0
 const START_S := 30.0
 ## How much plain water there is after the finish (see `length`).
-const RUN_OUT := 520.0
+const RUN_OUT := 1300.0
 const RAIL_H := 0.55
 ## How big a bear is drawn (1 was the first one made, about the size of the salmon).
 const BEAR_SIZE := 2.3

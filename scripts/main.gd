@@ -112,7 +112,9 @@ var _coast_t := 0.0
 var _link_to := -1
 var _link_down := false
 var _link_shown := 0.0
-const LINK_SECONDS := 3.8
+const LINK_SECONDS := 6.4
+# (when the line on the globe reaches the pin of the next stage: its name comes up then)
+const LINK_ARRIVES := 0.75 + 3.6
 # (how far down the globe has come: 0 is up out of sight, 1 is in its place)
 var _link_drop := 0.0
 # (the globe has shown the way and gone: the salmon is swimming up to the next stage)
@@ -120,6 +122,7 @@ var _link_left := false
 var _link: Control
 var _link_globe: Globe
 var _link_name: Label
+var _link_tag: Label
 var _link_card: PanelContainer
 ## How many swipes in a row have been timed EXCELLENT or better: three of them call up a
 ## salmon run (see _on_timed).
@@ -878,6 +881,11 @@ func _coast(delta: float) -> void:
 		# stage itself is out ahead in the haze and comes up as it is swum towards, and the
 		# salmon is on it when it gets there.
 		p.pace = 1.0 if room > 0.0 or world.has_next() else 0.0
+		# (the name of the next stage, under the globe, just as the line gets to it)
+		if _link_shown >= LINK_ARRIVES and _link_name.text == "":
+			_link_name.text = Levels.LIST[_link_to].name
+			_link_tag.text = Levels.LIST[_link_to].get("tagline", "")
+			Sfx.play("ui", 1.2, -4.0)
 		if world.has_next() and _link_shown >= LINK_SECONDS and not _link_left:
 			_link_left = true
 			world.theme_ahead()
@@ -888,7 +896,9 @@ func _coast(delta: float) -> void:
 			_arrive()
 		return
 	# the results are up: at its ease, down the run-out (and to rest before that runs out)
-	p.pace = 0.0 if room < 0.0 else (1.0 if _coast_t < 2.5 else minf(0.3, room / 60.0))
+	# the results are up: it swims on by itself, as fast as ever, down the run-out (and only
+	# stops if that runs out)
+	p.pace = 0.0 if room < 0.0 else 1.0
 
 
 ## On to the next stage without leaving the water: the globe comes up in a corner and draws
@@ -920,6 +930,7 @@ func _travel_on(next: int, next_down: bool) -> void:
 	_link_globe.look_at_stage(_level)
 	_link_globe.show_path(done, -1, _level)
 	_link_name.text = ""
+	_link_tag.text = ""
 
 	_show(_link)
 	# (a frame for the globe to come up in, then the stage is made: that takes a moment)
@@ -938,8 +949,7 @@ func _travel_on(next: int, next_down: bool) -> void:
 	await get_tree().create_timer(0.75).timeout
 	if phase != Phase.TRAVEL:
 		return
-	_link_globe.show_path(done, _level, next, 2.4)
-	_link_name.text = "TO %s" % Levels.LIST[next].name
+	_link_globe.show_path(done, _level, next, 3.6)
 
 
 ## The salmon has swum on to the next stage: the run goes on from there.
@@ -956,7 +966,6 @@ func _arrive() -> void:
 	_link.visible = true
 	hud.visible = true
 	hud.set_best(Save.best(_key()))
-	hud.banner(Levels.LIST[_level].name)
 	score.reset()
 	_fork_way = -1
 	_streak = 0
@@ -1445,9 +1454,15 @@ func _build_globe() -> void:
 	_link_globe.radius = 0.42
 	_link_globe.backdrop = false
 	link_window.add_child(_link_globe)
-	_link_name = UI.label("", 24, UI.GOLD, 8)
+	_link_name = UI.label("", 34, UI.GOLD, 10)
+	_link_name.add_theme_font_override("font", UI.serif())
 	_link_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	link_col.add_child(_link_name)
+	_link_tag = UI.label("", 15, Color.WHITE, 6)
+	_link_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_link_tag.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_link_tag.custom_minimum_size.x = 300
+	link_col.add_child(_link_tag)
 
 	_travel = _panel_root()
 	_travel_globe = Globe.new()

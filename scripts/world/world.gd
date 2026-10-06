@@ -432,7 +432,7 @@ func _drop(old: Track) -> void:
 
 ## How far ahead of the salmon, at the least, the next stage is joined on (metres): far
 ## enough to be out in the haze, so that it comes up out of the distance.
-const JOIN_AHEAD := 130.0
+const JOIN_AHEAD := 380.0
 
 ## Makes the stage that comes next and joins it on to the one being swum, a way ahead of
 ## the salmon down its run-out: everything of this stage from there on is taken out of the
