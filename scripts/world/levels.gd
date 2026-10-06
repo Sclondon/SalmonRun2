@@ -24,6 +24,8 @@ extends RefCounted
 ##          "pier", "gravel", "logjam", "island"; "abyss" is the ship of the open ocean and
 ##          the current down beside it), and fork_at where along the stage the fork is (a
 ##          part of its length; 1 or nothing is near the end).
+## weather: "rain" or "snow" (none without it); stars and aurora: a night sky (0 to 1 each);
+##          clouds: how much of the sky they cover (0 to 1; 0.32 without it).
 ## spacing: how much open water there is between one piece of the course and the next (1 is
 ##          the usual 45 to 80 m).
 ## floor:   open sea only: how far down the sea floor is (metres); it replaces the river bed
@@ -148,6 +150,7 @@ const LIST: Array[Dictionary] = [
 	},
 	{
 		"name": "COASTLINE", "at": Vector2(51, -129.5), "tier": 2, "order": 0, "salt": false,
+		"weather": "rain", "clouds": 0.75,
 		"divider": "gravel", "fork_at": 0.72,
 		"next": ["THE FISH LADDER", "DRY RIVERBED"],
 		"objective": {"type": "clean", "n": 2},
@@ -227,11 +230,12 @@ const LIST: Array[Dictionary] = [
 			["hill", 0.6, 70.0, 160.0, 1.0, 1.0, 0.0, "far"],
 		],
 		"hill": Color(0.1, 0.26, 0.2), "snow": 0.0,
-		"sky_top": Color(0.3, 0.4, 0.46), "sky_horizon": Color(0.82, 0.88, 0.82),
-		"sky_bottom": Color(0.16, 0.26, 0.22), "sun": Color(1.0, 0.96, 0.82), "sun_dir": Vector3(0.2, 0.3, -1.0),
-		"fog": Color(0.7, 0.8, 0.74), "fog_density": 0.009,
-		"ambient": Color(0.56, 0.68, 0.62), "ambient_energy": 0.85,
-		"light": Color(0.96, 1.0, 0.9), "light_energy": 1.0,
+		# night in the forest: a dark sky full of stars, and an aurora over the trees
+		"sky_top": Color(0.02, 0.04, 0.12), "sky_horizon": Color(0.1, 0.24, 0.3), "stars": 1.0, "aurora": 0.9, "clouds": 0.0,
+		"sky_bottom": Color(0.03, 0.08, 0.1), "sun": Color(0.8, 0.9, 1.0), "sun_dir": Vector3(0.2, 0.55, -1.0), "sun_disc": false,
+		"fog": Color(0.08, 0.2, 0.24), "fog_density": 0.008,
+		"ambient": Color(0.3, 0.5, 0.56), "ambient_energy": 0.9,
+		"light": Color(0.6, 0.86, 0.9), "light_energy": 0.8,
 		"water_deep": Color(0.04, 0.24, 0.26), "water_shallow": Color(0.3, 0.62, 0.54),
 		"swell": 1.0,
 		"motes": Color(0.85, 1.0, 0.8),
@@ -373,7 +377,8 @@ const LIST: Array[Dictionary] = [
 			["iceberg", 0.16, 16.0, 120.0, 0.8, 2.8, 0.0, "water"],
 			["iceberg", 0.8, 100.0, 160.0, 2.5, 5.5, 0.0, "far"],
 		],
-		"sky_top": Color(0.0, 0.03, 0.1), "sky_horizon": Color(0.16, 0.86, 0.6),
+		"stars": 1.0, "aurora": 1.0, "clouds": 0.0,
+		"sky_top": Color(0.0, 0.03, 0.1), "sky_horizon": Color(0.05, 0.3, 0.34),
 		"sky_bottom": Color(0.03, 0.14, 0.2), "sun": Color(0.8, 1.0, 0.92), "sun_dir": Vector3(-0.3, 0.2, -1.0),
 		"fog": Color(0.1, 0.34, 0.36), "fog_density": 0.01,
 		"ambient": Color(0.4, 0.66, 0.74), "ambient_energy": 0.9,

@@ -13,6 +13,10 @@ uniform float sun_disc = 1.0;
 // cover (0 is none), and how big they are.
 uniform float clouds = 0.32;
 uniform float cloud_size = 1.0;
+// Night: stars (0 is none, 1 is a sky full), and an aurora (0 is none): curtains of green
+// light, shading to violet at their tops, that hang in the sky and sway.
+uniform float stars = 0.0;
+uniform float aurora = 0.0;
 
 // (worked out in whole numbers, so that it is the same on every renderer: see water.gdshader)
 float cell(vec2 p) {
@@ -60,5 +64,23 @@ void sky() {
 	col = mix(col, sun_color * 1.6, disc * sun_disc);
 	// (with no disc, the glow is the sun: brighter, and tight round where it stands)
 	col += sun_color * (0.25 * exp(-d * 6.0) + (1.0 - sun_disc) * 0.9 * exp(-d * 22.0));
+	if (stars > 0.0 && y > 0.0) {
+		// (one, or none, in each little square of the sky; a few of them twinkle)
+		vec2 sq = floor(EYEDIR.xz / (y + 0.35) * 120.0);
+		float star = cell(sq);
+		float lit = step(1.0 - 0.02 * stars, star) * (0.55 + 0.45 * sin(TIME * (1.0 + star * 5.0) + star * 40.0));
+		col += vec3(0.9, 0.95, 1.0) * lit * smoothstep(0.0, 0.25, y);
+	}
+	if (aurora > 0.0 && y > 0.04) {
+		vec2 over = EYEDIR.xz / (y + 0.2);
+		// a curtain: a wavering line across the sky, bright at its foot and fading upwards
+		float wave = sin(over.x * 1.3 + TIME * 0.15) * 0.5 + sin(over.x * 3.1 - TIME * 0.22) * 0.25;
+		// (how far up the curtain this is: its foot hangs a little above the horizon)
+		float from_foot = (y - 0.13 - 0.07 * wave) / 0.5;
+		float curtain = smoothstep(0.0, 0.08, from_foot) * (1.0 - smoothstep(0.08, 1.1, from_foot));
+		float rays = 0.6 + 0.4 * puff(vec2(over.x * 9.0 + TIME * 0.3, 2.0));
+		vec3 glow = mix(vec3(0.2, 1.0, 0.55), vec3(0.6, 0.3, 1.0), smoothstep(0.1, 0.9, from_foot));
+		col += glow * curtain * rays * aurora * 0.9 * smoothstep(0.04, 0.2, y);
+	}
 	COLOR = col;
 }

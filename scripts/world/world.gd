@@ -11,6 +11,7 @@ const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
 const SeaVisitors := preload("res://scripts/world/sea_visitors.gd")
 const CurrentBubbles := preload("res://scripts/world/current_bubbles.gd")
 const Speech := preload("res://scripts/fx/speech.gd")
+const Weather := preload("res://scripts/fx/weather.gd")
 const Spawning := preload("res://scripts/fx/spawning.gd")
 
 var track: Track
@@ -24,6 +25,7 @@ var ahead: Track
 var behind: Track
 var _join := Transform3D.IDENTITY
 var _join_s := 0.0
+var _join_lane := 0.0
 var _water_to := {}
 var _water_turning := false
 var _water_blend: Tween
@@ -41,6 +43,7 @@ var visitors: SeaVisitors
 var bubbles: CurrentBubbles
 ## What the salmon says (how well a swipe was timed), in a bubble beside it.
 var speech: Speech
+var weather: Weather
 ## The spawning scene, while it is being played (see spawning_begin).
 var spawning: Spawning
 var env: Environment
@@ -58,6 +61,8 @@ var _blend: Tween
 
 
 func _ready() -> void:
+	weather = Weather.new()
+	add_child(weather)
 	_make_environment()
 	track = Track.new()
 	add_child(track)
@@ -109,6 +114,7 @@ func _ready() -> void:
 	camera.far = 450.0 if Save.is_mobile() else 900.0
 	camera.player = player
 	camera.track = track
+	weather.camera = camera
 	school.track = track
 	others.track = track
 	run.track = track
@@ -234,6 +240,9 @@ func _apply_level(blend := 0.0, of: Dictionary = {}) -> void:
 	_sky.set_shader_parameter("sun_disc", 1.0 if cfg.get("sun_disc", true) else 0.0)
 	# (simple clouds, unless the stage says how many: "clouds", 0 for a clear sky)
 	_sky.set_shader_parameter("clouds", float(cfg.get("clouds", 0.32)))
+	_sky.set_shader_parameter("stars", float(cfg.get("stars", 0.0)))
+	_sky.set_shader_parameter("aurora", float(cfg.get("aurora", 0.0)))
+	weather.set_kind(str(cfg.get("weather", "")))
 	# light comes from where the sun is drawn in the sky
 	var dir: Vector3 = (cfg.sun_dir as Vector3).normalized()
 	sun.rotation = Vector3(-asin(clampf(dir.y, 0.55, 0.9)), atan2(-dir.x, -dir.z) + PI * 0.83, 0.0)
@@ -429,7 +438,8 @@ const JOIN_AHEAD := 130.0
 ## the salmon down its run-out: everything of this stage from there on is taken out of the
 ## picture, and the next begins there, in line with it. The salmon swims on to it (see
 ## take_next); until then it is still on this one.
-func make_next(level: int, down: bool, turn := 0.0) -> void:
+func make_next(level: int, down: bool, turn := 0.0, lane := 0.0) -> void:
+	_join_lane = lane
 	_drop(ahead)
 	_drop(behind)
 	behind = null
@@ -440,11 +450,11 @@ func make_next(level: int, down: bool, turn := 0.0) -> void:
 	ahead.live = false
 	add_child(ahead)
 	move_child(ahead, 0)
-	ahead.build(level, false, down, track.width(_join_s))
+	ahead.build(level, false, down, track.width(_join_s) if lane == 0.0 else track.width(_join_s) * 0.5)
 	track.hide_from(_join_s)
 	# (turned a little, the way that was taken at the fork)
 	var from := track.basis_at(_join_s) * Basis(Vector3.UP, -turn)
-	var at := track.point(_join_s, 0.0, track.water_y(_join_s))
+	var at := track.point(_join_s, lane, track.water_y(_join_s))
 	var turned := from * ahead.basis_at(0.0).inverse()
 	_join = Transform3D(turned, at - turned * ahead.point(0.0, 0.0, ahead.water_y(0.0)))
 	ahead.transform = _join
@@ -505,6 +515,8 @@ func take_next() -> void:
 		player._wake.clear()
 		player._wake.track = track
 	player.s = maxf(over, 0.0)
+	# (the new stage was joined on to the way that was taken: across it is measured from there)
+	player.x -= _join_lane
 	var lim := track.width(player.s) * 0.5 - 2.0
 	player.x = clampf(player.x, -lim, lim)
 	# (as far above the water, or under it, as it was: the new stage's water is at a height of
@@ -518,7 +530,7 @@ func take_next() -> void:
 		player.layer = mini(player.layer, track.layers())
 	for flock: School in [school, others, run]:
 		flock.track = track
-		flock.carry(_join_s)
+		flock.carry(_join_s, _join_lane)
 	for shoal: Shoals in [shoals, sardines, krill]:
 		shoal.track = track
 		shoal.scatter()

@@ -100,6 +100,8 @@ uniform float ripple_speed : hint_range(0.0, 20.0) = 1.0;
 // pixels of the picture, so that the glints off the water come in squares, like the pixels
 // of the picture only bigger. (0 or 1 is smooth.)
 uniform float glint_pixels : hint_range(0.0, 32.0) = 0.0;
+// Rain on the water (0 is none): little rings that open out and are gone, where drops land.
+uniform float rain : hint_range(0.0, 1.0) = 0.0;
 // How far across the water UV.x runs from 0 to 1, in metres (set from the stage).
 uniform float across = 22.0;
 
@@ -376,6 +378,17 @@ void fragment() {
 	float line = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(lp + vec2(0.0, TIME * 0.12)) - 0.5))) * lines * (1.0 - white)
 			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_flat);
 	col = mix(col, mix(col, foam_color.rgb, 0.35), line);
+	if (rain > 0.0 && far < 70.0) {
+		// one drop, or none, in each square of the water at a time: its ring opens out and fades
+		vec2 grid = v_metres / 1.1;
+		vec2 sq = floor(grid);
+		float when = hash(sq);
+		float turn = floor(TIME * 1.6 + when * 7.0);
+		float age = fract(TIME * 1.6 + when * 7.0);
+		vec2 drop = sq + vec2(0.3 + 0.4 * hash(sq + turn * 3.0), 0.3 + 0.4 * hash(sq + turn * 5.0 + 9.0));
+		float ringlet = step(abs(length(grid - drop) - age * 0.36), 0.03) * step(hash(sq + turn), rain * 0.3) * (1.0 - age);
+		col = mix(col, foam_color.rgb, ringlet * 0.7 * (1.0 - white) * (1.0 - smoothstep(40.0, 70.0, far)));
+	}
 	// The water's own two directions in the world, across and along: each corner of the mesh
 	// carries them (its tangent), so that they turn smoothly with the course. (They were once
 	// worked out from how the surface changes over the screen, which gave every triangle of

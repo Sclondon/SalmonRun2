@@ -931,7 +931,10 @@ func _travel_on(next: int, next_down: bool) -> void:
 	var onward := Levels.next_of(_level)
 	if not _down and onward.size() > 1 and onward.has(next):
 		bend = 0.16 * (onward.find(next) - (onward.size() - 1) * 0.5) / ((onward.size() - 1) * 0.5)
-	world.make_next(next, next_down, bend)
+	var lane := 0.0
+	if bend != 0.0 and not world.track.fork.is_empty() and not world.track.fork.abyss and not world.track.fork.get("streams", false):
+		lane = world.track.fork_centre(onward.find(next), world.track.length - 60.0)
+	world.make_next(next, next_down, bend, lane)
 	await get_tree().create_timer(0.75).timeout
 	if phase != Phase.TRAVEL:
 		return

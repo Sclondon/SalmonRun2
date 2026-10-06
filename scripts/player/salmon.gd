@@ -1320,3 +1320,13 @@ func _sunk_here() -> bool:
 		if c.get("launch", false) and s > float(c.s1) - 5.0:
 			return false
 	return true
+
+
+## Thrown up into the air from the surface (a whale's spout): `up` is how hard.
+func launch(up: float) -> bool:
+	if state != State.SWIM or dive > 0.5 or washed > 0.0:
+		return false
+	vy = up
+	_do_splash(1.4)
+	_take_off(true)
+	return true

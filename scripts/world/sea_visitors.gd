@@ -239,6 +239,7 @@ func _process(delta: float) -> void:
 						tilt = -0.3 * into
 					node.visible = s < track.length - 8.0
 					node.transform = Transform3D((track.basis_at(s) * Basis(Vector3.RIGHT, tilt)).scaled(Vector3.ONE * float(KINDS[a.kind].size)), track.point(s, float(a.x), track.water_y(s) - depth))
+					_blow(node, s, float(a.x), dt)
 					continue
 				# It rolls up to breathe, its back clear of the water, and sinks away again; and
 				# once in a while it comes up fast instead and throws most of itself out.
@@ -266,3 +267,42 @@ func _abyss() -> Dictionary:
 		if c.get("abyss", false):
 			return c
 	return {}
+
+
+# The whale's spout: every so often it blows, a column of spray straight up out of its
+# blowhole for a couple of seconds. Swim into it and it throws the salmon high into the air.
+var _spout: CPUParticles3D
+var _blow_t := 0.0
+func _blow(whale: MeshInstance3D, s: float, x: float, dt: float) -> void:
+	if _spout == null:
+		_spout = CPUParticles3D.new()
+		var drop := SphereMesh.new()
+		drop.radius = 0.5
+		drop.height = 1.0
+		drop.radial_segments = 5
+		drop.rings = 2
+		var white := StandardMaterial3D.new()
+		white.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		white.albedo_color = Color(0.94, 1.0, 1.0)
+		drop.material = white
+		_spout.mesh = drop
+		_spout.amount = 90
+		_spout.lifetime = 1.3
+		_spout.local_coords = false
+		_spout.direction = Vector3.UP
+		_spout.spread = 9.0
+		_spout.initial_velocity_min = 16.0
+		_spout.initial_velocity_max = 24.0
+		_spout.gravity = Vector3(0, -22.0, 0)
+		_spout.scale_amount_min = 0.25
+		_spout.scale_amount_max = 0.7
+		_spout.emitting = false
+		add_child(_spout)
+	_blow_t += dt
+	var blowing := fposmod(_blow_t, 7.0) < 2.2 and whale.visible
+	var hole := whale.global_transform * Vector3(0.0, 1.2, -4.4)
+	hole.y = maxf(hole.y, track.water_y(s))
+	_spout.global_position = hole
+	_spout.emitting = blowing
+	if blowing and player.global_position.distance_to(Vector3(hole.x, player.global_position.y, hole.z)) < 4.5 and absf(player.y - track.water_y(player.s)) < 1.5:
+		player.launch(27.0)

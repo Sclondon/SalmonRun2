@@ -189,6 +189,16 @@ Notes:
   turned a little towards the side taken.
 - **One circle of the finger is one corkscrew**, in the air or on the water; **a wiggle in
   the air is a Fish Flop**. Sardines are bright metal.
+- **The ways at a fork do not come together again:** what divides them begins a little before
+  the finish and runs on through it and down the run-out (in pieces: `hide_from`), and the
+  next stage is joined on to the side that was taken (`fork_centre`), turned a little that
+  way. So a fork is at the end of its stage (`fork_at` is no longer used).
+- **The humpback blows**, every few seconds: swim into the spout and it throws the salmon
+  high into the air (`Salmon.launch`).
+- **Weather and night** (`levels.gd`: `"weather"`, `"stars"`, `"aurora"`, `"clouds"`): it rains
+  on the Coastline (`fx/weather.gd`), which roughens the water and leaves ringlets on it
+  (`rain` in the water shader); Rainforest Falls and Arctic Waters are at night, under
+  stars and an aurora (the sky shader). Clouds of krill drift near the surface of the sea.
 
 ## 4. Stages
 

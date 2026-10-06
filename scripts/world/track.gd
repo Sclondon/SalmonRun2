@@ -203,6 +203,14 @@ func apply_water() -> void:
 		if key != "wake_life":
 			mat_water.set_shader_parameter(key, preset[key])
 	wake_life = float(preset.get("wake_life", WAKE_LIFE))
+	# rain roughens the water: its ripples are higher and finer, it is less of a mirror, and
+	# the drops leave rings on it
+	var raining: bool = cfg.get("weather", "") == "rain"
+	mat_water.set_shader_parameter("rain", 1.0 if raining else 0.0)
+	if raining:
+		mat_water.set_shader_parameter("ripple_height", float(_water_value("ripple_height", 0.16)) * 1.9)
+		mat_water.set_shader_parameter("ripple_scale", float(_water_value("ripple_scale", 0.55)) * 1.7)
+		mat_water.set_shader_parameter("roughness", minf(float(_water_value("roughness", 0.5)) + 0.25, 1.0))
 	# the same swell here as the shader has, for whatever floats on it (see swell_y)
 	var rough := float(_water_value("swell", cfg.swell))
 	_swell_high = float(_water_value("swell_height", SWELL_HEIGHT)) * rough
@@ -286,8 +294,16 @@ func _plan_fork() -> void:
 	# Where along the stage: near its end, unless the stage says sooner ("fork_at", as a part
 	# of its length). (A stage swum under the water forks at its end, after it has come up.)
 	var at := 1.0 if abyss or cfg.get("submerged", false) else float(cfg.get("fork_at", 1.0))
-	var s1 := end - 8.0 if at >= 1.0 else clampf(course * at, 700.0, end - 8.0)
-	fork = {"s0": s1 - long, "s1": s1, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
+	var s1 := end - 8.0
+	# The ways do not come together again: what divides them begins a little before the
+	# finish and runs on through it and all down the run-out, and the stage that comes next is
+	# joined on to the side that was taken. (Not the ship or the currents, which are their own
+	# kind of fork.) So a fork is always at the end of its stage.
+	if not abyss and not streams:
+		long = minf(long, 90.0)
+		s1 = end + 60.0
+	var s_end := length - 6.0 if not abyss and not streams else s1
+	fork = {"s0": s1 - long, "s1": s_end, "boom": s1 - long - clampf(wide * 0.9, 40.0, 130.0), "ways": ways,
 			"ship": ship, "beam": beam, "cuts": cuts, "abyss": abyss, "style": style, "streams": streams}
 	if streams:
 		# one current for each way on, side by side, a few layers down: ride one and that is
@@ -393,7 +409,14 @@ func _build_fork() -> void:
 		elif fork.ship:
 			_build_ship(cut)
 		else:
-			_build_bar(cut, str(fork.style))
+			# (in pieces, so that what lies beyond where the next stage is joined on can be taken
+			# out of the picture with the rest: see hide_from)
+			var piece := CHUNK * STEP
+			var from: float = fork.s0
+			while from < float(fork.s1) - 1.0:
+				var to := minf(floorf(from / piece + 1.0) * piece, float(fork.s1))
+				_build_bar(cut, str(fork.style), from, to)
+				from = to
 	# the signs: the way each side leads, over the water ahead of the dividers
 	var ways: Array = fork.ways
 	var hw := width(s0) * 0.5
@@ -524,9 +547,7 @@ func _build_ship(cx: float) -> void:
 
 # An island in the stream at `cx` across it: a long low bar of the stage's own bank, coming
 # to a point at each end, with boulders on it.
-func _build_bar(cx: float, style: String) -> void:
-	var s0: float = fork.s0
-	var s1: float = fork.s1
+func _build_bar(cx: float, style: String, s0: float, s1: float) -> void:
 	var beam: float = fork.beam
 	var colors: Array = cfg.bank_colors
 	# what it is made of, how high it stands, whether its top is flat, and what stands on it
@@ -562,7 +583,7 @@ func _build_bar(cx: float, style: String) -> void:
 			high = 0.5
 	var mb := MB.new()
 	var irng := RandomNumberGenerator.new()
-	irng.seed = course_seed + int(cx * 10.0) + 55
+	irng.seed = course_seed + int(cx * 10.0) + 55 + int(s0)
 	var prev: Array = []
 	var s := s0
 	while s <= s1 + 0.01:
@@ -581,7 +602,7 @@ func _build_bar(cx: float, style: String) -> void:
 		s += 3.0
 	# what stands on it, along its back
 	var long := s1 - s0
-	var spots := int(long / (5.0 if style in ["reef", "logjam"] else 10.0))
+	var spots := maxi(int(long / (5.0 if style in ["reef", "logjam"] else 10.0)), 1)
 	var stand: Array = []
 	match style:
 		"stacks":
@@ -595,7 +616,7 @@ func _build_bar(cx: float, style: String) -> void:
 		"island":
 			stand = [Props.pine(irng), Props.pine(irng)]
 	for n in spots:
-		var bs := lerpf(s0 + 8.0, s1 - 6.0, (n + irng.randf()) / spots)
+		var bs := lerpf(s0 + 2.0, s1 - 2.0, (n + irng.randf()) / spots)
 		var half := fork_half(bs)
 		var at := point(bs, cx + irng.randf_range(-0.45, 0.45) * half, water_y(bs) + high * (1.0 if flat else 0.6))
 		match style:
@@ -622,8 +643,9 @@ func _build_bar(cx: float, style: String) -> void:
 					elif style == "island":
 						big = irng.randf_range(0.35, 0.6)
 					var mi := _add_mesh(stand[n % stand.size()], mat_foliage if style == "island" else mat_world)
+					_sections.append([s0, mi])
 					mi.transform = Transform3D(Basis(Vector3.UP, irng.randf() * TAU).scaled(Vector3.ONE * big), at - Vector3.UP * 0.3)
-	_add_mesh(mb.build(), mat_world)
+	_sections.append([s0, _add_mesh(mb.build(), mat_world)])
 
 
 ## Whether `s` is where the fork is (or within `before` metres of where it begins): nothing
@@ -2088,3 +2110,15 @@ func _build_front() -> void:
 					Props.shade(rock, 0.75), back)
 	if not mb.is_empty():
 		_add_mesh(mb.build(), mat_world)
+
+
+## Where the middle of a way round the fork is, across the course at `s` (way 0 is the
+## left-hand one).
+func fork_centre(way: int, s: float) -> float:
+	if fork.is_empty() or fork.cuts.is_empty():
+		return 0.0
+	var cuts: Array = fork.cuts
+	var hw := width(s) * 0.5
+	var left: float = -hw if way <= 0 else float(cuts[mini(way, cuts.size()) - 1])
+	var right_edge: float = hw if way >= cuts.size() else float(cuts[way])
+	return (left + right_edge) * 0.5
