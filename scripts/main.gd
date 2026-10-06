@@ -1453,6 +1453,7 @@ func _build_globe() -> void:
 	_link_globe = Globe.new()
 	_link_globe.radius = 0.42
 	_link_globe.backdrop = false
+	_link_globe.pin_names = false
 	link_window.add_child(_link_globe)
 	_link_name = UI.label("", 34, UI.GOLD, 10)
 	_link_name.add_theme_font_override("font", UI.serif())

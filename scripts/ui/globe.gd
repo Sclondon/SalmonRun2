@@ -31,6 +31,9 @@ var radius := 0.36
 var show_all := false
 ## Draws the space round the globe (the travel inset has none: just the globe).
 var backdrop := true
+## Writes the name of the stage the pin is on under it (the travel inset does not: the name
+## is given under the globe there).
+var pin_names := true
 ## Pins, names and lines are drawn this many times bigger (a tall phone screen shows the UI
 ## small, so they need it).
 var ui_scale := 1.0
@@ -175,14 +178,14 @@ func _draw() -> void:
 	for id in onward:
 		_pin_named(font, id, "", UI.GOLD if id == onward[0] else UI.OCHRE, 0.9)
 	for id in passed:
-		_pin_named(font, id, Levels.LIST[id].name, GREY, 0.8)
+		_pin_named(font, id, Levels.LIST[id].name if pin_names else "", GREY, 0.8)
 	for id in locked:
 		_pin_named(font, id, "LOCKED", GREY, 0.9)
 	for i in choices.size():
 		if i != choice:
 			_pin_named(font, choices[i], Levels.LIST[choices[i]].name, UI.OCHRE, 1.0)
 	if selected != -1:
-		_pin_named(font, selected, Levels.LIST[selected].name if choices.is_empty() and _progress >= 1.0 else "",
+		_pin_named(font, selected, Levels.LIST[selected].name if choices.is_empty() and _progress >= 1.0 and pin_names else "",
 				Color.WHITE, 1.15)
 	if not choices.is_empty():
 		_pin_named(font, choices[choice], Levels.LIST[choices[choice]].name, UI.GOLD, 1.3 + sin(_t * 6.0) * 0.08)
