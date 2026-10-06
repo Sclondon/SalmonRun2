@@ -1156,7 +1156,7 @@ func _update_visual(dt: float) -> void:
 			wag_speed = 8.0 + speed * 0.35
 			if state == State.IDLE:
 				wag_speed = 5.0
-			target_curl = RAIL_ARCH + charge * 0.3
+			target_curl = charge * 0.7
 		State.AIR:
 			# (it follows the arc of the leap: nose up going up, over the top, and nose down coming in)
 			var traj := atan2(vy, maxf(speed, 1.0)) * 1.0

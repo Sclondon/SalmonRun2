@@ -22,6 +22,9 @@ var player: Salmon
 ## Sardines: great swarms of one small silver fish, each swarm turning slowly on itself, in the
 ## salt water only. (Set before setup.)
 var sardines := false
+## Krill: clouds of tiny pink shrimps drifting near the surface of the sea, which is what a
+## sockeye feeds on out there. (Set before setup.)
+var krill := false
 
 var _shoals: Array[Dictionary] = []
 var _t := 0.0
@@ -31,11 +34,19 @@ var _rng := RandomNumberGenerator.new()
 func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 	track = t
 	player = p
-	_rng.seed = 1357 + (11 if sardines else 0)
+	_rng.seed = 1357 + (11 if sardines else 0) + (23 if krill else 0)
 	var meshes: Array[Mesh] = []
-	if sardines:
+	if krill:
+		var shrimp := BoxMesh.new()
+		shrimp.size = Vector3(0.05, 0.05, 0.22)
+		var pink := StandardMaterial3D.new()
+		pink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		pink.albedo_color = Color(1.0, 0.6, 0.55)
+		shrimp.material = pink
+		meshes.append(shrimp)
+	elif sardines:
 		meshes.append(Props.sardine())
-	for kind: Array in ([] if sardines else KINDS):
+	for kind: Array in ([] if sardines or krill else KINDS):
 		meshes.append(Props.small_fish(kind[0], kind[1]))
 	for i in count:
 		var mm := MultiMesh.new()
@@ -59,7 +70,7 @@ func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 ## Spreads the shoals out round the player (after a restart or a change of stage).
 func scatter() -> void:
 	for sh: Dictionary in _shoals:
-		(sh.node as Node3D).material_override = silver() if sardines else track.mat_world
+		(sh.node as Node3D).material_override = null if krill else (silver() if sardines else track.mat_world)
 		_place(sh, player.s + _rng.randf_range(10.0, AHEAD))
 
 
@@ -76,6 +87,11 @@ func _place(sh: Dictionary, at_s: float) -> void:
 	sh.size = _rng.randf_range(0.5, 0.75) if sardines else _rng.randf_range(0.7, 1.25)
 	var tight := clampf(room / 6.0, 0.35, 1.0)
 	sh.spread = Vector3(_rng.randf_range(1.5, 4.0) * tight, minf(_rng.randf_range(0.5, 1.6), sh.depth - 0.5) * tight, _rng.randf_range(2.5, 6.0) * tight)
+	if krill:
+		sh.depth = _rng.randf_range(0.5, 2.2)
+		sh.pace = _rng.randf_range(0.5, 2.0)
+		sh.size = 1.0
+		sh.spread = Vector3(_rng.randf_range(4.0, 8.0), 0.7, _rng.randf_range(5.0, 10.0))
 
 
 func _process(delta: float) -> void:
@@ -94,7 +110,7 @@ func _process(delta: float) -> void:
 		sh.x = x
 		var node: MultiMeshInstance3D = sh.node
 		# (nothing swims through a waterfall)
-		node.visible = not track.near_fall(s, 25.0, 25.0) and (not sardines or bool(track.cfg.get("salt", false)))
+		node.visible = not track.near_fall(s, 25.0, 25.0) and (not (sardines or krill) or bool(track.cfg.get("salt", false)))
 		if not node.visible:
 			continue
 		var facing := track.basis_at(s)

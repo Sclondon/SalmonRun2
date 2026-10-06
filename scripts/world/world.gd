@@ -35,6 +35,7 @@ var run: School
 var _run_left := 0.0
 var shoals: Shoals
 var sardines: Shoals
+var krill: Shoals
 var edge_swarm: EdgeSwarm
 var visitors: SeaVisitors
 var bubbles: CurrentBubbles
@@ -85,6 +86,10 @@ func _ready() -> void:
 	sardines.sardines = true
 	add_child(sardines)
 	sardines.setup(track, player, 3 if Save.is_mobile() else 5, 45 if Save.is_mobile() else 90)
+	krill = Shoals.new()
+	krill.krill = true
+	add_child(krill)
+	krill.setup(track, player, 3 if Save.is_mobile() else 6, 60 if Save.is_mobile() else 140)
 	edge_swarm = EdgeSwarm.new()
 	add_child(edge_swarm)
 	edge_swarm.setup(track, player, 110 if Save.is_mobile() else 260)
@@ -157,6 +162,8 @@ func set_course(level: int, test: bool, down := false) -> void:
 	school.scatter()
 	shoals.track = track
 	sardines.track = track
+	krill.track = track
+	krill.scatter()
 	sardines.scatter()
 	edge_swarm.track = track
 	visitors.track = track
@@ -512,7 +519,7 @@ func take_next() -> void:
 	for flock: School in [school, others, run]:
 		flock.track = track
 		flock.carry(_join_s)
-	for shoal: Shoals in [shoals, sardines]:
+	for shoal: Shoals in [shoals, sardines, krill]:
 		shoal.track = track
 		shoal.scatter()
 	edge_swarm.track = track
