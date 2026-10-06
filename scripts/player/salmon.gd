@@ -566,16 +566,11 @@ func _try_current() -> void:
 ## Riding a current: it sets the way, fast, like a rail. An up or down swipe leaves it early.
 func _ride(dt: float, inp: Dictionary, released: bool) -> void:
 	rail_time += dt
-	# a swipe to one side spins it round on the log, once for each swipe
+	# a swipe to either side leaves it, with a dart that way; up or down leaves it too
+	var side := 0.0
 	for sw: Vector2 in inp.swipes:
 		if sw.x != 0.0 and sw.y == 0.0:
-			_rail_spin -= sw.x * 360.0
-			_rail_spins += 1
-			_mark()
-			_stretch_v -= 3.0
-	var turn := signf(_rail_spin) * minf(absf(_rail_spin), 900.0 * dt)
-	_rail_spin -= turn
-	_rail_yaw += turn
+			side = sw.x
 	boosting = true
 	boost = minf(boost + 12.0 * dt, 100.0)
 	speed = move_toward(speed, CRUISE + BOOST_SPEED + 4.0, 22.0 * dt)
@@ -602,11 +597,17 @@ func _ride(dt: float, inp: Dictionary, released: bool) -> void:
 		_do_splash(1.2)
 		_take_off()
 		return
-	if up or down or done:
+	if up or down or done or side != 0.0:
 		state = State.SWIM
 		boosting = false
 		vx = 0.0
 		_current_wait = 0.9
+		if side != 0.0:
+			# (clear of it: a wide one takes a long dart)
+			_dash = side * (track.current_radius(rail, s) + 2.5)
+			_dash_dir = side
+			_dash_t = 0.0
+			Sfx.play("jump", 1.5, -8.0)
 		trick_landed.emit(_on_beat("Ocean Current", 150 + int(rail_time * 250.0)))
 		if up or down:
 			_set_layer(layer + (1 if down else -1))
@@ -1102,7 +1103,8 @@ func _update_visual(dt: float) -> void:
 	_prev_vx = vx
 	match state:
 		State.IDLE, State.SWIM, State.CURRENT:
-			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
+			# (low in the water: its back and the top of its tail break the surface, no more)
+			pos.y -= 0.34 - sin(_t * 5.0) * 0.05
 			# nose down on the way under, nose up on the way back
 			# (its nose leads into a climb or a dive just as it leads into a turn: by how steeply
 			# it is going up or down for the speed it is swimming at)

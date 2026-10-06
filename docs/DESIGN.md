@@ -178,6 +178,12 @@ Notes:
   for each way on, side by side; the one ridden is the way taken (`"divider": "currents"`).
 - **The humpback** is bigger, bends as it swims (`heave` in `fish.gdshader`), and **tuna
   chase the salmon**: up from behind and then round it. Every fish is in the field guide.
+- **Ocean currents come in kinds** (`Track.CURRENT_KINDS`): winding; a ramp under the water
+  (short, up to the surface and off the end into the air); a loop (round like a corkscrew);
+  a huge one; and a long low straight one. There are many more of them, and a swipe to
+  either side darts out of one (up or down leaves it too).
+- **The humpback turns up half way through the Open Ocean.** The sign by the count of the
+  pack is drawn in clean shapes, not big pixels. The salmon swims lower in the water.
 
 ## 4. Stages
 

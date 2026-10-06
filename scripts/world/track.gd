@@ -960,7 +960,13 @@ func _plan_deep() -> void:
 				used = _plan_jellies(s)
 		k += 1
 		_slide(from, 1)
-		s += used + _rng.randf_range(30.0, 70.0)
+		s += used + _rng.randf_range(20.0, 45.0)
+		# (and currents besides, as often as not: there are a great many of them)
+		if layers() >= 2 and s < deep_end - 200.0 and not _in_fork(s, 260.0) and _rng.randf() < 0.9:
+			var before := {"ramps": ramps.size(), "rocks": rocks.size(), "rings": rings.size(), "bears": bears.size(), "rails": rails.size(), "currents": currents.size(), "jellies": jellies.size()}
+			var more := _plan_current(s, false)
+			_slide(before, 1)
+			s += more + _rng.randf_range(15.0, 35.0)
 
 
 ## How far the pieces of a very wide course can be moved off its middle (0 on a river).
@@ -1138,40 +1144,95 @@ func _plan_rails(s: float) -> float:
 ## it), winds from side to side and down and up through every layer there is, and ends at
 ## whatever depth it has got to. Or it is a launch: it ends by rising to the surface, and
 ## throws the salmon into the air.
+## The kinds of ocean current, and how often each turns up (out of the sum): one that winds
+## about through the layers; a ramp under the water (short, straight up to the surface, and
+## off the end of it into the air); a loop (it winds round and round like a corkscrew); a
+## huge one (very wide, and easy going); and a long low one (straight, far down, a long way).
+const CURRENT_KINDS := {"winding": 4, "ramp": 3, "loop": 2, "huge": 2, "long": 2}
+
+
 func _plan_current(s: float, launch: bool) -> float:
-	var count := _rng.randi_range(6, 9)
+	var kind := "winding"
+	if not launch:
+		var roll := _rng.randi_range(1, 13)
+		for name: String in CURRENT_KINDS:
+			roll -= int(CURRENT_KINDS[name])
+			if roll <= 0:
+				kind = name
+				break
+	var deepest := layers()
 	var xs := PackedFloat32Array()
 	var ds := PackedFloat32Array()
 	var cx := _rng.randf_range(-4.0, 4.0)
-	var deepest := layers()
-	var depth := _rng.randi_range(1, mini(deepest, 2))
-	# (it makes for the bottom first, or it would hang about near the top)
-	var aim := deepest
-	for k in count + 1:
-		# (straight and level at the start, so that it is easy to get on)
-		if k > 1:
-			if k < count:
-				cx = clampf(cx + _rng.randf_range(5.0, 11.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -15.0, 15.0)
-			if depth == aim:
-				aim = _rng.randi_range(1, deepest)
-			# (no more than two layers between one knot and the next: more is too steep)
-			depth += clampi(aim - depth, -2, 2)
-		xs.append(cx)
-		ds.append(float(depth))
+	var count := _rng.randi_range(6, 9)
+	# (they come in all sizes: most are a tight tube, and about one in three is a great wide one)
+	var radius := _rng.randf_range(5.5, 7.5) if _rng.randf() < 0.34 else _rng.randf_range(3.2, 4.4)
+	match kind:
+		"ramp":
+			# three knots: in at the bottom of it, and up to the surface and out
+			count = 3
+			launch = true
+			var from := float(mini(deepest, 2))
+			for k in count + 1:
+				xs.append(cx)
+				ds.append(from)
+			radius = _rng.randf_range(3.0, 3.8)
+		"loop":
+			# round a circle, across and up and down, twice or three times as it goes along
+			count = _rng.randi_range(2, 3) * 4 + 2
+			var middle := maxf(deepest * 0.5, 1.2)
+			var swing := minf(middle - 0.5, 1.6)
+			for k in count + 1:
+				var a := (k - 1) * TAU / 4.0
+				var on := 1.0 if k > 0 and k < count else 0.0
+				xs.append(cx + sin(a) * 7.0 * on)
+				ds.append(middle - cos(a) * swing * on + (swing if on == 0.0 else 0.0) * 0.0)
+			radius = _rng.randf_range(3.2, 4.0)
+		"huge":
+			count = _rng.randi_range(5, 7)
+			var level := float(_rng.randi_range(mini(2, deepest), deepest))
+			for k in count + 1:
+				if k > 1 and k < count:
+					cx = clampf(cx + _rng.randf_range(-6.0, 6.0), -10.0, 10.0)
+				xs.append(cx)
+				ds.append(level)
+			radius = _rng.randf_range(9.0, 12.0)
+		"long":
+			count = _rng.randi_range(13, 18)
+			for k in count + 1:
+				if k > 1 and k < count:
+					cx = clampf(cx + _rng.randf_range(-2.5, 2.5), -12.0, 12.0)
+				xs.append(cx)
+				ds.append(float(deepest))
+			radius = _rng.randf_range(3.0, 4.0)
+		_:
+			var depth := _rng.randi_range(1, mini(deepest, 2))
+			# (it makes for the bottom first, or it would hang about near the top)
+			var aim := deepest
+			for k in count + 1:
+				# (straight and level at the start, so that it is easy to get on)
+				if k > 1:
+					if k < count:
+						cx = clampf(cx + _rng.randf_range(5.0, 11.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -15.0, 15.0)
+					if depth == aim:
+						aim = _rng.randi_range(1, deepest)
+					# (no more than two layers between one knot and the next: more is too steep)
+					depth += clampi(aim - depth, -2, 2)
+				xs.append(cx)
+				ds.append(float(depth))
 	var start := s + 25.0
 	var end := start + CURRENT_KNOT * count
 	if launch:
 		# the climb to the surface at the end is no steeper than the rest
 		ds[count] = 0.0
 		ds[count - 1] = minf(ds[count - 1], 2.0)
-		ds[count - 2] = minf(ds[count - 2], 4.0)
+		if count >= 4:
+			ds[count - 2] = minf(ds[count - 2], 4.0)
 		# rings in the air along the leap it throws you into
 		for i in 3:
 			var t := 0.45 + 0.4 * i
-			rings.append({"s": end + LAUNCH_SPEED * t, "x": cx, "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
-	# (they come in all sizes: most are a tight tube, and about one in three is a great wide one)
-	var radius := _rng.randf_range(5.5, 7.5) if _rng.randf() < 0.34 else _rng.randf_range(3.2, 4.4)
-	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch, "r": radius})
+			rings.append({"s": end + LAUNCH_SPEED * t, "x": xs[count], "h": LAUNCH_VY * t - 12.0 * t * t + 0.4, "ref": end})
+	currents.append({"s0": start, "s1": end, "xs": xs, "ds": ds, "off": 0.0, "launch": launch, "r": radius, "kind": kind})
 	return CURRENT_KNOT * count + 40.0
 
 

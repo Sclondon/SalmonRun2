@@ -216,6 +216,12 @@ func _process(delta: float) -> void:
 			"whale":
 				# The one that leads the way (the open ocean): it keeps ahead of the salmon, a little
 				# to one side, makes for the giant current as the ship comes up, and goes down it.
+				if int(a.i) == 0 and _guiding() and player.s < track.course * 0.5:
+					# (it has not turned up yet: half way through the stage it does, from ahead)
+					a.s = player.s + 190.0
+					a.x = player.x + 30.0
+					node.visible = false
+					continue
 				if int(a.i) == 0 and _guiding():
 					var down: Dictionary = _abyss()
 					var want := player.s + 46.0

@@ -34,8 +34,8 @@ var icon := false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(88.0, 34.0) if icon else Vector2(APART * 4.0, 110.0)
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	custom_minimum_size = Vector2(92.0, 46.0) if icon else Vector2(APART * 4.0, 110.0)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if icon else CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 func _process(_delta: float) -> void:
@@ -68,7 +68,7 @@ func _fish(middle: Vector2, tilt: float, red: bool, dim: float, pixel: float) ->
 
 func _draw() -> void:
 	if icon:
-		_fish(size * 0.5, 0.0, true, 1.0, 3.0)
+		_sign(size * 0.5, 78.0)
 		return
 	var beat := Music.beat_float()
 	var now := int(floorf(beat)) % 4 if beat >= 0.0 else -1
@@ -93,3 +93,44 @@ func _draw() -> void:
 					draw_rect(Rect2(middle.x + side * 46.0 - 3.0, water + 2.0, PIXEL * 2.0, PIXEL * 2.0), Color.WHITE)
 		# (the others lie low in the water, half under it, and dim)
 		_fish(middle + Vector2(0.0, -up - (2.0 if leaping else -4.0)), tilt, i == 0, 1.0 if leaping else 0.45, PIXEL)
+
+
+# The sign by the count of the pack: a salmon drawn in clean shapes (not in big pixels like
+# the beat keepers), a spawner, red with a green head, facing right. `long` is its length.
+func _sign(middle: Vector2, long: float) -> void:
+	var k := long / 100.0
+	var red := Color(0.92, 0.2, 0.16)
+	var dark := Color(0.6, 0.08, 0.08)
+	var pale := Color(1.0, 0.7, 0.58)
+	var green := Color(0.34, 0.56, 0.24)
+	var ink := UI.INK
+	# (points are in hundredths of its length, from its middle; y down)
+	var at := func(points: Array) -> PackedVector2Array:
+		var out := PackedVector2Array()
+		for p: Vector2 in points:
+			out.append(middle + p * k)
+		return out
+	var body := [Vector2(-30, 0), Vector2(-22, -9), Vector2(-8, -15), Vector2(8, -16), Vector2(22, -13), Vector2(34, -7),
+			Vector2(46, -1), Vector2(40, 6), Vector2(26, 11), Vector2(8, 14), Vector2(-10, 12), Vector2(-24, 6)]
+	var tail := [Vector2(-28, -1), Vector2(-50, -15), Vector2(-43, 0), Vector2(-50, 14), Vector2(-28, 2)]
+	var back_fin := [Vector2(-4, -15), Vector2(6, -25), Vector2(14, -15)]
+	var under_fin := [Vector2(-12, 11), Vector2(-17, 21), Vector2(-4, 13)]
+	var chest_fin := [Vector2(14, 10), Vector2(8, 22), Vector2(22, 12)]
+	# an ink edge all round it: the same shapes, a little bigger, drawn first
+	for shape: Array in [body, tail, back_fin, under_fin, chest_fin]:
+		var edge := []
+		for p: Vector2 in shape:
+			edge.append(p * 1.0 + p.normalized() * 3.2)
+		draw_colored_polygon(at.call(edge), ink)
+	draw_colored_polygon(at.call(tail), dark)
+	draw_colored_polygon(at.call(back_fin), dark)
+	draw_colored_polygon(at.call(under_fin), dark)
+	draw_colored_polygon(at.call(chest_fin), dark)
+	draw_colored_polygon(at.call(body), red)
+	# its back darker, its belly pale, its head green with a hooked jaw
+	draw_colored_polygon(at.call([Vector2(-30, 0), Vector2(-22, -9), Vector2(-8, -15), Vector2(8, -16), Vector2(22, -13), Vector2(22, -7), Vector2(-24, -3)]), dark)
+	draw_colored_polygon(at.call([Vector2(-24, 6), Vector2(-10, 12), Vector2(8, 14), Vector2(22, 11), Vector2(22, 6), Vector2(-22, 3)]), pale)
+	draw_colored_polygon(at.call([Vector2(22, -13), Vector2(34, -7), Vector2(46, -1), Vector2(44, 4), Vector2(40, 6), Vector2(26, 11), Vector2(19, 0)]), green)
+	draw_colored_polygon(at.call([Vector2(40, -3), Vector2(48, -2), Vector2(47, 5), Vector2(43, 3)]), green.darkened(0.25))
+	draw_circle(middle + Vector2(33, -4) * k, 3.4 * k, Color(0.98, 0.9, 0.4))
+	draw_circle(middle + Vector2(33.6, -4) * k, 1.9 * k, ink)
