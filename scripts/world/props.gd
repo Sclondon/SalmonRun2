@@ -1597,3 +1597,38 @@ static func half_ring(span: float, high: float, banner: Color, stone := Color(0.
 	for sx: float in [-1.0, 1.0]:
 		frustum(mb, Vector3(sx * span * 0.5, -2.5, 0.0), Vector3(sx * span * 0.5, 0.4, 0.0), thick * 1.7, thick * 1.3, 7, stone, true)
 	return mb.build()
+
+
+## A flying fish: a slim blue-backed, silver-bellied fish with front fins as long as its body,
+## held out flat like wings, a smaller pair behind them, and a tail whose lower lobe is the
+## longer (it sculls the water with it to take off). Nose at -Z, about 1 long.
+static func flying_fish() -> ArrayMesh:
+	var mb := MB.new()
+	var back := Color(0.1, 0.24, 0.5)
+	var flank := Color(0.62, 0.74, 0.9)
+	var belly := Color(0.95, 0.97, 1.0)
+	var wing := Color(0.5, 0.68, 0.9)
+	_ringed_body(mb, [
+		[-0.5, 0.015, 0.02, 0.0],
+		[-0.34, 0.06, 0.07, 0.0],
+		[-0.05, 0.075, 0.09, 0.0],
+		[0.25, 0.05, 0.065, 0.0],
+		[0.42, 0.02, 0.03, 0.0],
+	], 6, back, flank, belly)
+	# the tail: the lower lobe the longer
+	var root := Vector3(0.0, 0.0, 0.4)
+	mb.tri(root + Vector3(0, 0.02, 0), Vector3(0.0, 0.14, 0.58), Vector3(0.0, 0.0, 0.48), back, Vector3.RIGHT)
+	mb.tri(root - Vector3(0, 0.02, 0), Vector3(0.0, 0.0, 0.48), Vector3(0.0, -0.2, 0.66), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.07, 0.16), Vector3(0.0, 0.13, 0.28), Vector3(0.0, 0.05, 0.32), back, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		# the wings: long, swept back a little, with darker ribs; and the small pair behind
+		var sh := Vector3(sx * 0.07, 0.02, -0.22)
+		mb.quad(sh, sh + Vector3(sx * 0.62, 0.06, 0.1), sh + Vector3(sx * 0.56, 0.05, 0.36), sh + Vector3(0.0, 0.0, 0.2), wing, Vector3.UP)
+		for k in 3:
+			var t := 0.25 + 0.25 * k
+			mb.quad(sh + Vector3(0.0, 0.004, 0.2 * t), sh + Vector3(sx * 0.6, 0.064, 0.1 + 0.26 * t), sh + Vector3(sx * 0.6, 0.064, 0.115 + 0.26 * t), sh + Vector3(0.0, 0.004, 0.2 * t + 0.015), back, Vector3.UP)
+		var hip := Vector3(sx * 0.05, -0.02, 0.14)
+		mb.tri(hip, hip + Vector3(sx * 0.26, 0.02, 0.1), hip + Vector3(0.0, 0.0, 0.14), wing, Vector3.UP)
+		var e := Vector3(sx * 0.055, 0.02, -0.36)
+		mb.quad(e + Vector3(0, 0.02, -0.02), e + Vector3(0, 0.02, 0.02), e + Vector3(0, -0.02, 0.02), e + Vector3(0, -0.02, -0.02), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+	return mb.build()

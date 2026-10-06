@@ -18,6 +18,8 @@ const KINDS := {
 	"turtle": {"chance": 0.6, "count": 4, "few": 1, "size": 1.1},
 	"whale": {"chance": 0.45, "count": 2, "few": 1, "size": 1.7},
 	"tuna": {"chance": 0.9, "count": 9, "few": 4, "size": 1.25},
+	# (flying fish: a flight of them breaks out of the sea ahead and glides low over it)
+	"flyer": {"chance": 0.8, "count": 10, "few": 5, "size": 2.2},
 	# (in fresh water; the golden trout is a rare one: touch it and it joins the pack)
 	"trout": {"chance": 0.75, "count": 7, "few": 3, "size": 1.0, "fresh": true},
 	"sturgeon": {"chance": 0.5, "count": 3, "few": 1, "size": 1.0, "fresh": true},
@@ -48,7 +50,7 @@ func setup(t: Track, p: Salmon) -> void:
 	track = t
 	player = p
 	_rng.randomize()
-	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna(), "trout": Props.trout(), "sturgeon": Props.sturgeon(), "golden": Props.trout(true), "angler": Props.angler()}
+	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna(), "trout": Props.trout(), "sturgeon": Props.sturgeon(), "golden": Props.trout(true), "angler": Props.angler(), "flyer": Props.flying_fish()}
 	for kind: String in KINDS:
 		for i in int(KINDS[kind].count):
 			var node := MeshInstance3D.new()
@@ -107,6 +109,17 @@ func _place(a: Dictionary, first: bool) -> void:
 			a.x = _rng.randf_range(-0.85, 0.85) * maxf(lim - 4.0, 1.0)
 			a.depth = _rng.randf_range(0.45, 0.95) * track.layers() * track.layer_depth()
 			a.pace = _rng.randf_range(0.5, 2.0)
+		"flyer":
+			# a flight of them together, ahead and to one side, going the salmon's way
+			if int(a.i) == 0:
+				a.s = player.s + _rng.randf_range(50.0, 120.0)
+				a.x = clampf(player.x + _rng.randf_range(8.0, 22.0) * (1.0 if _rng.randf() < 0.5 else -1.0), -lim + 4.0, lim - 4.0)
+			else:
+				var first_one: Dictionary = _animals.filter(func(b: Dictionary) -> bool: return b.kind == "flyer" and int(b.i) == 0)[0]
+				a.s = float(first_one.s) + _rng.randf_range(-9.0, 9.0)
+				a.x = float(first_one.x) + _rng.randf_range(-6.0, 6.0)
+			a.depth = 0.4
+			a.pace = Salmon.CRUISE + _rng.randf_range(1.0, 5.0)
 		"sturgeon":
 			# a great slow fish, down on the bed
 			a.s = player.s + _rng.randf_range(150.0, 400.0) + (0.0 if first else 250.0) + int(a.i) * 180.0
@@ -193,6 +206,15 @@ func _process(delta: float) -> void:
 				# (it turns to watch the salmon go by, and bobs a little)
 				sway = clampf((player.x - float(a.x)) * 0.04, -0.7, 0.7) + PI
 				depth += sin(_t * 0.9 + phase) * 0.3
+			"flyer":
+				# under the water a moment, then out of it and a long low glide, and in again
+				var turn := fposmod(_t * 0.33 + phase, 1.0)
+				var glide := clampf((turn - 0.25) / 0.6, 0.0, 1.0)
+				var up := sin(glide * PI)
+				depth = 0.4 - (0.4 + 1.9 * pow(up, 0.6)) * (1.0 if glide > 0.0 and glide < 1.0 else 0.0)
+				tilt = cos(glide * PI) * 0.35 if glide > 0.0 and glide < 1.0 else 0.0
+				roll = sin(_t * 2.0 + phase) * 0.12
+				sway = sin(_t * 14.0 + phase) * (0.02 if glide > 0.0 and glide < 1.0 else 0.16)
 			"sturgeon":
 				sway = sin(_t * 1.6 + phase) * 0.1
 			"turtle":

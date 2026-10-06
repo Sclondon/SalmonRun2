@@ -41,6 +41,9 @@ const PAGES := [
 	{"name": "PACIFIC SARDINE", "latin": "Sardinops sagax", "kicker": "IN THE SEA", "length": "ABOUT 20 CM",
 		"fact": "SARDINES KEEP TOGETHER IN SHOALS OF MANY THOUSANDS, WHICH TURN AND FLASH AS ONE.",
 		"model": "sardine", "reach": 0.9},
+	{"name": "FLYING FISH", "latin": "Exocoetidae", "kicker": "IN THE SEA", "length": "ABOUT 25 CM",
+		"fact": "A FLYING FISH LEAPS CLEAR OF THE SEA AND GLIDES ON ITS FINS, SOMETIMES FOR 200 METRES.",
+		"model": "flyer", "reach": 1.4},
 	{"name": "PACIFIC BLUEFIN TUNA", "latin": "Thunnus orientalis", "kicker": "IN THE SEA", "length": "UP TO 3 M",
 		"fact": "A BLUEFIN CROSSES THE WHOLE PACIFIC, AND CAN SWIM AS FAST AS A CAR ON A ROAD.",
 		"model": "tuna", "reach": 2.2},
@@ -238,6 +241,8 @@ func _build_stage() -> void:
 				_part(node, Props.jelly(rng), mat, Vector3(0.0, 0.4, 0.0))
 			"sardine":
 				_part(node, Props.sardine(), mat, Vector3.ZERO)
+			"flyer":
+				_part(node, Props.flying_fish(), mat, Vector3.ZERO)
 			"tuna":
 				_part(node, Props.tuna(), mat, Vector3.ZERO)
 			"turtle":
