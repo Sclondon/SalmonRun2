@@ -225,7 +225,15 @@ static func salmon(look := "spawner") -> ArrayMesh:
 	mb.tri(Vector3(0.0, -0.14 * slim, 0.42), Vector3(0.0, -0.14 * slim - 0.32 * tail, 0.64), Vector3(0.0, -0.06 * slim, 0.72), fin, Vector3.RIGHT)
 	# kype (the hooked jaw males grow for the spawning run)
 	if kype > 0.0:
-		mb.tri(Vector3(0.0, -0.04, -1.18), Vector3(0.0, -0.04 - 0.12 * kype, -1.18 - 0.12 * kype), Vector3(0.0, -0.12, -1.02), jaw, Vector3.RIGHT)
+		# It is the upper jaw that hooks: the snout grows out past the lower jaw and turns down
+		# over the end of it, an overbite. (The lower jaw stays short, tucked in behind the hook.)
+		var root_top := Vector3(0.0, 0.07, -1.08)
+		var root_under := Vector3(0.0, -0.03, -1.14)
+		var beak := Vector3(0.0, 0.02, -1.26 - 0.08 * kype)
+		var hook := Vector3(0.0, -0.05 - 0.13 * kype, -1.25 - 0.03 * kype)
+		mb.tri(root_top, beak, hook, head, Vector3.RIGHT)
+		mb.tri(root_top, hook, root_under, head, Vector3.RIGHT)
+		mb.tri(Vector3(0.0, -0.05, -1.12), Vector3(0.0, -0.08, -1.19), Vector3(0.0, -0.13, -1.0), jaw, Vector3.RIGHT)
 	# parr marks: dark upright bars along each flank
 	var bars: int = L.bars
 	for k in bars:
