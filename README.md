@@ -59,8 +59,8 @@ progress bar: so many rings, tricks on the beat, a flow, a score, or few wipeout
 
 | Step | Stage | Leads to (default first) |
 |---|---|---|
-| 1 | Big Blue | Shallow Sea, Abyss |
-| 2 | Shallow Sea | Rocky Coast, Harbor |
+| 1 | Big Blue | Deadliest Catch, Abyss |
+| 2 | Deadliest Catch | Rocky Coast, Harbor |
 | 2 | Abyss | Coral Reef, Arctic Waters |
 | 3 | Rocky Coast | The Fish Ladder, Dry Riverbed |
 | 3 | Harbor | The Fish Farm, The Fish Ladder |

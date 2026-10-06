@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crkrpclta8smj"
-path="res://.godot/imported/shallow_sea.png-96d5eafdb6fbccae9ba6b046840213dd.ctex"
+uid="uid://cwpl3wa82jiy0"
+path="res://.godot/imported/deadliest_catch.png-635cbaba407b0245aea3aa535a5840be.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/shallow_sea.png"
-dest_files=["res://.godot/imported/shallow_sea.png-96d5eafdb6fbccae9ba6b046840213dd.ctex"]
+source_file="res://textures/previews/deadliest_catch.png"
+dest_files=["res://.godot/imported/deadliest_catch.png-635cbaba407b0245aea3aa535a5840be.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

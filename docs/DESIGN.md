@@ -78,7 +78,7 @@ screens: the salmon never leaves the water between one stage and the next.
   not met; it opens the moment it is, and shuts again if a goal is lost (few wipeouts). The
   side the salmon passes the bow on is the way it goes.
 - **The abyss is a special case.** On the Big Blue the ship only lies in the course: the
-  way on (Shallow Sea) is past it on either side, and the advanced way (Abyss) is
+  way on (Deadliest Catch) is past it on either side, and the advanced way (Abyss) is
   *down*: a giant current, 9 m across the radius, that begins a dive under the surface to
   the right of the ship and goes down six layers. It is only there once the goal is met.
   Dive into it and it carries the salmon down, through the finish, and on into the trench.
@@ -86,7 +86,7 @@ screens: the salmon never leaves the water between one stage and the next.
   layers deep, nothing on its surface, no coming up and no jumping, until a current near
   its end climbs back to the surface and throws the salmon out, ahead of its own fork.
 - **Every stage has a fork of its own**, and it need not be at the end (`"divider"` and
-  `"fork_at"` in `levels.gd`): sea stacks in the Shallow Sea and at the end of the trench, a
+  `"fork_at"` in `levels.gd`): sea stacks in the Deadliest Catch and at the end of the trench, a
   gravel bar on the Rocky Coast, an iceberg in Arctic Waters, a pier in the harbours and the
   fish ladder, a reef in the Coral Reef (two of them: three ways), an island in the
   Meandering River, a logjam in the Dry Riverbed. Only the Big Blue has the cruise ship.
@@ -104,8 +104,8 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 
 | Step | Stage | Where | Leads to (default first) | Goal to open the rest |
 |---|---|---|---|---|
-| 1 | Big Blue | mid Pacific | Shallow Sea, Abyss | collect 12 rings |
-| 2 | Shallow Sea | Gulf of Alaska | Rocky Coast, Harbor | 5 tricks on the beat |
+| 1 | Big Blue | mid Pacific | Deadliest Catch, Abyss | collect 12 rings |
+| 2 | Deadliest Catch | Gulf of Alaska | Rocky Coast, Harbor | 5 tricks on the beat |
 | 2 | Abyss | Mariana Trench | Coral Reef, Arctic Waters | 5 tricks on the beat |
 | 3 | Rocky Coast | off British Columbia | The Fish Ladder, Dry Riverbed | no more than 2 wipeouts |
 | 3 | Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
@@ -243,7 +243,7 @@ are 16 to 21 m between their banks.
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
 | Big Blue | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
-| Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
+| Deadliest Catch | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
 | Abyss | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Big Blue, left by a current back to the surface; currents, boost rings and sea nettles |
 | Rocky Coast | the coast of Oregon under a grey sky: 70 m of sea with a rocky shore along the left only (dark sand, black rock, sea stacks, drift logs, spruce on the bluffs) and open water on the right | barely climbs | shark | |
 | Harbor | quays, cranes, sodium light | barely climbs | shark | |
@@ -308,7 +308,7 @@ and down freely, to anywhere between the layers and back to the surface: up and 
 keys or the stick, or a slow drag up or down with the finger held (a quick stroke is still a
 swipe). Steering and speed are the same at
 every depth. A river has one layer under the surface (1.7 m down). The **Big Blue** has
-six and the Abyss three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
+six and the Abyss three, 3.6 m apart; the Deadliest Catch has two, 2.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
   barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
@@ -318,7 +318,7 @@ six and the Abyss three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
   colour of the water, shafts of light slant down from the surface, the distance goes murky
   and the music is muffled. Bubbles come up from the deep and specks hang in the water.
 
-What is under the sea stages with layers (Big Blue, Shallow Sea, Abyss) is laid out
+What is under the sea stages with layers (Big Blue, Deadliest Catch, Abyss) is laid out
 on its own along a trail of its own, whatever is on the surface above it
 (`deep` in `levels.gd`):
 
@@ -386,7 +386,7 @@ on its own along a trail of its own, whatever is on the surface above it
   other salmon, the wake and the splashes ride them. Nothing flashes on the beat: the water
   and the light are steady.
 - **Open sea** stages have a floor of rolling hills below (`floor`) instead of a river bed:
-  in sight in the Shallow Sea and the Coral Reef, and not drawn at all under the Big Blue.
+  in sight in the Deadliest Catch and the Coral Reef, and not drawn at all under the Big Blue.
   From underneath, the surface is a bright ceiling that hides the sky.
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening

@@ -52,7 +52,7 @@ extends RefCounted
 const LIST: Array[Dictionary] = [
 	{
 		"name": "BIG BLUE", "place": "NORTH PACIFIC", "at": Vector2(22, -165), "tier": 0, "salt": true,
-		"next": ["SHALLOW SEA", "ABYSS"],
+		"next": ["DEADLIEST CATCH", "ABYSS"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "SOMETHING IS CALLING YOU HOME",
 		"fact": "A SOCKEYE SPENDS ABOUT TWO YEARS FEEDING AT SEA BEFORE IT TURNS FOR HOME.",
@@ -99,7 +99,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.97, 1.0),
 	},
 	{
-		"name": "SHALLOW SEA", "place": "GULF OF ALASKA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
+		"name": "DEADLIEST CATCH", "place": "GULF OF ALASKA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
 		"divider": "stacks", "fork_at": 0.62,
 		"next": ["ROCKY COAST", "HARBOR"],
 		"objective": {"type": "on_beat", "n": 5},
@@ -135,7 +135,9 @@ const LIST: Array[Dictionary] = [
 			["driftwood", 0.05, 4.0, 50.0, 0.8, 1.4, -0.1, "water"],
 			["ship", 0.012, 90.0, 140.0, 1.0, 1.0, 0.0, "water"],
 			# (a long way off: they come up over the horizon as they are swum towards)
-			["mountain", 0.5, 330.0, 460.0, 1.6, 2.8, -4.0, "far", -1.0],
+			# (the mountains of the coast, along the left: far enough off to come up over the horizon,
+			# near enough to stand clear of the haze)
+			["mountain", 0.95, 200.0, 280.0, 1.4, 2.4, -4.0, "far", -1.0],
 		],
 		"sky_top": Color(0.08, 0.24, 0.5), "sky_horizon": Color(0.52, 0.74, 0.84),
 		"sky_bottom": Color(0.3, 0.48, 0.52), "sun": Color(1.0, 0.96, 0.84), "sun_dir": Vector3(-0.3, 0.42, -1.0),
