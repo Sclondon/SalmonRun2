@@ -185,7 +185,7 @@ on its own along a trail of its own, whatever is on the surface above it
   down and up through every layer there is. Swim into one (each starts a layer or two down, under a row of arrows on the
   surface) and it carries you off at boost speed, filling the boost bar and scoring by how
   long you stay on. An up or down swipe leaves it early; otherwise it lets you go at whatever
-  depth it ends. It is drawn as a tube of solid streaks and hoops, under the water like
+  depth it ends. It is drawn as thin white lines winding round a tube in a spiral, with thin rings, under the water like
   everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
   rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you

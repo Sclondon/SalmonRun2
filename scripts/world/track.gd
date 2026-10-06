@@ -1152,7 +1152,7 @@ func _build_current(c: Dictionary) -> void:
 	mat.shader = preload("res://shaders/current.gdshader")
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var sides := 8
+	var sides := 14
 	var rows := int((float(c.s1) - float(c.s0)) / 2.0)
 	for k in rows + 1:
 		var s: float = float(c.s0) + 2.0 * k
@@ -1179,7 +1179,7 @@ func _build_current(c: Dictionary) -> void:
 		var top := point(s, current_x(c, s), water_y(s) + 1.5 - 0.25 * k)
 		var across := right(s) * 0.9
 		for v: Vector3 in [top - across, top + across, top - Vector3.UP * 0.9]:
-			arrows.set_color(Color(0.55, 1.0, 0.95))
+			arrows.set_color(Color(1.0, 1.0, 1.0))
 			arrows.add_vertex(v)
 	var glow := StandardMaterial3D.new()
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
