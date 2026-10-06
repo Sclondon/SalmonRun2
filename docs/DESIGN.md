@@ -265,7 +265,7 @@ on its own along a trail of its own, whatever is on the surface above it
 - **Landing** must be roughly upright with no grab held, or it is a wipeout.
 - **Flow** is the multiplier: +1 for each clean trick up to x5. It resets on a wipeout or a
   bump, or after 4 seconds on the water without a trick.
-- **Timing:** every swipe is graded on how close to a beat it was made, and called out there
+- **Timing:** every swipe is graded on how close to a beat it was made, and the salmon says so there and then, in a speech bubble beside it in the world (`fx/speech.gd`)
   and then (the jump itself is one; on keys and pads, so is the start of each held spin). A
   trick is worth the grade of its swipes taken together, not when it lands. The grades: MISS,
   SLOPPY, O.K. (x1.1), ALRIGHT (x1.15), NICE (x1.25), GOOD (x1.35), GREAT (x1.5), EXCELLENT

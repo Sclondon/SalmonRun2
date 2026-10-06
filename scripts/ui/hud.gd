@@ -39,21 +39,26 @@ func _ready() -> void:
 	root.add_child(tl)
 	tl.add_child(UI.label("SCORE", 22, UI.TEAL, 6))
 	_score = UI.label("0", 52, Color.WHITE)
+	tl.add_theme_constant_override("separation", -4)
 	tl.add_child(_score)
+	# (the best there has been on this stage, small, under it)
+	_best = UI.label("", 18, UI.GOLD, 6)
+	tl.add_child(_best)
 
 	var tr := VBoxContainer.new()
 	tr.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	tr.position = Vector2(-260, 18)
+	# (the time, to the left of the pause button: see touch_controls.gd)
+	tr.position = Vector2(-350, 22)
 	tr.alignment = BoxContainer.ALIGNMENT_BEGIN
 	root.add_child(tr)
 	_time = UI.label("0:00.00", 44, Color.WHITE)
 	_time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_time.custom_minimum_size.x = 232
 	tr.add_child(_time)
-	_best = UI.label("", 20, UI.GOLD, 6)
-	_best.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_best.custom_minimum_size.x = 232
-	tr.add_child(_best)
+
+
+
+
 
 	_progress = UI.bar(UI.SALMON, Vector2(420, 12))
 	_progress.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -106,6 +111,8 @@ func _ready() -> void:
 	bl.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	bl.position = Vector2(30, -86)
 	root.add_child(bl)
+	# (the boost meter is not shown: less on the screen)
+	bl.visible = false
 	_boost_box = bl
 	_boost_label = UI.label("BOOST  [SHIFT]", 20, UI.TEAL, 6)
 	bl.add_child(_boost_label)
@@ -140,6 +147,7 @@ func set_touch_mode(on: bool) -> void:
 	_touch_mode = on
 	_boost_label.text = "BOOST" if on else "BOOST  [SHIFT]"
 	_speed.visible = not on
+	return
 	if on:
 		_boost_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE, 30)
 		_boost_box.offset_top += 110.0

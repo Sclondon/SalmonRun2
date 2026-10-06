@@ -81,7 +81,7 @@ func _notification(what: int) -> void:
 
 
 func _pause_center() -> Vector2:
-	return Vector2(size.x - 60.0 * _k(), 150.0 * _k())
+	return Vector2(size.x - 58.0 * _k(), 50.0 * _k())
 
 
 func _input(event: InputEvent) -> void:
@@ -270,10 +270,23 @@ func _draw() -> void:
 		for i in lines.size():
 			_label(font, Vector2(size.x * 0.5, size.y - (90.0 + (lines.size() - 1 - i) * 34.0) * k), lines[i], fs, Color(1, 1, 1, 0.85))
 	var pc := _pause_center()
-	draw_circle(pc, PAUSE_RADIUS * k, Color(0, 0, 0, 0.35))
-	draw_arc(pc, PAUSE_RADIUS * k, 0.0, TAU, 32, Color(1, 1, 1, 0.7), 3.0 * k)
-	draw_rect(Rect2(pc + Vector2(-12, -14) * k, Vector2(8, 28) * k), Color.WHITE)
-	draw_rect(Rect2(pc + Vector2(4, -14) * k, Vector2(8, 28) * k), Color.WHITE)
+	# the pause button: a small rounded card of the game's paper, with an ink edge and a drop
+	# shadow, and the two bars in ink
+	var half := Vector2(PAUSE_RADIUS, PAUSE_RADIUS) * k * 0.82
+	var plate := StyleBoxFlat.new()
+	plate.bg_color = Color(UI.PAPER, 0.92)
+	plate.border_color = UI.INK
+	plate.set_border_width_all(maxi(int(3.0 * k), 2))
+	plate.set_corner_radius_all(int(10.0 * k))
+	plate.shadow_color = Color(0.0, 0.02, 0.08, 0.45)
+	plate.shadow_size = int(5.0 * k)
+	plate.shadow_offset = Vector2(0.0, 3.0 * k)
+	draw_style_box(plate, Rect2(pc - half, half * 2.0))
+	for side: float in [-1.0, 1.0]:
+		var bar := StyleBoxFlat.new()
+		bar.bg_color = UI.INK
+		bar.set_corner_radius_all(int(3.0 * k))
+		draw_style_box(bar, Rect2(pc + Vector2(side * 8.0 - 4.5, -12.0) * k, Vector2(9.0, 24.0) * k))
 
 
 func _label(font: Font, center: Vector2, text: String, font_size: int, col: Color) -> void:

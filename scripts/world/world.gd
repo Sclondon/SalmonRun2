@@ -10,6 +10,7 @@ const Shoals := preload("res://scripts/world/shoals.gd")
 const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
 const SeaVisitors := preload("res://scripts/world/sea_visitors.gd")
 const CurrentBubbles := preload("res://scripts/world/current_bubbles.gd")
+const Speech := preload("res://scripts/fx/speech.gd")
 
 var track: Track
 var player: Salmon
@@ -36,6 +37,8 @@ var sardines: Shoals
 var edge_swarm: EdgeSwarm
 var visitors: SeaVisitors
 var bubbles: CurrentBubbles
+## What the salmon says (how well a swipe was timed), in a bubble beside it.
+var speech: Speech
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -90,6 +93,9 @@ func _ready() -> void:
 	bubbles = CurrentBubbles.new()
 	add_child(bubbles)
 	bubbles.setup(track, player, 30 if Save.is_mobile() else 60)
+	speech = Speech.new()
+	speech.who = player
+	add_child(speech)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0

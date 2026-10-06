@@ -989,7 +989,7 @@ func _on_trick(trick: Dictionary) -> void:
 	if trick.get("swiped", false):
 		return
 	# how well it was timed, from MISS up to PERFECT!
-	hud.show_grade(grade, str(Score.GRADES[grade][0]))
+	world.speech.say(str(Score.GRADES[grade][0]), Hud.GRADE_COLORS[grade])
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
 
@@ -998,7 +998,7 @@ func _on_trick(trick: Dictionary) -> void:
 func _on_timed(grade: int) -> void:
 	if phase != Phase.RACE:
 		return
-	hud.show_grade(grade, str(Score.GRADES[grade][0]))
+	world.speech.say(str(Score.GRADES[grade][0]), Hud.GRADE_COLORS[grade])
 	if grade >= Score.ON_BEAT:
 		Sfx.play("ding", 0.7 + 0.075 * (grade - Score.ON_BEAT))
 	# three in a row timed EXCELLENT or better call up a salmon run: a crowd of salmon that
