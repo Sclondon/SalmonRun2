@@ -18,6 +18,10 @@ const KINDS := {
 	"turtle": {"chance": 0.6, "count": 4, "few": 1, "size": 1.1},
 	"whale": {"chance": 0.45, "count": 2, "few": 1, "size": 1.0},
 	"tuna": {"chance": 0.6, "count": 9, "few": 3, "size": 1.0},
+	# (in fresh water; the golden trout is a rare one: touch it and it joins the pack)
+	"trout": {"chance": 0.75, "count": 7, "few": 3, "size": 1.0, "fresh": true},
+	"sturgeon": {"chance": 0.5, "count": 3, "few": 1, "size": 1.0, "fresh": true},
+	"golden": {"chance": 0.22, "count": 1, "few": 1, "size": 1.15, "fresh": true, "rare": true},
 }
 
 var track: Track
@@ -26,6 +30,9 @@ var player: Salmon
 ## How well the stage is going, from 0 to 1 (set from the score, by main): the more, the
 ## more animals are about.
 var abundance := 0.0
+
+## The salmon has touched the golden trout (which is then gone from here: see world.gd).
+signal befriended
 
 var _animals: Array[Dictionary] = []
 # for each kind: whether the stage has it from the start, and the score it turns up at anyway
@@ -39,7 +46,7 @@ func setup(t: Track, p: Salmon) -> void:
 	track = t
 	player = p
 	_rng.randomize()
-	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna()}
+	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna(), "trout": Props.trout(), "sturgeon": Props.sturgeon(), "golden": Props.trout(true)}
 	for kind: String in KINDS:
 		for i in int(KINDS[kind].count):
 			var node := MeshInstance3D.new()
@@ -57,8 +64,11 @@ func scatter() -> void:
 	var salt := bool(track.cfg.get("salt", false))
 	_about = {}
 	for kind: String in KINDS:
-		_about[kind] = salt and _rng.randf() < float(KINDS[kind].chance)
-		_turns_up[kind] = _rng.randf_range(0.25, 0.9) if salt else 9.0
+		# (each in its own water: those of the sea in salt, trout and sturgeon in fresh)
+		var at_home: bool = salt != bool(KINDS[kind].get("fresh", false))
+		_about[kind] = at_home and _rng.randf() < float(KINDS[kind].chance)
+		# (a rare one is there or it is not: no score brings it)
+		_turns_up[kind] = _rng.randf_range(0.25, 0.9) if at_home and not KINDS[kind].get("rare", false) else 9.0
 	for a: Dictionary in _animals:
 		a.here = false
 		(a.node as MeshInstance3D).visible = false
@@ -69,6 +79,18 @@ func scatter() -> void:
 func _place(a: Dictionary, first: bool) -> void:
 	var lim := track.width(player.s) * 0.5
 	match a.kind:
+		"trout", "golden":
+			# one here, one there, holding in the stream or nosing along it, under the surface
+			a.s = player.s + _rng.randf_range(60.0, 240.0) + (0.0 if first else 120.0) + (200.0 if a.kind == "golden" else 0.0)
+			a.x = _rng.randf_range(-0.8, 0.8) * maxf(lim - 2.5, 1.0)
+			a.depth = _rng.randf_range(0.35, minf(1.2, track.layer_depth()))
+			a.pace = _rng.randf_range(4.0, 14.0)
+		"sturgeon":
+			# a great slow fish, down on the bed
+			a.s = player.s + _rng.randf_range(150.0, 400.0) + (0.0 if first else 250.0) + int(a.i) * 180.0
+			a.x = _rng.randf_range(-0.6, 0.6) * maxf(lim - 3.0, 1.0)
+			a.depth = maxf(track.layers() * track.layer_depth() + 0.5, 1.5)
+			a.pace = _rng.randf_range(1.0, 2.5)
 		"turtle":
 			a.s = player.s + _rng.randf_range(120.0, 320.0) + (0.0 if first else 250.0) + int(a.i) * 260.0
 			a.x = _rng.randf_range(-0.6, 0.6) * (lim - 6.0)
@@ -130,6 +152,19 @@ func _process(delta: float) -> void:
 		var roll := 0.0
 		var sway := 0.0
 		match a.kind:
+			"trout", "golden":
+				sway = sin(_t * 8.0 + phase) * 0.14
+				depth += sin(_t * 0.8 + phase) * 0.12
+				# the golden one: touched, it is the salmon's friend, and goes with the pack
+				if a.kind == "golden" and absf(s - player.s) < 2.6 and absf(float(a.x) - player.x) < 2.2 \
+						and absf(player.y - (track.water_y(s) - depth)) < 2.0:
+					a.here = false
+					_about["golden"] = false
+					node.visible = false
+					befriended.emit()
+					continue
+			"sturgeon":
+				sway = sin(_t * 1.6 + phase) * 0.1
 			"turtle":
 				# paddling: it rises and sinks a little with each stroke, and rocks
 				depth += sin(_t * 1.6 + phase) * 0.25

@@ -40,6 +40,8 @@ const SWIPE_JUMP := 1.0
 const ARC_RADIUS := 0.9
 ## How far downstream you are swept when you fail to clear a waterfall (room for a run-up).
 const WASH_BACK := 40.0
+## How far its back is arched as it rides a rail.
+const RAIL_ARCH := -0.8
 ## How far above the water counts as being in the air while wiped out.
 const AIRBORNE := 0.4
 ## Swipe tricks: the two axes, how long one full turn takes on each (seconds), and how much of
@@ -81,6 +83,14 @@ var grabs := {}
 var rail: Dictionary = {}
 var rail_time := 0.0
 var wipe_time := 0.0
+## Swept back down from a waterfall it did not clear: how many metres it has still to be
+## carried (0 when it is not). It tumbles as it goes, and has no say in it.
+var washed := 0.0
+## On a rail: how far round it has still to spin (degrees, signed), how far round it is, and
+## how many spins it has made on this one (a swipe to one side is a spin).
+var _rail_spin := 0.0
+var _rail_yaw := 0.0
+var _rail_spins := 0
 var invuln := 0.0
 var control := false
 var autopilot := false
@@ -101,6 +111,8 @@ var _marks: Array[int] = []
 var _held := [true, true, true, true]
 var _rise := 0.0
 var _rise_v := 0.0
+# how far it has climbed without a break, coming up from the deep (metres): see the swoop
+var _swoop := 0.0
 # how fast it is going up or down under the water (m/s, up is +), for the tilt of its body
 var _climb := 0.0
 var _dive_was := 0.0
@@ -192,9 +204,14 @@ func setup(t: Track) -> void:
 		dots.initial_velocity_max = 2.8
 		dots.gravity = Vector3(0, -18, 0)
 		_dots.append(dots)
-	_spray = _particles(24, 0.3, Color(0.4, 1.0, 0.9), 0.14)
-	_spray.local_coords = true
-	_spray.gravity = Vector3(0, -6, 0)
+	# sparks off a rail, only wet: bright drops flung up and back from under the salmon
+	_spray = _particles(70, 0.45, Color(0.9, 1.0, 1.0), 0.12)
+	_spray.local_coords = false
+	_spray.spread = 38.0
+	_spray.initial_velocity_min = 5.0
+	_spray.initial_velocity_max = 11.0
+	_spray.emission_box_extents = Vector3(0.25, 0.05, 0.6)
+	_spray.gravity = Vector3(0, -26, 0)
 	# the splashes are made now and used in turn (see fx/splash.gd)
 	for i in 4:
 		var splash := Splash.new()
@@ -261,6 +278,7 @@ func set_look(look: String) -> void:
 
 
 func reset(at_s: float) -> void:
+	washed = 0.0
 	s = at_s
 	if _wake:
 		_wake.clear()
@@ -318,6 +336,21 @@ func _process(delta: float) -> void:
 	_jump_prev = jump_held
 	invuln = maxf(invuln - delta, 0.0)
 	var s_before := s
+	if washed > 0.0:
+		# carried back down by the water, quickly at first and easing off
+		var back := minf(lerpf(10.0, 30.0, clampf(washed / WASH_BACK, 0.0, 1.0)) * delta, washed)
+		washed -= back
+		s = maxf(s - back, 4.0)
+		x = lerpf(x, clampf(x, -track.width(s) * 0.5 + 3.0, track.width(s) * 0.5 - 3.0), 0.2)
+		y = track.water_y(s)
+		_prev_surface = y
+		speed = 6.0
+		vx = 0.0
+		if washed <= 0.0:
+			speed = 12.0
+			_stumble = 0.5
+		_update_visual(delta)
+		return
 	match state:
 		State.IDLE:
 			y = track.water_y(s)
@@ -445,9 +478,22 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	# layers; held up far enough, it comes back to the surface.
 	_rise = float(inp.get("rise", 0.0)) if layer > 0 and not autopilot else 0.0
 	# (up and down at the same speed as from side to side, and eased into in the same way)
-	_rise_v = lerpf(_rise_v, _rise * STEER, 1.0 - exp(-4.5 * dt)) if layer > 0 else 0.0
+	# (no faster than the water is deep: in a shallow river it is a gentle rise and fall, not
+	# a dart from top to bottom)
+	var rise_max := clampf(track.layers() * track.layer_depth() * 0.8, 2.2, STEER * 0.8)
+	_rise_v = lerpf(_rise_v, _rise * rise_max, 1.0 - exp(-3.0 * dt)) if layer > 0 else 0.0
+	_swoop = _swoop + _rise_v * dt if _rise_v > rise_max * 0.5 else 0.0
 	if absf(_rise_v) > 0.05:
 		dive_to = clampf(dive_to - _rise_v / track.layer_depth() * dt, 0.6 if track.cfg.get("submerged", false) and _sunk_here() else 0.0, float(track.layers()))
+		if dive_to < 0.3 and _swoop > minf(2.0, track.layers() * track.layer_depth() * 0.6) and not (track.cfg.get("submerged", false) and _sunk_here()):
+			# The swoop: come up from the deep without a check and it goes on up, clean out
+			# of the water, the higher the further it has climbed.
+			vy = 10.0 + minf(_swoop, 14.0) * 0.85 + _ramp_vy
+			_swoop = 0.0
+			_rise_v = 0.0
+			_do_splash(1.6)
+			_take_off(true)
+			return
 		if dive_to < 0.3:
 			_set_layer(0)
 		else:
@@ -520,6 +566,16 @@ func _try_current() -> void:
 ## Riding a current: it sets the way, fast, like a rail. An up or down swipe leaves it early.
 func _ride(dt: float, inp: Dictionary, released: bool) -> void:
 	rail_time += dt
+	# a swipe to one side spins it round on the log, once for each swipe
+	for sw: Vector2 in inp.swipes:
+		if sw.x != 0.0 and sw.y == 0.0:
+			_rail_spin -= sw.x * 360.0
+			_rail_spins += 1
+			_mark()
+			_stretch_v -= 3.0
+	var turn := signf(_rail_spin) * minf(absf(_rail_spin), 900.0 * dt)
+	_rail_spin -= turn
+	_rail_yaw += turn
 	boosting = true
 	boost = minf(boost + 12.0 * dt, 100.0)
 	speed = move_toward(speed, CRUISE + BOOST_SPEED + 4.0, 22.0 * dt)
@@ -821,6 +877,9 @@ func _start_grind(r: Dictionary) -> void:
 	dive_to = 0.0
 	rail = r
 	rail_time = 0.0
+	_rail_spin = 0.0
+	_rail_yaw = 0.0
+	_rail_spins = 0
 	vy = 0.0
 	yaw = 0.0
 	pitch = 0.0
@@ -835,6 +894,16 @@ func _start_grind(r: Dictionary) -> void:
 
 func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 	rail_time += dt
+	# a swipe to one side spins it round on the log, once for each swipe
+	for sw: Vector2 in inp.swipes:
+		if sw.x != 0.0 and sw.y == 0.0:
+			_rail_spin -= sw.x * 360.0
+			_rail_spins += 1
+			_mark()
+			_stretch_v -= 3.0
+	var turn := signf(_rail_spin) * minf(absf(_rail_spin), 900.0 * dt)
+	_rail_spin -= turn
+	_rail_yaw += turn
 	speed = move_toward(speed, CRUISE + 4.0, 3.0 * dt)
 	s += speed * dt
 	x = track.rail_x(rail, s)
@@ -846,8 +915,8 @@ func _grind(dt: float, inp: Dictionary, released: bool) -> void:
 		charge = SWIPE_JUMP
 	if released or s >= float(rail.s1):
 		Sfx.set_loop("grind", false)
-		var pts := 150 + int(rail_time * 450.0)
-		trick_landed.emit(_on_beat("Log Ride", pts))
+		var pts := 150 + int(rail_time * 450.0) + 260 * _rail_spins
+		trick_landed.emit(_on_beat("Log Ride" + (" + %d" % (_rail_spins * 360) if _rail_spins > 0 else ""), pts))
 		vy = 5.0 + (6.0 + 7.0 * charge if released else 0.0)
 		_take_off()
 
@@ -883,7 +952,9 @@ func _check_falls(prev_s: float) -> void:
 
 
 func _wash_back(base: float) -> void:
-	s = base - WASH_BACK
+	# (not set down further back: carried there, see `washed`)
+	washed = maxf(s - (base - WASH_BACK), 8.0)
+	s = minf(s, base - 0.5)
 	y = track.water_y(s)
 	vy = 0.0
 	speed = 12.0
@@ -980,7 +1051,7 @@ func _check_hazards() -> void:
 		# ...and under the paws of a bear
 		if dive > 0.6 and track.cfg.predator == "bear":
 			break
-		if absf(ds) < 2.8 and absf(x - float(b.x)) < 3.0 and above < 3.6 and b.node.is_swiping():
+		if absf(ds) < 3.6 and absf(x - float(b.x)) < 4.6 and above < 4.6 and b.node.is_swiping():
 			_wipe(track.cfg.predator_word)
 			Sfx.play("bear")
 			return
@@ -1046,9 +1117,10 @@ func _update_visual(dt: float) -> void:
 			wag_speed = 8.0 + speed * 0.35
 			if state == State.IDLE:
 				wag_speed = 5.0
-			target_curl = charge * 0.7
+			target_curl = RAIL_ARCH + charge * 0.3
 		State.AIR:
-			var traj := atan2(vy, maxf(speed, 1.0)) * 0.6
+			# (it follows the arc of the leap: nose up going up, over the top, and nose down coming in)
+			var traj := atan2(vy, maxf(speed, 1.0)) * 1.0
 			# Swing through spins and flips: the salmon travels round a small circle whose centre
 			# is on the inside of the turn, with its body curved along it.
 			var yaw_b := Basis(Vector3.UP, deg_to_rad(yaw))
@@ -1068,16 +1140,21 @@ func _update_visual(dt: float) -> void:
 				wag_amp = 0.02
 		State.GRIND:
 			pos.y += 0.1
-			b = base * Basis(Vector3.BACK, sin(_t * 9.0) * 0.12)
+			# (round and round on a swipe; and its back arched, riding on its belly)
+			b = base * Basis(Vector3.UP, deg_to_rad(_rail_yaw)) * Basis(Vector3.BACK, sin(_t * 9.0) * 0.12)
 			wag_speed = 18.0
 			wag_amp = 0.06
-			target_curl = charge * 0.7
+			target_curl = RAIL_ARCH + charge * 0.3
 		State.WIPEOUT:
 			var k := 1.0 - clampf(wipe_time / WIPE_TIME, 0.0, 1.0)
 			b = base * Basis(Vector3.UP, _t * 9.0 * k) * Basis(Vector3.BACK, _t * 14.0 * k)
 			pos.y -= 0.2 * (1.0 - k)
 			wag_speed = 24.0 * k
 			wag_amp = 0.2 * k
+	# (swept back down from a waterfall: over and over, half under the water)
+	if washed > 0.0:
+		b = base * Basis(Vector3.UP, _t * 7.0) * Basis(Vector3.BACK, _t * 11.0)
+		pos.y -= 0.25
 	# Squash and stretch on a spring: kicked long at take-off, flat on landing, tucked as a
 	# trick starts, and left to ring a little each time (the follow-through).
 	_stretch_v += (-260.0 * _stretch - 15.0 * _stretch_v) * dt
@@ -1107,6 +1184,10 @@ func _update_visual(dt: float) -> void:
 	_bubbles.emitting = (state == State.SWIM or state == State.CURRENT) and dive > 0.5
 	# (sparks off the rail only: in the air they were just blue specks round the fish)
 	_spray.emitting = state == State.GRIND
+	if _spray.emitting:
+		# (up and back the way it has come, a little to either side by turns)
+		_spray.direction = (Vector3.UP * 1.2 - track.forward(s) + track.right(s) * sin(_t * 23.0) * 0.7).normalized()
+		_spray.global_position = track.point(s, x, y - 0.25)
 	for dots in _dots:
 		dots.emitting = state == State.SWIM and speed > 8.0 and dive < 0.3
 

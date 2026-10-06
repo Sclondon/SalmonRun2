@@ -241,8 +241,8 @@ func _process(delta: float) -> void:
 	# Up and down the same stick swims the salmon up and down under the water, freely. It
 	# takes a longer, slower drag than steering does, so that a turn does not change the depth
 	# (a quick stroke is still a swipe: up a layer, or down one).
-	var lift := clampf((_pos.y - _drag_from_y) / (STICK_REACH * 1.3 * _k()), -1.0, 1.0)
-	GameInput.follow_dy = 0.0 if absf(lift) < 0.35 or wiggling or roll != 0.0 else lift
+	var lift := clampf((_pos.y - _drag_from_y) / (STICK_REACH * 1.7 * _k()), -1.0, 1.0)
+	GameInput.follow_dy = 0.0 if absf(lift) < 0.42 or wiggling or roll != 0.0 else lift
 
 
 func _draw() -> void:

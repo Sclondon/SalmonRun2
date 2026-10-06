@@ -1349,3 +1349,91 @@ static func sardine() -> ArrayMesh:
 		mb.quad(p + Vector3(0, 0.01, -0.01), p + Vector3(0, 0.01, 0.01), p + Vector3(0, -0.01, 0.01), p + Vector3(0, -0.01, -0.01), Color(0.02, 0.02, 0.03), out)
 		mb.tri(Vector3(sx * 0.066, -0.03, -0.22), Vector3(sx * 0.13, -0.08, -0.1), Vector3(sx * 0.066, -0.05, -0.14), fin, Vector3.UP)
 	return mb.build()
+
+
+## A rainbow trout: salmon-shaped but smaller, olive on the back, a pink band along a pale
+## flank, and dark spots all over the back and the tail. Or (golden) a golden trout: bright
+## gold all over, with a red band and belly. Nose at -Z, about 1.5 long.
+static func trout(golden := false) -> ArrayMesh:
+	var mb := MB.new()
+	var olive := Color(0.72, 0.56, 0.1) if golden else Color(0.3, 0.38, 0.22)
+	var flank := Color(1.0, 0.82, 0.2) if golden else Color(0.82, 0.84, 0.74)
+	var belly := Color(1.0, 0.56, 0.2) if golden else Color(0.96, 0.95, 0.9)
+	var pink := Color(0.95, 0.25, 0.2) if golden else Color(0.9, 0.45, 0.5)
+	var spot := Color(0.1, 0.12, 0.08)
+	var fin := Color(0.95, 0.6, 0.15) if golden else Color(0.45, 0.48, 0.3)
+	if golden:
+		# (it shines)
+		flank = glow(flank, 0.35)
+	_ringed_body(mb, [
+		[-0.75, 0.02, 0.025, 0.0],
+		[-0.56, 0.1, 0.13, 0.0],
+		[-0.2, 0.15, 0.2, 0.01],
+		[0.2, 0.13, 0.18, 0.01],
+		[0.5, 0.07, 0.1, 0.0],
+		[0.62, 0.035, 0.05, 0.0],
+	], 8, olive, flank, belly)
+	# the tail (barely forked), the fin on its back, the small one behind it, and one below
+	var root := Vector3(0.0, 0.0, 0.6)
+	mb.tri(root + Vector3(0, 0.04, 0), Vector3(0.0, 0.24, 0.9), Vector3(0.0, 0.0, 0.8), fin, Vector3.RIGHT)
+	mb.tri(root - Vector3(0, 0.04, 0), Vector3(0.0, 0.0, 0.8), Vector3(0.0, -0.24, 0.9), fin, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.2, -0.16), Vector3(0.0, 0.36, 0.02), Vector3(0.0, 0.18, 0.14), olive, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.11, 0.4), Vector3(0.0, 0.17, 0.48), Vector3(0.0, 0.09, 0.5), olive, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.16, 0.22), Vector3(0.0, -0.3, 0.36), Vector3(0.0, -0.12, 0.42), fin, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		var out := Vector3(sx, 0.0, 0.0)
+		# the band along the flank, and the spots above it
+		mb.quad(Vector3(sx * 0.152, 0.03, -0.46), Vector3(sx * 0.152, 0.03, 0.44), Vector3(sx * 0.156, -0.03, 0.44), Vector3(sx * 0.156, -0.03, -0.46), pink, out)
+		for k in 9:
+			var c := Vector3(sx * (0.128 + 0.01 * sin(k * 2.1)), 0.09 + 0.035 * sin(k * 1.7), -0.4 + k * 0.1)
+			mb.quad(c + Vector3(0, 0.014, -0.016), c + Vector3(0, 0.014, 0.016), c + Vector3(0, -0.014, 0.016), c + Vector3(0, -0.014, -0.016), spot, out)
+		mb.tri(Vector3(sx * 0.11, -0.08, -0.4), Vector3(sx * 0.26, -0.16, -0.2), Vector3(sx * 0.12, -0.1, -0.26), fin, Vector3.UP)
+		var e := Vector3(sx * 0.092, 0.035, -0.6)
+		mb.quad(e + Vector3(0, 0.022, -0.022), e + Vector3(0, 0.022, 0.022), e + Vector3(0, -0.022, 0.022), e + Vector3(0, -0.022, -0.022), Color(0.02, 0.02, 0.03), out)
+	return mb.build()
+
+
+## A white sturgeon: a long grey fish of the river bed, flat underneath, with a long snout
+## and whiskers under it, rows of bony plates down its back and sides, and a tail like that
+## of a shark, the upper lobe much the longer. Nose at -Z, about 3.4 long.
+static func sturgeon() -> ArrayMesh:
+	var mb := MB.new()
+	var grey := Color(0.36, 0.38, 0.36)
+	var dark := Color(0.24, 0.26, 0.25)
+	var pale := Color(0.84, 0.84, 0.78)
+	var plate := Color(0.62, 0.62, 0.56)
+	_ringed_body(mb, [
+		[-1.7, 0.03, 0.02, -0.06],
+		[-1.25, 0.13, 0.07, -0.05],
+		[-0.9, 0.22, 0.2, 0.0],
+		[-0.2, 0.27, 0.26, 0.02],
+		[0.6, 0.2, 0.2, 0.02],
+		[1.2, 0.09, 0.1, 0.03],
+		[1.45, 0.04, 0.05, 0.05],
+	], 8, dark, grey, pale)
+	# the tail: a long upper lobe carrying on the line of the back, and a short lower one
+	var root := Vector3(0.0, 0.05, 1.42)
+	mb.tri(root + Vector3(0, 0.05, 0), Vector3(0.0, 0.5, 2.0), root + Vector3(0, -0.02, 0.2), dark, Vector3.RIGHT)
+	mb.tri(root - Vector3(0, 0.04, 0), root + Vector3(0, -0.02, 0.2), Vector3(0.0, -0.22, 1.72), grey, Vector3.RIGHT)
+	# the fin on its back, set well back, and the one under it
+	mb.tri(Vector3(0.0, 0.2, 0.8), Vector3(0.0, 0.42, 1.12), Vector3(0.0, 0.14, 1.2), dark, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.14, 0.9), Vector3(0.0, -0.32, 1.12), Vector3(0.0, -0.06, 1.2), grey, Vector3.RIGHT)
+	# the plates down the middle of its back: a row of little ridges
+	for k in 9:
+		var z := -0.8 + k * 0.22
+		var h := 0.27 - absf(z + 0.1) * 0.06
+		mb.tri(Vector3(0.0, h, z - 0.07), Vector3(0.0, h + 0.08, z), Vector3(0.0, h, z + 0.08), plate, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		var out := Vector3(sx, 0.0, 0.0)
+		# the plates along its side
+		for k in 10:
+			var z := -0.75 + k * 0.2
+			var w := 0.275 - absf(z + 0.1) * 0.09
+			var c := Vector3(sx * w, 0.02, z)
+			mb.quad(c + Vector3(0, 0.035, -0.05), c + Vector3(0, 0.035, 0.05), c + Vector3(0, -0.035, 0.05), c + Vector3(0, -0.035, -0.05), plate, out)
+		# the broad fins behind the head, held out flat; the whiskers; the eye
+		mb.tri(Vector3(sx * 0.2, -0.12, -0.8), Vector3(sx * 0.62, -0.2, -0.45), Vector3(sx * 0.22, -0.14, -0.5), grey, Vector3.UP)
+		mb.quad(Vector3(sx * 0.05, -0.1, -1.36), Vector3(sx * 0.07, -0.1, -1.36), Vector3(sx * 0.07, -0.24, -1.3), Vector3(sx * 0.05, -0.24, -1.3), pale, Vector3.FORWARD)
+		var e := Vector3(sx * 0.165, 0.03, -1.12)
+		mb.quad(e + Vector3(0, 0.025, -0.025), e + Vector3(0, 0.025, 0.025), e + Vector3(0, -0.025, 0.025), e + Vector3(0, -0.025, -0.025), Color(0.02, 0.02, 0.03), out)
+	return mb.build()

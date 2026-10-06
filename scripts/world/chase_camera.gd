@@ -2,7 +2,10 @@ extends Camera3D
 ## Follows the salmon in track space. Mode FOLLOW is the gameplay chase cam; mode CINEMA cycles
 ## through a few TV-style angles for the title screen.
 
-enum Mode { FOLLOW, CINEMA, OVERLOOK }
+enum Mode { FOLLOW, CINEMA, OVERLOOK, STAGE }
+## STAGE: filming a set (the spawning): where the eye is and what it looks at.
+var stage_eye := Vector3.ZERO
+var stage_focus := Vector3.ZERO
 
 ## OVERLOOK (the water lab) looks down on the water from high up: either going along with the
 ## salmon, or standing still over one stretch of water while the salmon swims on.
@@ -69,6 +72,12 @@ func _process(delta: float) -> void:
 		desired = focus + track.basis_at(cam_s) * away
 		look = focus
 		under = 1.0 if orbit_pitch < 0.0 else 0.0
+	elif mode == Mode.STAGE:
+		cam_s = p.s
+		# (a slow drift, so that it is not a still picture)
+		desired = stage_eye + Vector3(sin(Time.get_ticks_msec() * 0.0004) * 0.5, sin(Time.get_ticks_msec() * 0.0003) * 0.15, 0.0)
+		look = stage_focus
+		under = 1.0 if stage_eye.y < track.water_y(cam_s) else 0.0
 	elif mode == Mode.CINEMA:
 		_cine_t += dt
 		if _cine_t > 6.0:

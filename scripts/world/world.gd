@@ -11,6 +11,7 @@ const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
 const SeaVisitors := preload("res://scripts/world/sea_visitors.gd")
 const CurrentBubbles := preload("res://scripts/world/current_bubbles.gd")
 const Speech := preload("res://scripts/fx/speech.gd")
+const Spawning := preload("res://scripts/fx/spawning.gd")
 
 var track: Track
 var player: Salmon
@@ -39,6 +40,8 @@ var visitors: SeaVisitors
 var bubbles: CurrentBubbles
 ## What the salmon says (how well a swipe was timed), in a bubble beside it.
 var speech: Speech
+## The spawning scene, while it is being played (see spawning_begin).
+var spawning: Spawning
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -536,3 +539,27 @@ func _turn_water(seconds: float) -> void:
 			for mat in mats:
 				if is_instance_valid(mat):
 					mat.set_shader_parameter(key, lerp(was, to, t)), 0.0, 1.0, seconds)
+
+
+## Sets up the spawning scene where the salmon is, under the water, and films it: the
+## salmon itself and everything that swims with it are out of the picture meanwhile.
+func spawning_begin() -> void:
+	spawning_end()
+	spawning = Spawning.new()
+	add_child(spawning)
+	spawning.begin(track, player.s + 6.0, 0.0)
+	for node: Node3D in [player, school, others, run, shoals, sardines, edge_swarm, visitors, speech]:
+		node.visible = false
+	camera.mode = camera.Mode.STAGE
+	camera.stage_eye = spawning.eye()
+	camera.stage_focus = spawning.focus()
+	camera.snap()
+
+
+func spawning_end() -> void:
+	if spawning == null:
+		return
+	spawning.queue_free()
+	spawning = null
+	for node: Node3D in [player, school, others, run, shoals, sardines, edge_swarm, visitors]:
+		node.visible = true

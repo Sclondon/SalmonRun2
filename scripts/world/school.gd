@@ -79,6 +79,8 @@ func set_look(look: String) -> void:
 	_look = look
 	var mesh := Props.salmon(look)
 	for f: Dictionary in _fish:
+		if f.get("guest", false):
+			continue
 		f.size = 1.35 * maxf(Props.salmon_size(look), 0.62) * _rng.randf_range(0.75, 1.05)
 		(f.node as MeshInstance3D).mesh = mesh
 		(f.node as MeshInstance3D).scale = Vector3.ONE * float(f.size)
@@ -381,3 +383,40 @@ func carry(ds: float) -> void:
 		f.s = maxf(float(f.s) - ds, 4.0)
 		f.y = track.surface_y(float(f.s), float(f.x))
 		f.vy = 0.0
+
+
+## Someone new joins the pack and stays with it (the golden trout, once touched): `mesh` is
+## what it looks like, `size` how big it is. It is not changed when the pack changes its look.
+func join(mesh: Mesh, size: float) -> void:
+	var i := _fish.size()
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/fish.gdshader")
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	node.material_override = mat
+	node.scale = Vector3.ONE * size
+	add_child(node)
+	var trail := MeshInstance3D.new()
+	trail.mesh = _wake_mesh()
+	trail.material_override = _wake_mat
+	trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	trail.visible = false
+	add_child(trail)
+	wakes.append(trail)
+	var f := {"node": node, "mat": mat, "s": player.s, "x": player.x, "y": player.y, "vy": 0.0, "vx": 0.0,
+			"n": i, "vs": player.speed, "leap": 1.1, "shy": 0.0, "lane": 0.0, "pace": 1.0, "size": size,
+			"phase": _rng.randf() * TAU, "hop": 0.4, "guest": true,
+			# (right beside the player: it is the friend)
+			"ahead": 1.5, "off": 2.4 * (1.0 if i % 2 == 0 else -1.0), "deep": 0.0}
+	_fish.append(f)
+	_place(f, player.s + 1.5)
+
+
+## Sends away whoever has joined (a new run begins).
+func drop_guests() -> void:
+	for k in range(_fish.size() - 1, -1, -1):
+		if _fish[k].get("guest", false):
+			(_fish[k].node as Node).queue_free()
+			wakes[k].queue_free()
+			wakes.remove_at(k)
+			_fish.remove_at(k)

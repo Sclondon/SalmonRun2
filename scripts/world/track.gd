@@ -18,6 +18,8 @@ const START_S := 30.0
 ## How much plain water there is after the finish (see `length`).
 const RUN_OUT := 520.0
 const RAIL_H := 0.55
+## How big a bear is drawn (1 was the first one made, about the size of the salmon).
+const BEAR_SIZE := 2.3
 ## Metres between the knots an ocean current winds through.
 const CURRENT_KNOT := 26.0
 ## Every course meanders: metres from one bend to the left to the next, and how sharply it
@@ -85,6 +87,10 @@ var _fork_set := false
 
 var mat_world: ShaderMaterial
 var mat_foliage: ShaderMaterial
+## For far-off scenery (hills, mountains): it comes up over the horizon (see psx.gdshader).
+var mat_far: ShaderMaterial
+## For pines and larches: foliage, with needles drawn on it.
+var mat_pine: ShaderMaterial
 var mat_water: ShaderMaterial
 ## The water of each stage as set by hand in the water lab (ui/water_lab.gd): the name of
 ## the stage -> {uniform: value}. They are kept in the project (PRESETS), so that they go
@@ -152,6 +158,15 @@ func _make_materials() -> void:
 	mat_foliage = ShaderMaterial.new()
 	mat_foliage.shader = mat_world.shader
 	mat_foliage.set_shader_parameter("wind", 1.0)
+	mat_pine = ShaderMaterial.new()
+	mat_pine.shader = mat_world.shader
+	mat_pine.set_shader_parameter("wind", 1.0)
+	mat_pine.set_shader_parameter("needles", 1.0)
+	mat_far = ShaderMaterial.new()
+	mat_far.shader = mat_world.shader
+	mat_far.set_shader_parameter("horizon_drop", 260.0)
+	# (all the way down by where the eye stops seeing: nearer on a phone)
+	mat_far.set_shader_parameter("horizon_to", 430.0 if Save.is_mobile() else 860.0)
 	# (a copy of the water set up by hand in scenes/water_scene.tscn: see WATER)
 	mat_water = WATER.duplicate()
 	# (the material may have been saved without its foam picture: it needs one)
@@ -1027,7 +1042,7 @@ func _plan_predators(s: float) -> float:
 		var ps := s + 30.0 + k * 34.0
 		var px := _rng.randf_range(-5.0, 5.0)
 		bears.append({"s": ps, "x": px, "off": float(k), "d": 0.5 if k == 0 else layer_depth() * _rng.randi_range(1, layers())})
-		rings.append({"s": ps, "x": px, "h": 4.6, "ref": ps})
+		rings.append({"s": ps, "x": px, "h": 4.6 if cfg.predator == "shark" else 6.4, "ref": ps})
 	return 95.0
 
 
@@ -1512,7 +1527,8 @@ func _build_features() -> void:
 			bear.transform = Transform3D(basis_at(b.s), point(b.s, b.x, water_y(b.s)))
 		else:
 			# (three-quarters on to the salmon coming up, so that it is seen to be on all fours)
-			bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI + (0.7 if int(b.s) % 2 == 0 else -0.7)), point(b.s, b.x, water_y(b.s) - 0.55))
+			# (life size beside the salmon: a grizzly is three or four times as long as a sockeye)
+			bear.transform = Transform3D(Basis(Vector3.UP, -heading(b.s) + PI + (0.7 if int(b.s) % 2 == 0 else -0.7)).scaled(Vector3.ONE * BEAR_SIZE), point(b.s, b.x, water_y(b.s) - 0.55 + (BEAR_SIZE - 1.0) * 0.85))
 		b.node = bear
 
 	var speaker := Props.speaker_stack(frng)
@@ -1649,32 +1665,45 @@ func _build_arch(s: float, text: String, col: Color) -> void:
 	mi.add_child(label)
 
 
-func _foam(pos: Vector3, b: Basis, w: float) -> CPUParticles3D:
-	var p := CPUParticles3D.new()
-	p.amount = 90
-	p.lifetime = 1.4
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = Vector3(w * 0.5, 0.3, 2.0)
-	p.direction = Vector3(0, 1, -0.4)
-	p.spread = 35.0
-	p.initial_velocity_min = 3.0
-	p.initial_velocity_max = 7.0
-	p.gravity = Vector3(0, -9.0, 0)
-	p.scale_amount_min = 0.5
-	p.scale_amount_max = 1.4
-	var m := BoxMesh.new()
-	m.size = Vector3.ONE * 0.6
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.9, 1.0, 0.97)
-	m.material = mat
-	p.mesh = m
-	p.transform = Transform3D(b, pos)
-	return p
+# Where a waterfall comes down: made of the same stuff as the splash the salmon makes (see
+# fx/splash.gd): its drops and its flat splats of foam, thrown up all along the foot of the
+# falls without stopping, in the colours of the stage's own water.
+func _foam(pos: Vector3, b: Basis, w: float) -> Node3D:
+	var splash: GDScript = load("res://scripts/fx/splash.gd")
+	var water: Color = mat_water.get_shader_parameter("shallow")
+	var white: Color = mat_water.get_shader_parameter("foam_color")
+	var root := Node3D.new()
+	root.transform = Transform3D(b, pos)
+	# [what, how many, how big, how hard it is thrown up, how long it lasts]
+	for kind: Array in [["drop", 46, 0.5, 9.0, 0.9], ["splat", 30, 0.75, 5.0, 0.8], ["dot", 60, 0.14, 12.0, 1.0]]:
+		var p := CPUParticles3D.new()
+		p.mesh = splash.mesh(kind[0])
+		p.material_override = splash.material()
+		p.amount = int(float(kind[1]) * clampf(w / 20.0, 0.6, 3.0))
+		p.lifetime = kind[4]
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		p.emission_box_extents = Vector3(w * 0.5, 0.2, 1.4)
+		p.direction = Vector3(0, 1, -0.25)
+		p.spread = 40.0
+		p.initial_velocity_min = float(kind[3]) * 0.5
+		p.initial_velocity_max = kind[3]
+		p.gravity = Vector3(0, -24.0, 0)
+		p.scale_amount_min = float(kind[2]) * 0.6
+		p.scale_amount_max = float(kind[2]) * 1.4
+		var shrink := Curve.new()
+		shrink.add_point(Vector2(0.0, 1.0))
+		shrink.add_point(Vector2(0.7, 0.8))
+		shrink.add_point(Vector2(1.0, 0.0))
+		p.scale_amount_curve = shrink
+		p.color = (white if kind[0] == "dot" else water.lerp(Color.WHITE, 0.6))
+		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(p)
+	return root
 
 
 # ================================================================== jungle scatter
 
+const FAR_OFF := ["hill", "mountain", "mesa"]
 const FOLIAGE := ["tree", "palm", "fern", "reeds", "pine", "larch", "grass", "bamboo", "maple"]
 const NO_SHADOW := ["fern", "flower", "reeds", "lily", "shroom", "grass", "floe", "coral", "jelly"]
 
@@ -1827,7 +1856,12 @@ func _scatter() -> void:
 			mm.set_instance_transform(k, list[k])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		mmi.material_override = mat_foliage if kind in FOLIAGE else mat_world
+		mmi.material_override = mat_foliage if kind in FOLIAGE else (mat_far if kind in FAR_OFF else mat_world)
+		if kind in ["pine", "larch"]:
+			mmi.material_override = mat_pine
+		if kind in FAR_OFF:
+			# (it is drawn lower than it is: never culled for where it really stands)
+			mmi.extra_cull_margin = 300.0
 		if kind in NO_SHADOW:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)

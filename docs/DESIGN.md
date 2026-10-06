@@ -130,6 +130,31 @@ Notes:
   own course.
 - The way down retraces the stages the run came up through.
 
+
+### Lately (not yet worked into the sections above)
+
+- **The screen:** no boost meter; the best score small under the score; the time beside a
+  pause button drawn as a card; the beat kept by a row of four pixel salmon that leap in turn
+  (`ui/beat_fish.gd`); the timing grades in a speech bubble beside the salmon (`fx/speech.gd`).
+- **A waterfall not cleared** tumbles the salmon back down the stream (it is not set down
+  further back), and the foot of a fall is made of the same drops and splats as its splash.
+- **Far-off hills and mountains come up over the horizon** (`horizon_drop` in `psx.gdshader`,
+  `Track.mat_far`), and pines have needles drawn on them (`needles`, `Track.mat_pine`).
+- **Fresh water has trout and sturgeon** (`sea_visitors.gd`), and now and then a golden
+  trout: touch it and it joins the pack for the rest of the run (`School.join`).
+- **The salmon is the player's again as soon as the globe comes down** between stages;
+  nothing scores until the next stage begins.
+- **Bears are life size** (`Track.BEAR_SIZE`).
+- **The spawning is played out** under the water at the end of the way up (`fx/spawning.gd`,
+  filmed by the camera's STAGE mode): the nest dug, the eggs laid and fertilised and covered,
+  the hatching, and the young setting off; then the way down begins.
+- **On a log** the salmon arches its back and throws up wet sparks, and a swipe to one side
+  spins it round (worth more, and named: "Log Ride + 360").
+- **Alpine Lake** is 70 m wide and three layers deep, with no buoys.
+- **The swoop:** swum up from the deep without a check, the salmon goes on up out of the
+  water, the higher the further it climbed. Going up and down under the water is no faster
+  than the water is deep, and takes a longer drag on a touch screen.
+
 ## 4. Stages
 
 A stage is a course about 2.4 to 3.4 km long (roughly 55 to 95 seconds): open water 70 to

@@ -2,6 +2,7 @@ extends CanvasLayer
 ## In-race heads-up display: score, timer, trick callouts, combo, boost, beat indicator.
 
 const UI := preload("res://scripts/ui/ui_kit.gd")
+const BeatFish := preload("res://scripts/ui/beat_fish.gd")
 
 var root: Control
 var _score: Label
@@ -22,7 +23,6 @@ var _touch_mode := false
 var _boost: ProgressBar
 var _progress: ProgressBar
 var _objective: Label
-var _beat_dots: Array[ColorRect] = []
 var _trick_t := 0.0
 var _popup_t := 0.0
 var _count_t := 0.0
@@ -126,17 +126,11 @@ func _ready() -> void:
 	_speed.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	root.add_child(_speed)
 
-	var beats := HBoxContainer.new()
+	# the beat keeper: four pixel salmon, each leaping on its own beat of the bar
+	var beats := BeatFish.new()
 	beats.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	beats.position = Vector2(-82, -48)
-	beats.add_theme_constant_override("separation", 12)
+	beats.position = Vector2(-224, -122)
 	root.add_child(beats)
-	for i in 4:
-		var d := ColorRect.new()
-		d.custom_minimum_size = Vector2(32, 16)
-		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		beats.add_child(d)
-		_beat_dots.append(d)
 
 
 ## On touch screens the thumbs cover the bottom corners, so the boost meter moves up under
@@ -255,14 +249,6 @@ func _process(delta: float) -> void:
 	_count_t -= delta
 	if _count_t < 0.3:
 		_count.modulate.a = clampf(_count_t / 0.3, 0.0, 1.0)
-	var bf := Music.beat_float()
-	var cur := int(floorf(bf)) % 4 if bf >= 0.0 else -1
-	var pulse := Music.beat_pulse()
-	for i in 4:
-		var on := i == cur
-		var base := UI.CORAL if i == 0 else UI.TEAL
-		_beat_dots[i].color = base.lerp(Color.WHITE, pulse * 0.6) if on else Color(base, 0.25)
-		_beat_dots[i].scale = Vector2.ONE * (1.0 + (pulse * 0.35 if on else 0.0))
 
 
 static func fmt(v: int) -> String:

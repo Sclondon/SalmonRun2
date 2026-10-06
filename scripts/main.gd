@@ -11,6 +11,7 @@ const Score := preload("res://scripts/game/score.gd")
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
+const Props := preload("res://scripts/world/props.gd")
 const ChaseCam := preload("res://scripts/world/chase_camera.gd")
 const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 const TitleLogo := preload("res://scripts/ui/title_logo.gd")
@@ -38,10 +39,11 @@ const INTRO := [
 ## The end of the way up, at a home lake...
 const SPAWNING := [
 	"HOME. THE WATER YOU WERE BORN IN.",
-	"SHE DIGS A NEST IN THE GRAVEL: A REDD.",
-	"THE EGGS ARE LAID. BOTH PARENTS DIE HERE,",
-	"AND THEIR BODIES FEED THE RIVER.",
-	"IN SPRING, THEIR YOUNG SWIM FOR THE SEA.",
+	"SHE DIGS A NEST IN THE GRAVEL WITH HER TAIL: A REDD.",
+	"SHE LAYS HER EGGS, AND HE FERTILISES THEM.",
+	"SHE COVERS THEM. BOTH PARENTS DIE HERE, AND FEED THE RIVER.",
+	"ALL WINTER THE EGGS LIE IN THE GRAVEL. IN SPRING THEY HATCH,",
+	"AND THE YOUNG SWIM FOR THE SEA.",
 ]
 ## ...or at a fish farm.
 const FARMED := [
@@ -239,6 +241,12 @@ func _ready() -> void:
 	var p := world.player
 	p.trick_landed.connect(_on_trick)
 	p.swipe_timed.connect(_on_timed)
+	# the golden trout, touched, joins the pack for the rest of the run
+	world.visitors.befriended.connect(func() -> void:
+		world.school.join(Props.trout(true), 1.5)
+		hud.popup("A GOLDEN TROUT JOINS YOU!", UI.GOLD, 2.4)
+		Sfx.play("combo")
+		score.score += 5000)
 	p.wiped_out.connect(_on_wipe)
 	p.bumped.connect(_on_bump)
 	p.ring_collected.connect(_on_ring)
@@ -310,6 +318,7 @@ func _start_journey(index: int, down: bool, route: Array[int] = []) -> void:
 	_route = route.duplicate()
 	_journey = 0
 	_log.clear()
+	world.school.drop_guests()
 	_start_level(index, down, -1)
 
 
@@ -437,12 +446,18 @@ func _cutscene(lines: Array, done: Callable) -> void:
 	p.go()
 	world.track.reset_rings()
 	world.camera.mode = ChaseCam.Mode.CINEMA
+	# (the spawning is played out under the water, where the salmon has stopped)
+	if lines == SPAWNING and phase == Phase.CUTSCENE:
+		p.pace = 0.0
+		p.speed = 0.0
+		world.spawning_begin()
 	world.camera.snap()
 
 
 func _end_cutscene() -> void:
 	if phase != Phase.CUTSCENE:
 		return
+	world.spawning_end()
 	phase = Phase.TITLE
 	var p := world.player
 	p.reset(Track.START_S)
@@ -463,6 +478,8 @@ func _run_cutscene(delta: float) -> void:
 	# each caption fades in, holds and fades out
 	var at := fmod(_cut_t, CAPTION_TIME)
 	_cut_caption.text = _cut_lines[index]
+	if world.spawning:
+		world.spawning.advance(_cut_t / CAPTION_TIME, delta)
 	_cut_caption.modulate.a = minf(smoothstep(0.0, 0.5, at), 1.0 - smoothstep(CAPTION_TIME - 0.5, CAPTION_TIME, at))
 	var p := world.player
 	if p.s > world.track.finish_s + 60.0:
@@ -779,7 +796,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var p := world.player
-	_touch.visible = (phase in [Phase.COUNTDOWN, Phase.RACE] or (phase == Phase.TRAVEL and _link_left)) and not get_tree().paused and not _travel.visible
+	_touch.visible = (phase in [Phase.COUNTDOWN, Phase.RACE] or phase == Phase.TRAVEL) and not get_tree().paused and not _travel.visible
 	_layout_globes()
 	_layout_title()
 	hud.set_touch_mode(_use_touch)
@@ -880,6 +897,11 @@ func _travel_on(next: int, next_down: bool) -> void:
 	_link_down = next_down
 	_link_shown = 0.0
 	_link_left = false
+	# (the salmon is the player's again from here: nothing scores until the next stage begins)
+	world.player.autopilot = _autotest_dir != ""
+	world.player.control = not world.player.autopilot
+	world.player.pace = 1.0
+	GameInput.clear_touch()
 	hud.visible = false
 	var done: Array[int] = []
 	if not _down:
