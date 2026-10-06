@@ -63,6 +63,8 @@ var _steady_x := 0.0           # the finger's position with the wiggle smoothed 
 # is makes no difference.)
 var _drag_from := 0.0
 var _drag_from_y := 0.0
+var _circle := 0.0
+var _circle_at := 0.0
 # (how high up the screen the finger came down: where the base of the stick is drawn)
 var _base_y := 0.0
 var _flash := 0.0
@@ -150,6 +152,15 @@ func _track_circle() -> void:
 		# doubling back is a wiggle, not part of a turn
 		if absf(turn) < 2.4:
 			_turns.append([_now(), turn])
+			# one circle of the finger is one corkscrew, wherever the salmon is: counted as the
+			# finger goes round, and begun afresh if it stops or turns back
+			if signf(turn) != signf(_circle) or _now() - _circle_at > 0.35:
+				_circle = 0.0
+			_circle += turn
+			_circle_at = _now()
+			if absf(_circle) > TAU * 0.85:
+				GameInput.corkscrews += int(signf(_circle))
+				_circle = 0.0
 		else:
 			_flips.append(_now())
 	_head = a
@@ -216,7 +227,7 @@ func _process(delta: float) -> void:
 		return
 	# circles: a corkscrew, turning the way the finger goes round
 	var turned := _turned()
-	var roll := signf(turned) if absf(turned) > (CIRCLE_KEEP if GameInput.roll != 0.0 else CIRCLE_ON) else 0.0
+	var roll := 0.0 * turned
 	# wiggles: boost
 	var now := _now()
 	while not _flips.is_empty() and now - _flips[0] > WIGGLE_WINDOW:

@@ -112,3 +112,14 @@ func clear_touch() -> void:
 	wiggling = false
 	roll = 0.0
 	_swipes = []
+
+
+## Circles the finger has drawn since they were last taken (+ clockwise, - the other way):
+## each is one corkscrew.
+var corkscrews := 0
+
+
+func take_corkscrews() -> int:
+	var out := corkscrews
+	corkscrews = 0
+	return out

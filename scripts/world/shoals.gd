@@ -59,7 +59,7 @@ func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 ## Spreads the shoals out round the player (after a restart or a change of stage).
 func scatter() -> void:
 	for sh: Dictionary in _shoals:
-		(sh.node as Node3D).material_override = track.mat_world
+		(sh.node as Node3D).material_override = silver() if sardines else track.mat_world
 		_place(sh, player.s + _rng.randf_range(10.0, AHEAD))
 
 
@@ -116,3 +116,16 @@ func _process(delta: float) -> void:
 			at += Vector3(sin(_t * 0.9 + own), sin(_t * 0.7 + own * 1.3) * 0.4, sin(_t * 0.6 + own * 0.7)) * 0.35
 			var wag := Basis(Vector3.UP, sin(_t * 11.0 + own) * 0.22)
 			mm.set_instance_transform(k, Transform3D(wag.scaled(Vector3.ONE * size), at))
+
+
+# Sardines are bright metal: they take the light and throw it back.
+static var _silver: StandardMaterial3D
+static func silver() -> StandardMaterial3D:
+	if _silver == null:
+		_silver = StandardMaterial3D.new()
+		_silver.vertex_color_use_as_albedo = true
+		_silver.metallic = 0.85
+		_silver.roughness = 0.22
+		_silver.metallic_specular = 1.0
+		_silver.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _silver

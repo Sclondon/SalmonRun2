@@ -60,7 +60,7 @@ func _process(delta: float) -> void:
 	_node.visible = _gathered > 0.01
 	if not _node.visible:
 		return
-	_node.material_override = track.mat_world
+	_node.material_override = silver()
 	var side := 1.0 if player.x >= 0.0 else -1.0
 	# (it stands where the salmon is: at the surface, or round it wherever it has dived to)
 	var depth := track.layer_depth() * player.dive
@@ -83,3 +83,16 @@ func _process(delta: float) -> void:
 		var size := _gathered * sqrt(sin(along * PI)) * (1.3 + 0.6 * place.y)
 		var b := track.basis_at(s) * Basis(Vector3.UP, sin(_t * 12.0 + own) * 0.25)
 		_mm.set_instance_transform(k, Transform3D(b.scaled(Vector3.ONE * maxf(size, 0.001)), track.point(s, x, y)))
+
+
+# Sardines are bright metal: they take the light and throw it back.
+static var _silver: StandardMaterial3D
+static func silver() -> StandardMaterial3D:
+	if _silver == null:
+		_silver = StandardMaterial3D.new()
+		_silver.vertex_color_use_as_albedo = true
+		_silver.metallic = 0.85
+		_silver.roughness = 0.22
+		_silver.metallic_specular = 1.0
+		_silver.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _silver

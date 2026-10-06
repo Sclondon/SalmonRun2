@@ -414,7 +414,13 @@ func _build_fork() -> void:
 		label.text = str(Levels.LIST[ways[mini(k, ways.size() - 1)]].name)
 		label.modulate = Color(1.0, 0.95, 0.6)
 		label.outline_modulate = Color(0.05, 0.08, 0.2)
-		label.position = point(s0 + 12.0, (left + right_edge) * 0.5, water_y(s0) + clampf(hw * 0.2, 3.5, 15.0))
+		# each way through half a ring of its own, with its name over the top
+		var gap := right_edge - left - 2.0
+		var tall := clampf(gap * 0.5, 4.0, 16.0)
+		if not fork.get("streams", false) and not fork.abyss:
+			var hoop := _add_mesh(Props.half_ring(gap, tall, Color(1.0, 0.8, 0.25) if k == 0 else Color(1.0, 0.4, 0.6), cfg.arch), mat_world)
+			hoop.transform = Transform3D(basis_at(s0 + 12.0), point(s0 + 12.0, (left + right_edge) * 0.5, water_y(s0 + 12.0)))
+		label.position = point(s0 + 12.0, (left + right_edge) * 0.5, water_y(s0) + (tall + 2.0 if not fork.abyss else clampf(hw * 0.2, 3.5, 15.0)))
 		if fork.get("streams", false):
 			# (under the water, over the mouth of its current)
 			label.position = point(s0 + 6.0, (left + right_edge) * 0.5 * 0.6, water_y(s0) - minf(3.0, float(layers())) * layer_depth() + 7.5)
@@ -1790,7 +1796,9 @@ func _build_arch(s: float, text: String, col: Color) -> void:
 	var arng := RandomNumberGenerator.new()
 	arng.seed = int(s)
 	var span := width(s) + 3.0
-	var mi := _add_mesh(Props.arch(span, arng, col, cfg.arch), mat_world)
+	# (half a ring standing in the water, not a square gate)
+	var high := clampf(span * 0.5, 7.0, 30.0)
+	var mi := _add_mesh(Props.half_ring(span, high, col, cfg.arch), mat_world)
 	mi.transform = Transform3D(basis_at(s), point(s, 0.0, water_y(s)))
 	var label := Label3D.new()
 	label.text = text
@@ -1800,7 +1808,8 @@ func _build_arch(s: float, text: String, col: Color) -> void:
 	label.outline_size = 18
 	label.modulate = Color(1, 1, 1)
 	label.outline_modulate = Color(0.1, 0.02, 0.15)
-	label.position = Vector3(0.0, 8.4, 0.3)
+	label.position = Vector3(0.0, high + 2.2, 0.3)
+	label.pixel_size = clampf(span * 0.0009, 0.016, 0.06)
 	mi.add_child(label)
 
 

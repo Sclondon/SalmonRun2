@@ -86,6 +86,10 @@ var wipe_time := 0.0
 ## Swept back down from a waterfall it did not clear: how many metres it has still to be
 ## carried (0 when it is not). It tumbles as it goes, and has no say in it.
 var washed := 0.0
+## Corkscrews still to turn (a circle of the finger is one), and how long it has been
+## flopping in the air (a wiggle of the finger there is a fish flop).
+var _roll_wait := 0.0
+var _flop := 0.0
 ## On a rail: how far round it has still to spin (degrees, signed), how far round it is, and
 ## how many spins it has made on this one (a swipe to one side is a spin).
 var _rail_spin := 0.0
@@ -433,6 +437,12 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	var prev_s := s
 	s += speed * dt
 	x += vx * dt
+	# a circle of the finger is a corkscrew on the water too: once round, where it is
+	var spun := GameInput.take_corkscrews()
+	if spun != 0 and _dash_t >= 1.0:
+		_dash_dir = float(signi(spun))
+		_dash_t = 0.0
+		_stretch_v += 3.0
 	# a swipe to one side is a dash: one place over, at once
 	for swipe: Vector2 in inp.swipes:
 		if swipe == Vector2.LEFT or swipe == Vector2.RIGHT:
@@ -618,6 +628,9 @@ func _swiped_up(inp: Dictionary) -> bool:
 
 
 func _take_off(by_jump := false) -> void:
+	_roll_wait = 0.0
+	_flop = 0.0
+	GameInput.take_corkscrews()
 	_marks.clear()
 	_held = [true, true, true, true]
 	if by_jump:
@@ -718,7 +731,22 @@ func _air(dt: float, inp: Dictionary) -> void:
 		r = _spin(pitch, _pitch_v, -float(inp.pitch), FLIP_RATE, 360.0, dt)
 		pitch = r.x
 		_pitch_v = r.y
-	r = _spin(roll, _roll_v, -float(inp.roll), ROLL_RATE, 360.0, dt)
+	# (on touch, a circle of the finger is one corkscrew: no more and no less)
+	var turns := GameInput.take_corkscrews()
+	if turns != 0:
+		_roll_wait -= turns * 360.0
+		_mark()
+	if _roll_wait != 0.0 or (GameInput.follow and not autopilot):
+		var step := signf(_roll_wait) * minf(absf(_roll_wait), ROLL_RATE * 1.3 * dt)
+		_roll_wait -= step
+		r = Vector2(roll + step, 0.0)
+	else:
+		r = _spin(roll, _roll_v, -float(inp.roll), ROLL_RATE, 360.0, dt)
+	# a wiggle of the finger in the air is a fish flop: it thrashes from side to side
+	if GameInput.wiggling:
+		if _flop == 0.0:
+			_mark()
+		_flop += dt
 	roll = r.x
 	_roll_v = r.y
 	grab = inp.grab
@@ -813,6 +841,9 @@ func _compose_trick() -> Dictionary:
 		if held >= 0.12:
 			parts.append(GRAB_NAMES[g] + ("!!" if held > 1.0 else ""))
 			pts += 150 + int(minf(held, 2.5) * 320.0)
+	if _flop > 0.2:
+		parts.append("Fish Flop")
+		pts += 260 + int(minf(_flop, 1.5) * 400.0)
 	if parts.is_empty():
 		if air_time < 0.9:
 			return {"name": "", "points": 0, "beat": 0}
@@ -1135,7 +1166,7 @@ func _update_visual(dt: float) -> void:
 			var side := Vector3(-ARC_RADIUS * _yaw_rate, 0.0, 0.0)
 			var up := Vector3(0.0, ARC_RADIUS * _pitch_rate, 0.0)
 			pos += base * (side - yaw_b * side + yaw_b * (up - Basis(Vector3.RIGHT, deg_to_rad(pitch)) * up))
-			target_bend = -_yaw_rate
+			target_bend = -_yaw_rate + (sin(_t * 26.0) * 1.3 if GameInput.wiggling else 0.0)
 			target_curl = _pitch_rate
 			b = base * Basis(Vector3.UP, deg_to_rad(yaw)) \
 					* Basis(Vector3.RIGHT, deg_to_rad(pitch) + traj) \

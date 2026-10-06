@@ -184,6 +184,11 @@ Notes:
   either side darts out of one (up or down leaves it too).
 - **The humpback turns up half way through the Open Ocean.** The sign by the count of the
   pack is drawn in clean shapes, not big pixels. The salmon swims lower in the water.
+- **The finish, and each way at a fork, is half a ring** standing in the water
+  (`Props.half_ring`), with its name over the top. After a fork the next stage is joined on
+  turned a little towards the side taken.
+- **One circle of the finger is one corkscrew**, in the air or on the water; **a wiggle in
+  the air is a Fish Flop**. Sardines are bright metal.
 
 ## 4. Stages
 

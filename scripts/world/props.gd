@@ -1579,3 +1579,21 @@ static func angler() -> ArrayMesh:
 		var e := Vector3(sx * 0.4, 0.26, -0.44)
 		mb.quad(e + Vector3(sx * 0.02, 0.045, -0.045), e + Vector3(sx * 0.02, 0.045, 0.045), e + Vector3(sx * 0.02, -0.045, 0.045), e + Vector3(sx * 0.02, -0.045, -0.045), glow(Color(0.8, 0.95, 0.9), 0.5), Vector3(sx, 0, 0))
 	return mb.build()
+
+
+## Half a ring standing in the water, to swim through: a hoop `span` wide and `high` tall at
+## its middle, in bands of `banner` and `stone` by turns, on a foot at either end.
+static func half_ring(span: float, high: float, banner: Color, stone := Color(0.55, 0.52, 0.44)) -> ArrayMesh:
+	var mb := MB.new()
+	var thick := clampf(span * 0.02, 0.35, 1.4)
+	var steps := 22
+	var prev := Vector3.ZERO
+	for k in steps + 1:
+		var a := PI * k / steps
+		var p := Vector3(-cos(a) * span * 0.5, sin(a) * high - 0.3, 0.0)
+		if k > 0:
+			frustum(mb, prev, p, thick, thick, 7, glow(banner, 0.35) if k % 2 == 0 else stone, false)
+		prev = p
+	for sx: float in [-1.0, 1.0]:
+		frustum(mb, Vector3(sx * span * 0.5, -2.5, 0.0), Vector3(sx * span * 0.5, 0.4, 0.0), thick * 1.7, thick * 1.3, 7, stone, true)
+	return mb.build()

@@ -422,7 +422,7 @@ const JOIN_AHEAD := 130.0
 ## the salmon down its run-out: everything of this stage from there on is taken out of the
 ## picture, and the next begins there, in line with it. The salmon swims on to it (see
 ## take_next); until then it is still on this one.
-func make_next(level: int, down: bool) -> void:
+func make_next(level: int, down: bool, turn := 0.0) -> void:
 	_drop(ahead)
 	_drop(behind)
 	behind = null
@@ -435,7 +435,8 @@ func make_next(level: int, down: bool) -> void:
 	move_child(ahead, 0)
 	ahead.build(level, false, down, track.width(_join_s))
 	track.hide_from(_join_s)
-	var from := track.basis_at(_join_s)
+	# (turned a little, the way that was taken at the fork)
+	var from := track.basis_at(_join_s) * Basis(Vector3.UP, -turn)
 	var at := track.point(_join_s, 0.0, track.water_y(_join_s))
 	var turned := from * ahead.basis_at(0.0).inverse()
 	_join = Transform3D(turned, at - turned * ahead.point(0.0, 0.0, ahead.water_y(0.0)))

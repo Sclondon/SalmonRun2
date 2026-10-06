@@ -927,7 +927,11 @@ func _travel_on(next: int, next_down: bool) -> void:
 	await get_tree().process_frame
 	# the next stage is made (that takes a moment), and once the globe has come down the way
 	# there is drawn on it
-	world.make_next(next, next_down)
+	var bend := 0.0
+	var onward := Levels.next_of(_level)
+	if not _down and onward.size() > 1 and onward.has(next):
+		bend = 0.16 * (onward.find(next) - (onward.size() - 1) * 0.5) / ((onward.size() - 1) * 0.5)
+	world.make_next(next, next_down, bend)
 	await get_tree().create_timer(0.75).timeout
 	if phase != Phase.TRAVEL:
 		return
