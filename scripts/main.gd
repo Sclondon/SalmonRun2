@@ -167,6 +167,7 @@ var _travel_back: Button
 var _starting := false
 ## The little window on the stage in hand
 var _pv_card: PanelContainer
+var _pv_place: Label
 var _pv_image: TextureRect
 var _pv_name: Label
 var _pv_line: Label
@@ -575,6 +576,7 @@ func _show_results() -> void:
 	if next_text == "" and _next != -1:
 		next_text = "NEXT: %s" % Levels.LIST[_next].name
 	(l.title as Label).text = title
+	(l.place as Label).text = stage.get("place", "")
 	(l.route as Label).text = route
 	(l.route as Label).visible = route != ""
 	(l.route as Label).add_theme_color_override("font_color", Color(0.12, 0.45, 0.22) if route.begins_with("GOAL MET") else UI.RED)
@@ -703,6 +705,7 @@ func _take_way(id: int) -> void:
 func _preview(id: int, line := "") -> void:
 	var stage: Dictionary = Levels.LIST[id]
 	_pv_name.text = stage.name
+	_pv_place.text = stage.get("place", "")
 	var at: Vector2 = stage.at
 	_pv_where.text = "%.1f°%s  %.1f°%s" % [absf(at.x), "N" if at.x >= 0.0 else "S", absf(at.y), "E" if at.y >= 0.0 else "W"]
 	# a true thing about the salmon at this point: the adult on the way up, the young on the
@@ -884,7 +887,7 @@ func _coast(delta: float) -> void:
 		# (the name of the next stage, under the globe, just as the line gets to it)
 		if _link_shown >= LINK_ARRIVES and _link_name.text == "":
 			_link_name.text = Levels.LIST[_link_to].name
-			_link_tag.text = Levels.LIST[_link_to].get("tagline", "")
+			_link_tag.text = "%s\n%s" % [Levels.LIST[_link_to].get("place", ""), Levels.LIST[_link_to].get("tagline", "")]
 			Sfx.play("ui", 1.2, -4.0)
 		if world.has_next() and _link_shown >= LINK_SECONDS and not _link_left:
 			_link_left = true
@@ -898,7 +901,17 @@ func _coast(delta: float) -> void:
 	# the results are up: at its ease, down the run-out (and to rest before that runs out)
 	# the results are up: it swims on by itself, as fast as ever, down the run-out (and only
 	# stops if that runs out)
-	p.pace = 0.0 if room < 0.0 else 1.0
+	# The results are up: it swims on by itself, as fast as ever, and for as long as they are
+	# left up. (The run-out is long but not endless: near its end the salmon is put back some
+	# way along it, and swims the same water again.)
+	p.pace = 1.0
+	if room < 80.0:
+		p.s -= 900.0
+		p.y = world.track.water_y(p.s)
+		p._prev_surface = p.y
+		world.camera.snap()
+		world.school.scatter()
+		world.others.scatter()
 
 
 ## On to the next stage without leaving the water: the globe comes up in a corner and draws
@@ -1271,6 +1284,8 @@ func _build_menus() -> void:
 	rv.add_child(r_head)
 	_results_labels.title = _ink("", 40, UI.INK, true)
 	rv.add_child(_results_labels.title)
+	_results_labels.place = _ink("", 18, UI.TEAL.darkened(0.45))
+	rv.add_child(_results_labels.place)
 	rv.add_child(_rule())
 	var rrow := HBoxContainer.new()
 	rrow.add_theme_constant_override("separation", 34)
@@ -1521,6 +1536,10 @@ func _build_globe() -> void:
 	var title := HBoxContainer.new()
 	title.add_theme_constant_override("separation", 6)
 	pv.add_child(title)
+	# (where in the world the stage is, small, under its name)
+	_pv_place = UI.label("", 13, UI.TEAL.darkened(0.45), 0)
+	_pv_place.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pv.add_child(_pv_place)
 	_pv_name = UI.label("", 23, UI.INK, 0)
 	_pv_name.add_theme_font_override("font", UI.serif())
 	_pv_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1691,6 +1710,7 @@ func _show_practice_stage() -> void:
 	_preview(stage, "ONE OF EVERYTHING, FOR TRYING THE CONTROLS" if _start_at == -1 else "")
 	if _start_at == -1:
 		_pv_name.text = "TRAINING COURSE"
+		_pv_place.text = ""
 	_pv_way.visible = _start_at != -1
 	_pv_way.text = "SPRING: THE WAY DOWN" if _practice_down else "AUTUMN: THE WAY UP"
 

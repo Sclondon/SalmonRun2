@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1nhdfitd5eal"
-path="res://.godot/imported/coastline.png-28bdcbf7d21b163ee2386759efb18f3e.ctex"
+uid="uid://ke3av54gajra"
+path="res://.godot/imported/abyss.png-f4dac5f6be237baf10bb3b7984981e0f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/coastline.png"
-dest_files=["res://.godot/imported/coastline.png-28bdcbf7d21b163ee2386759efb18f3e.ctex"]
+source_file="res://textures/previews/abyss.png"
+dest_files=["res://.godot/imported/abyss.png-f4dac5f6be237baf10bb3b7984981e0f.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

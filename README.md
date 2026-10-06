@@ -16,7 +16,7 @@ The design (what the game is, the map, the stages, how it plays) is in
 | A/D, ←/→ | left stick / d-pad | drag: a stick under the thumb, steers for as long as it is held over | steer | spin |
 | W/S, ↑/↓ | left stick / d-pad | — | swim harder / brake | front / back flip |
 | Space (hold → release) | A | swipe up | charge + leap (a swipe is a full leap); dived, comes back up | — |
-| C / Ctrl | right stick click | swipe down | dive one layer deeper (jump, or swipe up, comes back up one). The Open Ocean has three layers, with currents to ride, boost rings and sea nettles down there | — |
+| C / Ctrl | right stick click | swipe down | dive one layer deeper (jump, or swipe up, comes back up one). The Big Blue has three layers, with currents to ride, boost rings and sea nettles down there | — |
 | — | — | swipe any of 8 directions | — | one full turn that way: left / right spin, up backflip, down frontflip |
 | Shift | LT | wiggle back and forth, or draw circles | boost | — |
 | Q / E | LB / RB | draw circles | — | corkscrew (the way the finger goes round) |
@@ -42,7 +42,7 @@ stage is swum twice:
    down to the ocean as one of their young, a small silver smolt.
 
 All stages are open from the map for now, in either direction.
-NEW RUN opens the globe on the Open Ocean, where every run starts (press START). The way up
+NEW RUN opens the globe on the Big Blue, where every run starts (press START). The way up
 branches like Star Fox 64's map, and
 the map is that globe (NASA's Blue Marble picture, pixelated, under drifting cloud): when
 you finish a stage it shows the way you have come as a red line and the ways on as pins joined
@@ -59,11 +59,11 @@ progress bar: so many rings, tricks on the beat, a flow, a score, or few wipeout
 
 | Step | Stage | Leads to (default first) |
 |---|---|---|
-| 1 | Open Ocean | Shallow Sea, Ocean Trench |
-| 2 | Shallow Sea | Coastline, The Harbor |
-| 2 | Ocean Trench | Coral Reef, Arctic Waters |
-| 3 | Coastline | The Fish Ladder, Dry Riverbed |
-| 3 | The Harbor | The Fish Farm, The Fish Ladder |
+| 1 | Big Blue | Shallow Sea, Abyss |
+| 2 | Shallow Sea | Rocky Coast, Harbor |
+| 2 | Abyss | Coral Reef, Arctic Waters |
+| 3 | Rocky Coast | The Fish Ladder, Dry Riverbed |
+| 3 | Harbor | The Fish Farm, The Fish Ladder |
 | 3 | Coral Reef | **Neon Harbor**, Meandering River, Dry Riverbed |
 | 3 | Arctic Waters | Meandering River, **Neon Harbor** |
 | 4 | Meandering River | Rainforest Falls, Mountain River |

@@ -51,8 +51,8 @@ extends RefCounted
 
 const LIST: Array[Dictionary] = [
 	{
-		"name": "OPEN OCEAN", "at": Vector2(22, -165), "tier": 0, "salt": true,
-		"next": ["SHALLOW SEA", "OCEAN TRENCH"],
+		"name": "BIG BLUE", "place": "NORTH PACIFIC", "at": Vector2(22, -165), "tier": 0, "salt": true,
+		"next": ["SHALLOW SEA", "ABYSS"],
 		"objective": {"type": "rings", "n": 12},
 		"tagline": "SOMETHING IS CALLING YOU HOME",
 		"fact": "A SOCKEYE SPENDS ABOUT TWO YEARS FEEDING AT SEA BEFORE IT TURNS FOR HOME.",
@@ -99,9 +99,9 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.97, 1.0),
 	},
 	{
-		"name": "SHALLOW SEA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
+		"name": "SHALLOW SEA", "place": "GULF OF ALASKA", "at": Vector2(58.3, -147.5), "tier": 1, "salt": true,
 		"divider": "stacks", "fork_at": 0.62,
-		"next": ["COASTLINE", "THE HARBOR"],
+		"next": ["ROCKY COAST", "HARBOR"],
 		"objective": {"type": "on_beat", "n": 5},
 		"tagline": "COLD GREEN WATER, AND THE SEA FLOOR IN SIGHT",
 		"fact": "AT SEA A SALMON IS SILVER: DARK ABOVE AND PALE BELOW, HARD TO SPOT FROM EITHER SIDE.",
@@ -149,7 +149,7 @@ const LIST: Array[Dictionary] = [
 		"water_whitecaps": 0.38, "motes": Color(0.8, 1.0, 0.95),
 	},
 	{
-		"name": "COASTLINE", "at": Vector2(51, -129.5), "tier": 2, "order": 0, "salt": false,
+		"name": "ROCKY COAST", "place": "OREGON COAST", "at": Vector2(45.2, -124.6), "tier": 2, "order": 0, "salt": false,
 		"weather": "rain", "clouds": 0.75,
 		"divider": "gravel", "fork_at": 0.72,
 		"next": ["THE FISH LADDER", "DRY RIVERBED"],
@@ -196,7 +196,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.92, 0.96, 1.0),
 	},
 	{
-		"name": "RAINFOREST FALLS", "at": Vector2(47.0, -122.05), "tier": 4, "order": 0, "salt": false,
+		"name": "RAINFOREST FALLS", "place": "MOUNT RAINIER", "at": Vector2(47.0, -122.05), "tier": 4, "order": 0, "salt": false,
 		"next": ["ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "MOSS, MIST AND GIANT CEDARS. LEAP THE FALLS",
@@ -241,7 +241,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.85, 1.0, 0.8),
 	},
 	{
-		"name": "MOUNTAIN RIVER", "at": Vector2(46.9, -121.4), "tier": 4, "order": 1, "salt": false,
+		"name": "MOUNTAIN RIVER", "place": "MOUNT RAINIER", "at": Vector2(46.9, -121.4), "tier": 4, "order": 1, "salt": false,
 		"next": ["ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 14},
 		"tagline": "COLD, FAST AND STEEP",
@@ -295,7 +295,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 1.0, 1.0),
 	},
 	{
-		"name": "ALPINE LAKE", "at": Vector2(46.55, -121.75), "tier": 5, "order": 0, "salt": false,
+		"name": "ALPINE LAKE", "place": "MOUNT RAINIER", "at": Vector2(46.55, -121.75), "tier": 5, "order": 0, "salt": false,
 		"ending": "HOME AT LAST. SPAWNED!",
 		"tagline": "WHERE IT ALL BEGAN",
 		"fact": "THE FEMALE DIGS A NEST IN THE GRAVEL WITH HER TAIL. IT IS CALLED A REDD.",
@@ -354,7 +354,7 @@ const LIST: Array[Dictionary] = [
 	},
 	# ---------------------------------------------------------------- the other ways home
 	{
-		"name": "ARCTIC WATERS", "at": Vector2(66, -168), "tier": 2, "order": 3, "salt": true,
+		"name": "ARCTIC WATERS", "place": "BERING SEA", "at": Vector2(66, -168), "tier": 2, "order": 3, "salt": true,
 		"divider": "iceberg", "fork_at": 0.55,
 		"next": ["MEANDERING RIVER", "NEON HARBOR"],
 		"objective": {"type": "rings", "n": 12},
@@ -389,7 +389,7 @@ const LIST: Array[Dictionary] = [
 		"water_whitecaps": 0.4, "motes": Color(0.9, 1.0, 1.0),
 	},
 	{
-		"name": "THE HARBOR", "at": Vector2(47.25, -122.5), "tier": 2, "order": 1, "salt": false,
+		"name": "HARBOR", "place": "PUGET SOUND", "at": Vector2(47.25, -122.5), "tier": 2, "order": 1, "salt": false,
 		"divider": "pier", "fork_at": 0.68,
 		"next": ["THE FISH FARM", "THE FISH LADDER"],
 		"objective": {"type": "score", "n": 60000},
@@ -428,7 +428,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.7, 0.3),
 	},
 	{
-		"name": "THE FISH LADDER", "at": Vector2(47.67, -122.4), "tier": 3, "order": 2, "salt": false,
+		"name": "THE FISH LADDER", "place": "BALLARD LOCKS, SEATTLE", "at": Vector2(47.67, -122.4), "tier": 3, "order": 2, "salt": false,
 		"divider": "pier", "fork_at": 0.5,
 		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "on_beat", "n": 6},
@@ -466,7 +466,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.95, 1.0),
 	},
 	{
-		"name": "THE FISH FARM", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false, "farm": true,
+		"name": "THE FISH FARM", "place": "NORTH PUGET SOUND", "at": Vector2(48.4, -122.75), "tier": 3, "order": 3, "salt": false, "farm": true,
 		"ending": "SPAWNED... IN A FISH FARM",
 		"tagline": "THE SHORT WAY: NOT HOME, BUT THERE ARE PELLETS",
 		"fact": "MOST ATLANTIC SALMON SOLD AS FOOD IS FARMED, RAISED IN NET PENS LIKE THESE.",
@@ -503,7 +503,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(0.9, 0.9, 0.8),
 	},
 	{
-		"name": "OCEAN TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
+		"name": "ABYSS", "place": "MARIANA TRENCH", "at": Vector2(11, 142), "tier": 1, "salt": true,
 		# (a hundred metres down: no surface to be seen overhead, only the dark)
 		"no_surface": true, "clouds": 0.0,
 		# (left under the water, by a choice of ocean currents: one for each way on)
@@ -552,7 +552,7 @@ const LIST: Array[Dictionary] = [
 		"water_whitecaps": 0.4, "motes": Color(0.3, 1.0, 0.9),
 	},
 	{
-		"name": "CORAL REEF", "at": Vector2(26.3, 127.8), "tier": 2, "order": 2, "salt": true,
+		"name": "CORAL REEF", "place": "OKINAWA", "at": Vector2(26.3, 127.8), "tier": 2, "order": 2, "salt": true,
 		"divider": "reef", "fork_at": 0.6,
 		"next": ["NEON HARBOR", "MEANDERING RIVER", "DRY RIVERBED"],
 		"objective": {"type": "rings", "n": 14},
@@ -594,7 +594,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.8, 0.9),
 	},
 	{
-		"name": "BAMBOO RIVER", "at": Vector2(43.6, 142.8), "tier": 4, "order": 2, "route": "japan", "salt": false,
+		"name": "BAMBOO RIVER", "place": "HOKKAIDO", "at": Vector2(43.6, 142.8), "tier": 4, "order": 2, "route": "japan", "salt": false,
 		"next": ["THE CRATER LAKE"],
 		"objective": {"type": "flow", "n": 4},
 		"tagline": "A MOUNTAIN STREAM UNDER BAMBOO AND RED MAPLES",
@@ -640,7 +640,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.5, 0.2),
 	},
 	{
-		"name": "MEANDERING RIVER", "at": Vector2(47.55, -121.8), "tier": 3, "order": 0, "salt": false,
+		"name": "MEANDERING RIVER", "place": "SNOQUALMIE VALLEY", "at": Vector2(47.55, -121.8), "tier": 3, "order": 0, "salt": false,
 		"divider": "island", "fork_at": 0.5,
 		"next": ["RAINFOREST FALLS", "MOUNTAIN RIVER"],
 		"objective": {"type": "score", "n": 70000},
@@ -693,7 +693,7 @@ const LIST: Array[Dictionary] = [
 		"motes": Color(1.0, 0.85, 0.4),
 	},
 	{
-		"name": "DRY RIVERBED", "at": Vector2(44.05, -121.3), "tier": 3, "order": 1, "salt": false,
+		"name": "DRY RIVERBED", "place": "CENTRAL OREGON", "at": Vector2(44.05, -121.3), "tier": 3, "order": 1, "salt": false,
 		"divider": "logjam", "fork_at": 0.66,
 		"next": ["MOUNTAIN RIVER", "ALPINE LAKE"],
 		"objective": {"type": "rings", "n": 12},
@@ -744,7 +744,7 @@ const LIST: Array[Dictionary] = [
 	# ("like" borrows every setting of another stage; anything listed here replaces it. The two
 	# endings only replace looks, so they play exactly like the North American ones.)
 	{
-		"name": "NEON HARBOR", "like": "THE HARBOR", "at": Vector2(35.45, 139.85), "tier": 3, "order": 4,
+		"name": "NEON HARBOR", "place": "TOKYO BAY", "like": "HARBOR", "at": Vector2(35.45, 139.85), "tier": 3, "order": 4,
 		"divider": "pier", "fork_at": 0.6,
 		"route": "japan", "salt": false,
 		"next": ["THE HATCHERY", "BAMBOO RIVER"],
@@ -762,7 +762,7 @@ const LIST: Array[Dictionary] = [
 		"rock": Color(0.8, 0.25, 0.55), "rock_cap": Color(0.8, 0.25, 0.55),
 	},
 	{
-		"name": "THE CRATER LAKE", "like": "ALPINE LAKE", "at": Vector2(42.75, 141.35), "tier": 5, "order": 2,
+		"name": "THE CRATER LAKE", "place": "HOKKAIDO", "like": "ALPINE LAKE", "at": Vector2(42.75, 141.35), "tier": 5, "order": 2,
 		"route": "japan", "salt": false,
 		"ending": "HOME AT LAST. SPAWNED!",
 		"tagline": "STILL WATER IN AN OLD VOLCANO",
@@ -791,7 +791,7 @@ const LIST: Array[Dictionary] = [
 		},
 	},
 	{
-		"name": "THE HATCHERY", "like": "THE FISH FARM", "at": Vector2(39.6, 141.9), "tier": 4, "order": 3,
+		"name": "THE HATCHERY", "place": "NORTH HONSHU", "like": "THE FISH FARM", "at": Vector2(39.6, 141.9), "tier": 4, "order": 3,
 		"route": "japan", "salt": false,
 		"ending": "SPAWNED... IN A HATCHERY",
 		"tagline": "NEAT PENS, CLEAN WATER, NO WAY OUT",

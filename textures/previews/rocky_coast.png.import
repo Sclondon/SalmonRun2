@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clnt4ni2y665q"
-path="res://.godot/imported/open_ocean.png-e8c63b22bb7c92df2541ecf9a4cf92a5.ctex"
+uid="uid://c247db1w4teet"
+path="res://.godot/imported/rocky_coast.png-126a7603b9b19923d375a50af5304a65.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/open_ocean.png"
-dest_files=["res://.godot/imported/open_ocean.png-e8c63b22bb7c92df2541ecf9a4cf92a5.ctex"]
+source_file="res://textures/previews/rocky_coast.png"
+dest_files=["res://.godot/imported/rocky_coast.png-126a7603b9b19923d375a50af5304a65.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

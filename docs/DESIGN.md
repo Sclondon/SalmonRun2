@@ -25,7 +25,7 @@ Reference for the life cycle:
 A run is the whole life cycle, so every stage on it is swum twice.
 
 1. **Spawning migration** (late summer into autumn, upstream). The adult swims from the
-   Open Ocean to a spawning ground. It is silver at sea, turns as it enters fresh water,
+   Big Blue to a spawning ground. It is silver at sea, turns as it enters fresh water,
    and is red and green by the upper rivers. From the coast on, the water climbs.
 2. **Seaward migration** (spring, downstream). The adults spawn and die; you swim the same
    stages back to the ocean as one of their young: a fry in the lake, a barred parr in the
@@ -36,9 +36,9 @@ Reaching the ocean ends the run. Best scores are kept per stage and per directio
 
 ### Flow of screens
 
-Title → **NEW RUN** → globe on the Open Ocean → START → intro → stage → results → globe (pick the
+Title → **NEW RUN** → globe on the Big Blue → START → intro → stage → results → globe (pick the
 way on) → travel line → next stage → ... → spawning ground → spawning scene → the
-same stages in reverse → the Open Ocean → outro → the run's summary page.
+same stages in reverse → the Big Blue → outro → the run's summary page.
 
 - **Cutscenes** are a handful of captions over the stage that is loaded, filmed by a roving
   camera between black bars while the salmon swims on its own. Any press skips them. There
@@ -77,19 +77,19 @@ screens: the salmon never leaves the water between one stage and the next.
   left-hand one, with a sign over each saying what the goal is, for as long as the goal is
   not met; it opens the moment it is, and shuts again if a goal is lost (few wipeouts). The
   side the salmon passes the bow on is the way it goes.
-- **The abyss is a special case.** On the Open Ocean the ship only lies in the course: the
-  way on (Shallow Sea) is past it on either side, and the advanced way (Ocean Trench) is
+- **The abyss is a special case.** On the Big Blue the ship only lies in the course: the
+  way on (Shallow Sea) is past it on either side, and the advanced way (Abyss) is
   *down*: a giant current, 9 m across the radius, that begins a dive under the surface to
   the right of the ship and goes down six layers. It is only there once the goal is met.
   Dive into it and it carries the salmon down, through the finish, and on into the trench.
-- **The Ocean Trench is swum all under the water** (`"submerged"` in `levels.gd`): six
+- **The Abyss is swum all under the water** (`"submerged"` in `levels.gd`): six
   layers deep, nothing on its surface, no coming up and no jumping, until a current near
   its end climbs back to the surface and throws the salmon out, ahead of its own fork.
 - **Every stage has a fork of its own**, and it need not be at the end (`"divider"` and
   `"fork_at"` in `levels.gd`): sea stacks in the Shallow Sea and at the end of the trench, a
-  gravel bar on the Coastline, an iceberg in Arctic Waters, a pier in the harbours and the
+  gravel bar on the Rocky Coast, an iceberg in Arctic Waters, a pier in the harbours and the
   fish ladder, a reef in the Coral Reef (two of them: three ways), an island in the
-  Meandering River, a logjam in the Dry Riverbed. Only the Open Ocean has the cruise ship.
+  Meandering River, a logjam in the Dry Riverbed. Only the Big Blue has the cruise ship.
   Once the way is chosen the rest of the stage is swum as usual.
 - **The next stage comes up out of the distance.** It is joined on to the run-out some 130 m
   ahead of the salmon, in the haze, and swum up to: nothing appears round the salmon. When
@@ -104,11 +104,11 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 
 | Step | Stage | Where | Leads to (default first) | Goal to open the rest |
 |---|---|---|---|---|
-| 1 | Open Ocean | mid Pacific | Shallow Sea, Ocean Trench | collect 12 rings |
-| 2 | Shallow Sea | Gulf of Alaska | Coastline, The Harbor | 5 tricks on the beat |
-| 2 | Ocean Trench | Mariana Trench | Coral Reef, Arctic Waters | 5 tricks on the beat |
-| 3 | Coastline | off British Columbia | The Fish Ladder, Dry Riverbed | no more than 2 wipeouts |
-| 3 | The Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
+| 1 | Big Blue | mid Pacific | Shallow Sea, Abyss | collect 12 rings |
+| 2 | Shallow Sea | Gulf of Alaska | Rocky Coast, Harbor | 5 tricks on the beat |
+| 2 | Abyss | Mariana Trench | Coral Reef, Arctic Waters | 5 tricks on the beat |
+| 3 | Rocky Coast | off British Columbia | The Fish Ladder, Dry Riverbed | no more than 2 wipeouts |
+| 3 | Harbor | Puget Sound | The Fish Farm, The Fish Ladder | score 60K |
 | 3 | Coral Reef | off Okinawa | Neon Harbor, Meandering River, Dry Riverbed | collect 14 rings |
 | 3 | Arctic Waters | Bering Strait | Meandering River, Neon Harbor | collect 12 rings |
 | 4 | Meandering River | inland of Seattle | Rainforest Falls, Mountain River | score 70K |
@@ -126,7 +126,7 @@ Each stage names the stages it leads to. The **first is the default** way on. Th
 Notes:
 - Alpine Lake can be reached a step early from Dry Riverbed or The Fish Ladder.
 - The Crater Lake and The Hatchery play exactly like Alpine Lake and The Fish Farm; only
-  the scenery differs. Neon Harbor shares The Harbor's look in different light but has its
+  the scenery differs. Neon Harbor shares Harbor's look in different light but has its
   own course.
 - The way down retraces the stages the run came up through.
 
@@ -161,19 +161,19 @@ Notes:
   steadily; its foam and waves die away, change size all at once while there are none to
   see, and come back (`World._turn_water`). A stage joined on has a front to it (a wall
   under its banks and bed: `Track._build_front`).
-- **There is always a sea floor** (on the Open Ocean too far down to see), and the Ocean
+- **There is always a sea floor** (on the Big Blue too far down to see), and the Ocean
   Trench is a drowned canyon: walls of rock in ledges to either side (`"canyon"`).
-- **A humpback leads the way on the Open Ocean:** it keeps ahead of the salmon, makes for
+- **A humpback leads the way on the Big Blue:** it keeps ahead of the salmon, makes for
   the giant current beside the ship and goes down it (`sea_visitors.gd`).
 - **Mountain River** has a waterfall about every 170 m.
-- **The Harbor** is 72 m of water between the quays, two layers deep, with work boats that
+- **Harbor** is 72 m of water between the quays, two layers deep, with work boats that
   cross the course to and fro (`world/crosser.gd`, the `"boats"` kind): run into one at the
   surface and it is a wipeout; go round, or dive under.
 - **The cruise ship** has a deep hull under the water (`Track.DRAFT`), two propellers and
   rudders at the stern.
-- **Anglerfish** hang in the dark of the Ocean Trench, each behind its light.
+- **Anglerfish** hang in the dark of the Abyss, each behind its light.
 - **On a log** the salmon arches its back upward.
-- **The Ocean Trench is the canyon of the Dry Riverbed, drowned** (`"sunk"`: the same walls
+- **The Abyss is the canyon of the Dry Riverbed, drowned** (`"sunk"`: the same walls
   26 m further down), and it is left under the water, by a **choice of ocean currents**: one
   for each way on, side by side; the one ridden is the way taken (`"divider": "currents"`).
 - **The humpback** is bigger, bends as it swims (`heave` in `fish.gdshader`), and **tuna
@@ -182,7 +182,7 @@ Notes:
   (short, up to the surface and off the end into the air); a loop (round like a corkscrew);
   a huge one; and a long low straight one. There are many more of them, and a swipe to
   either side darts out of one (up or down leaves it too).
-- **The humpback turns up half way through the Open Ocean.** The sign by the count of the
+- **The humpback turns up half way through the Big Blue.** The sign by the count of the
   pack is drawn in clean shapes, not big pixels. The salmon swims lower in the water.
 - **The finish, and each way at a fork, is half a ring** standing in the water
   (`Props.half_ring`), with its name over the top. After a fork the next stage is joined on
@@ -196,7 +196,7 @@ Notes:
 - **The humpback blows**, every few seconds: swim into the spout and it throws the salmon
   high into the air (`Salmon.launch`).
 - **Weather and night** (`levels.gd`: `"weather"`, `"stars"`, `"aurora"`, `"clouds"`): it rains
-  on the Coastline (`fx/weather.gd`), which roughens the water and leaves ringlets on it
+  on the Rocky Coast (`fx/weather.gd`), which roughens the water and leaves ringlets on it
   (`rain` in the water shader); Rainforest Falls and Arctic Waters are at night, under
   stars and an aurora (the sky shader). Clouds of krill drift near the surface of the sea.
 - **A fork is a way that breaks off, as in Star Fox.** Part of the way through a stage
@@ -206,9 +206,9 @@ Notes:
   with its own obstacles and its own finish, which leads to the advanced stage. Keep left
   and the main way goes on to the default one. Passing the end of the divider on the right
   puts the salmon on the branch (`World.take_branch`). There is no bank between the two
-  where they part (`open_side`). The Open Ocean (the ship and the abyss) and the Ocean
+  where they part (`open_side`). The Big Blue (the ship and the abyss) and the Ocean
   Trench (a choice of currents) keep their own kinds of fork.
-- **The Ocean Trench has no surface overhead** (`"no_surface"`): only the dark.
+- **The Abyss has no surface overhead** (`"no_surface"`): only the dark.
 - **Between stages** the salmon swims on at full speed under the results (the run-out is 1300 m); on CONTINUE the next stage is joined on 380 m ahead, out of sight; the globe stays about six seconds, and the name of the next stage comes up under it just as the line reaches its pin; the two go up together.
 - **Flying fish** break out of the sea ahead in a flight and glide low over it, never the salmon's way: coming straight at it, or across its path at some angle (`sea_visitors.gd`).
 
@@ -237,23 +237,23 @@ There is a gate over the finish and none at the start.
 **The stages at a glance**
 
 The sea is wide and the rivers are narrow: the sea stages are 70 to 140 m of open water
-(the Coastline and the Coral Reef with land along one side only), and the rivers after them
+(the Rocky Coast and the Coral Reef with land along one side only), and the rivers after them
 are 16 to 21 m between their banks.
 
 | Stage | Look | Water | Predator | Notable |
 |---|---|---|---|---|
-| Open Ocean | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
+| Big Blue | broad daylight, deep blue water, buoys, ships far off | flat, open | shark (rare) | the gentle start: 140 m of open water, long empty stretches, no rock fields, no bottom in sight, no ramps; six layers to dive |
 | Shallow Sea | cold open water off Alaska, the sea floor in sight, the fishing fleet about | flat | shark | 90 m wide; strings of crab-pot floats (dive under them); two layers to dive |
-| Ocean Trench | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Open Ocean, left by a current back to the surface; currents, boost rings and sea nettles |
-| Coastline | the coast of Oregon under a grey sky: 70 m of sea with a rocky shore along the left only (dark sand, black rock, sea stacks, drift logs, spruce on the bluffs) and open water on the right | barely climbs | shark | |
-| The Harbor | quays, cranes, sodium light | barely climbs | shark | |
+| Abyss | near-black water, glowing jellyfish, seamounts | flat, open, 110 m wide, six layers deep and swum all under the water | none | the abyss: come into down a giant current from the Big Blue, left by a current back to the surface; currents, boost rings and sea nettles |
+| Rocky Coast | the coast of Oregon under a grey sky: 70 m of sea with a rocky shore along the left only (dark sand, black rock, sea stacks, drift logs, spruce on the bluffs) and open water on the right | barely climbs | shark | |
+| Harbor | quays, cranes, sodium light | barely climbs | shark | |
 | Coral Reef | pink dawn over clear water, 70 m wide, a beach along one side only, dense coral | flat, open | shark | |
 | Arctic Waters | pack ice and icebergs under an aurora, 100 m wide | flat, open | shark | |
 | Meandering River | farmland, barns, windmills; very winding | gentle climb | none | harvest gold in autumn, green in spring |
 | Dry Riverbed | red-rock canyon, cacti, mesas | climbs | none | a few waterfalls; blooms in spring |
 | The Fish Ladder | concrete channel through forest | climbs | none | a waterfall every 170 m |
 | The Fish Farm | net pens on a grey lake | flat, open | none | short; feed barrels are the only obstacles |
-| Neon Harbor | The Harbor under pink city light | barely climbs | shark | |
+| Neon Harbor | Harbor under pink city light | barely climbs | shark | |
 | Rainforest Falls | temperate rainforest: big conifers, ferns, mist | climbs | bear | the training course borrows its look |
 | Mountain River | granite gorge; gold larches in autumn, snow in spring | steepest | bear | most waterfalls and rocks |
 | Bamboo River | Japanese mountain stream: bamboo, torii, lanterns | climbs | bear | red maples in autumn, cherry blossom in spring |
@@ -307,8 +307,8 @@ swiping up comes up one (and from the surface, jumps). Once under, it can also b
 and down freely, to anywhere between the layers and back to the surface: up and down on the
 keys or the stick, or a slow drag up or down with the finger held (a quick stroke is still a
 swipe). Steering and speed are the same at
-every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
-six and the Ocean Trench three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
+every depth. A river has one layer under the surface (1.7 m down). The **Big Blue** has
+six and the Abyss three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
 
 - Dived, you pass under rails, under anything that only floats (containers, ice, feed
   barrels) and under a bear. Rocks that stand on the bed still block the way, and a shark
@@ -318,7 +318,7 @@ six and the Ocean Trench three, 3.6 m apart; the Shallow Sea has two, 2.6 m apar
   colour of the water, shafts of light slant down from the surface, the distance goes murky
   and the music is muffled. Bubbles come up from the deep and specks hang in the water.
 
-What is under the sea stages with layers (Open Ocean, Shallow Sea, Ocean Trench) is laid out
+What is under the sea stages with layers (Big Blue, Shallow Sea, Abyss) is laid out
 on its own along a trail of its own, whatever is on the surface above it
 (`deep` in `levels.gd`):
 
@@ -329,7 +329,7 @@ on its own along a trail of its own, whatever is on the surface above it
   depth it ends. They come in all widths (3 to 4.5 m across the radius, and about one in three a great wide one of 5.5 to 7.5 m, drawn in where it comes near the surface). Each is a tunnel with no wall to it: a few strokes of wind, well spread out, winding round it in a spiral (each a thin tail fattening to a curled head), and grainy see-through rings travelling down it; its two ends are open, and everything in it thins away over the last 26 m at either end instead of stopping dead; and bubbles (little rings that face the eye: `current_bubbles.gd`) are swept along inside it. It is under the water like
   everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
-  rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you
+  rings. About one current in three is a launch. The Big Blue has no jump ramps: this is its way up, and its rails are ones you
   swim straight onto.
 - **Ring trails** run under the sea as well: a few rings on one layer, then a few on the next
   one down or up.
@@ -386,7 +386,7 @@ on its own along a trail of its own, whatever is on the surface above it
   other salmon, the wake and the splashes ride them. Nothing flashes on the beat: the water
   and the light are steady.
 - **Open sea** stages have a floor of rolling hills below (`floor`) instead of a river bed:
-  in sight in the Shallow Sea and the Coral Reef, and not drawn at all under the Open Ocean.
+  in sight in the Shallow Sea and the Coral Reef, and not drawn at all under the Big Blue.
   From underneath, the surface is a bright ceiling that hides the sky.
 - **The wake** is part of the water, drawn by the water shader from the salmon's trail: two
   bands of foam off the shoulders, opening

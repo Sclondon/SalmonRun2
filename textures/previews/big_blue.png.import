@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crvrftfhl48ni"
-path="res://.godot/imported/the_harbor.png-f25d77507d3e036bd4b86faa24bbe22b.ctex"
+uid="uid://dnmgtgimy4lt0"
+path="res://.godot/imported/big_blue.png-4aa62100949cbda3ce6e8c8beb065107.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/the_harbor.png"
-dest_files=["res://.godot/imported/the_harbor.png-f25d77507d3e036bd4b86faa24bbe22b.ctex"]
+source_file="res://textures/previews/big_blue.png"
+dest_files=["res://.godot/imported/big_blue.png-4aa62100949cbda3ce6e8c8beb065107.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

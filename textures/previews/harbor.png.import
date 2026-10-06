@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ds3qc8uy3a4oa"
-path="res://.godot/imported/ocean_trench.png-e0b22e4344cbb8511531c0b3ab6d92f3.ctex"
+uid="uid://dq1qqvh5bum2b"
+path="res://.godot/imported/harbor.png-eb272ec96255b06dd4aaeae69241423d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/previews/ocean_trench.png"
-dest_files=["res://.godot/imported/ocean_trench.png-e0b22e4344cbb8511531c0b3ab6d92f3.ctex"]
+source_file="res://textures/previews/harbor.png"
+dest_files=["res://.godot/imported/harbor.png-eb272ec96255b06dd4aaeae69241423d.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
