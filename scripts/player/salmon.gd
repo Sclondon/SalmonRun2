@@ -24,7 +24,7 @@ const Score := preload("res://scripts/game/score.gd")
 const GRAVITY := Track.GRAVITY
 const CRUISE := 25.0
 const BOOST_SPEED := 12.0
-const STEER := 15.0
+const STEER := 12.0
 const SPIN_RATE := 620.0
 const FLIP_RATE := 480.0
 const ROLL_RATE := 540.0
@@ -362,7 +362,7 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	var slope := (track.water_y(s) - track.water_y(s + 4.0)) / 4.0
 	target += clampf(slope, -0.2, 0.3) * 40.0
 	speed = move_toward(speed, target, (16.0 if speed < target else 9.0) * dt)
-	vx = lerpf(vx, float(inp.steer) * STEER, 1.0 - exp(-7.0 * dt))
+	vx = lerpf(vx, float(inp.steer) * STEER, 1.0 - exp(-4.5 * dt))
 	var prev_s := s
 	s += speed * dt
 	x += vx * dt

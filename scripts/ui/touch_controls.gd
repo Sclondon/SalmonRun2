@@ -16,7 +16,7 @@ const Salmon := preload("res://scripts/player/salmon.gd")
 const HOLD_TIME := 0.1
 ## Steering is a stick: a drag of STICK_REACH (canvas units, scaled by _k) to one side is full
 ## left or right, and less than STICK_DEAD of that is no steering at all.
-const STICK_REACH := 80.0
+const STICK_REACH := 105.0
 const STICK_DEAD := 0.12
 ## A swipe is at least SWIPE_DIST (canvas units, scaled by _k) travelled within SWIPE_WINDOW seconds.
 const SWIPE_DIST := 70.0
