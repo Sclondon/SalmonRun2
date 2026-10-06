@@ -160,8 +160,9 @@ var _autotest_done := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# what was set by hand in the water lab last time
-	Track.water_overrides = Save.water
+	# what was set by hand in the water lab last time (the lab is a desktop tool: the web build
+	# has no way into it, and takes no notice of anything an older build of it kept)
+	Track.water_overrides = {} if OS.has_feature("web") else Save.water
 	# (settings the water no longer has: the beat shimmer, and the old swell, which is now
 	# set by its height, length and speed)
 	Track.water_overrides.erase("sparkle")
@@ -171,7 +172,7 @@ func _ready() -> void:
 		if Track.water_overrides.has(renamed[0]):
 			Track.water_overrides[renamed[1]] = Track.water_overrides[renamed[0]]
 			Track.water_overrides.erase(renamed[0])
-	Wake.life = Save.water.get("wake_life", Wake.LIFE)
+	Wake.life = Track.water_overrides.get("wake_life", Wake.LIFE)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_autotest_dir = arg.get_slice("=", 1)
@@ -893,7 +894,8 @@ func _build_menus() -> void:
 	col.add_child(UI.button("NEW RUN", _open_run))
 	col.add_child(UI.button("PRACTICE", func() -> void: _open_practice(_level, false)))
 	col.add_child(UI.button("FIELD GUIDE", func() -> void: _open_sub_panel(_guide)))
-	col.add_child(UI.button("WATER LAB", func() -> void: _open_lab(_lab_stage)))
+	if not OS.has_feature("web"):
+		col.add_child(UI.button("WATER LAB", func() -> void: _open_lab(_lab_stage)))
 	col.add_child(UI.button("OPTIONS", func() -> void: _open_sub_panel(_options)))
 	if not OS.has_feature("web"):
 		col.add_child(UI.button("QUIT", func() -> void: get_tree().quit()))

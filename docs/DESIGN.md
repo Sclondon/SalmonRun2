@@ -311,7 +311,7 @@ hurricanes. It turns to face the stage in hand and never zooms.
 
 ## 9. Other modes and tools
 
-- **Water lab:** on the title menu. With a mouse and keys the view can be turned (drag), moved in and out (wheel, or Q and E) and moved over the water (W A S D), down to under the surface looking up; R puts it back. The salmon swims a stage by itself under a panel of
+- **Water lab:** on the title menu of the desktop game only (the web build has no button for it, and ignores any values an older web build kept). With a mouse and keys the view can be turned (drag), moved in and out (wheel, or Q and E) and moved over the water (W A S D), down to under the surface looking up; R puts it back. The salmon swims a stage by itself under a panel of
   sliders and colour pickers for the water shader (colour, surface, foam, wake), which change
   the water as you watch, seen from high up looking down. STILL / FOLLOW chooses whether the
   camera stands over one stretch of water or goes with the salmon. The arrows change stage,
