@@ -60,6 +60,9 @@ const LIST: Array[Dictionary] = [
 		# under the sea, laid out on its own: currents to ride (one in three launches you), trails
 		# of rings, runs of boost rings and drifts of sea nettles
 		"deep": ["currents", "rings", "jellies", "surge", "currents", "rings", "launch", "jellies"],
+		# the way on divides round a cruise ship lying in the course near the end: left for the
+		# default, right for the advanced (shut by a boom of buoys until the goal is met)
+		"divider": "cruise_ship",
 		# the deepest water there is: six layers under the surface
 		"layers": 6, "layer_depth": 3.6,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",

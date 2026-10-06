@@ -63,6 +63,8 @@ var _steady_x := 0.0           # the finger's position with the wiggle smoothed 
 # is makes no difference.)
 var _drag_from := 0.0
 var _drag_from_y := 0.0
+# (how high up the screen the finger came down: where the base of the stick is drawn)
+var _base_y := 0.0
 var _flash := 0.0
 var _flash_dir := Vector2.ZERO
 var _flash_pos := Vector2.ZERO
@@ -112,6 +114,7 @@ func _touch_down(index: int, p: Vector2) -> void:
 	_steady_x = p.x
 	_drag_from = p.x
 	_drag_from_y = p.y
+	_base_y = p.y
 	_turns.clear()
 	_flips.clear()
 	_head_pos = p
@@ -247,9 +250,11 @@ func _draw() -> void:
 	if _touch != -1:
 		var ring: Color = UI.GOLD if GameInput.wiggling or GameInput.roll != 0.0 else UI.TEAL
 		# the stick: its base where the finger came down, and the knob under the finger
-		var base := Vector2(_drag_from, _pos.y)
+		# (the base stays put, wherever the finger goes after: a base that followed the finger
+		# up and down was disorienting)
+		var base := Vector2(_drag_from, _base_y)
 		draw_arc(base, STICK_REACH * k, 0.0, TAU, 40, Color(1, 1, 1, 0.25), 3.0 * k)
-		draw_line(base, Vector2(clampf(_pos.x, base.x - STICK_REACH * k, base.x + STICK_REACH * k), base.y), Color(1, 1, 1, 0.3), 6.0 * k)
+		draw_line(base, base + (_pos - base).limit_length(STICK_REACH * k), Color(1, 1, 1, 0.3), 6.0 * k)
 		draw_circle(_pos, 46.0 * k, Color(ring, 0.18))
 		draw_arc(_pos, 46.0 * k, 0.0, TAU, 32, Color(ring, 0.7), (9.0 if GameInput.wiggling or GameInput.roll != 0.0 else 4.0) * k)
 	if _flash > 0.0:

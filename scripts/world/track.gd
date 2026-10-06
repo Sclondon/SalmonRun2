@@ -62,6 +62,20 @@ var surge := 0
 var rings: Array = []        # {s, x, h, ref, pos, node, taken}
 var bears: Array = []        # {s, x, node}
 
+## The fork near the end of a stage whose way on divides (and which has a "divider"): a great
+## obstacle down the middle of the course, with one way on to its left (the default) and one
+## to its right (the advanced, shut by a boom until the stage's goal is met). {s0, s1: where
+## the divider lies; boom: where its boom begins; ways: the stage each side leads to}. Empty
+## where there is none.
+var fork := {}
+var fork_open := true
+## Set once the salmon has passed the bow: the way is chosen, and nothing changes after.
+var fork_locked := false
+const FORK_BEAM := 11.0
+var _boom: Node3D
+var _fork_signs: Array[Label3D] = []
+var _fork_set := false
+
 var mat_world: ShaderMaterial
 var mat_foliage: ShaderMaterial
 var mat_water: ShaderMaterial
@@ -108,6 +122,10 @@ func build(level_index := Levels.RAINFOREST, test_level := false, downstream := 
 	_noise.fractal_type = FastNoiseLite.FRACTAL_NONE
 	_noise.frequency = 1.0
 	_make_materials()
+	fork = {}
+	if not test and not down and cfg.has("divider") and Levels.next_of(level).size() > 1:
+		var end := length - 150.0
+		fork = {"s0": end - 140.0, "s1": end - 8.0, "boom": end - 250.0, "ways": Levels.next_of(level)}
 	if test:
 		_plan_test()
 	else:
@@ -199,6 +217,135 @@ static func write_presets() -> bool:
 		for key: String in keys:
 			file.set_value(stage, key, preset[key])
 	return file.save(PRESETS) == OK
+
+
+# ================================================================== the fork
+
+## How wide the divider is to either side of the middle at `s` (0 where there is none).
+func fork_half(s: float) -> float:
+	if fork.is_empty() or s < float(fork.s0) or s > float(fork.s1):
+		return 0.0
+	# (a sharp bow, and a stern drawn in a little)
+	var bow := sqrt(clampf((s - float(fork.s0)) / 40.0, 0.0, 1.0))
+	var stern := lerpf(0.75, 1.0, clampf((float(fork.s1) - s) / 14.0, 0.0, 1.0))
+	return FORK_BEAM * bow * stern
+
+
+## Where the salmon may be across the water at `s`, wanting to be at `x`: not inside the
+## divider, and (while the advanced way is shut) not on the far side of its boom.
+func fork_keep(s: float, x: float) -> float:
+	if fork.is_empty():
+		return x
+	var half := fork_half(s)
+	if half > 0.0:
+		var lim := half + 1.3
+		if not fork_open:
+			return minf(x, -lim)
+		if absf(x) < lim:
+			return lim if x >= 0.0 else -lim
+	elif not fork_open and s > float(fork.boom) and s <= float(fork.s0):
+		var t := (s - float(fork.boom)) / (float(fork.s0) - float(fork.boom))
+		return minf(x, lerpf(width(s) * 0.5, -1.3, t) - 1.0)
+	return x
+
+
+## Opens or shuts the advanced way (the right-hand side of the divider): the boom of buoys
+## across it, and what its sign says. Once the salmon has gone by, it stays as it was.
+func set_fork_open(open: bool) -> void:
+	if fork.is_empty() or fork_locked or (open == fork_open and _fork_set):
+		return
+	_fork_set = true
+	fork_open = open
+	_boom.visible = not open
+	var ways: Array = fork.ways
+	_fork_signs[1].text = str(Levels.LIST[ways[1]].name) if open else "CLOSED\n%s" % Levels.objective_text(level)
+	_fork_signs[1].modulate = Color(1.0, 0.95, 0.6) if open else Color(1.0, 0.45, 0.4)
+
+
+# The divider (a cruise ship lying along the middle of the course), the signs over the two
+# ways round it, and the boom of buoys that shuts the right-hand way.
+func _build_fork() -> void:
+	var s0: float = fork.s0
+	var s1: float = fork.s1
+	var mb := MB.new()
+	var hull := Color(0.96, 0.96, 0.94)
+	var keel := Color(0.1, 0.16, 0.34)
+	var deck_h := 9.0
+	# the hull, a slice at a time, following the course
+	var prev: Array = []
+	var s := s0
+	while s <= s1 + 0.01:
+		var half := maxf(fork_half(s), 0.15)
+		var wy := water_y(s)
+		var row := [point(s, -half, wy - 2.5), point(s, -half, wy + 1.6), point(s, -half - 0.9, wy + deck_h),
+				point(s, half + 0.9, wy + deck_h), point(s, half, wy + 1.6), point(s, half, wy - 2.5)]
+		if not prev.is_empty():
+			var mid := (row[2] as Vector3).lerp(prev[3], 0.5) - Vector3.UP * 4.0
+			for j in 5:
+				var col := keel if j == 0 or j == 4 else (Props.shade(hull, 1.08) if j == 2 else hull)
+				mb.quad(prev[j], row[j], row[j + 1], prev[j + 1], col, ((row[j] as Vector3) + (prev[j + 1] as Vector3)) * 0.5 - mid)
+		prev = row
+		s += 5.0
+	# (closed at the stern)
+	mb.quad(prev[1], prev[2], prev[3], prev[4], hull, center(s1 + 5.0) - center(s1))
+	# the decks above it: three tiers of cabins, each shorter than the one under it, with a
+	# dark band of windows round each, and two funnels
+	var mid_s := lerpf(s0, s1, 0.56)
+	var b := basis_at(mid_s)
+	var base := point(mid_s, 0.0, water_y(mid_s) + deck_h)
+	var long := s1 - s0
+	for tier in 3:
+		var size := Vector3(FORK_BEAM * 2.0 - 3.0 - tier * 3.0, 3.2, long * (0.66 - tier * 0.12))
+		var c := base + Vector3.UP * (1.6 + tier * 3.2)
+		Props.box(mb, c, size, hull, null, 0.0, b)
+		Props.box(mb, c + Vector3.UP * 0.3, Vector3(size.x + 0.12, 1.1, size.z - 1.5), Color(0.1, 0.2, 0.36), null, 0.0, b)
+		Props.box(mb, c + Vector3.UP * 1.75, Vector3(size.x + 1.0, 0.3, size.z + 1.0), Props.shade(hull, 0.9), null, 0.0, b)
+	for k in 2:
+		var at := base + b * Vector3(0.0, 13.0, -8.0 + k * 16.0)
+		Props.box(mb, at, Vector3(5.0, 7.0, 6.0), Color(0.86, 0.2, 0.16), null, 0.0, b)
+		Props.box(mb, at + Vector3.UP * 3.9, Vector3(5.3, 1.2, 6.3), Color(0.12, 0.12, 0.14), null, 0.0, b)
+	# a row of lifeboats down each side
+	for k in 6:
+		for side: float in [-1.0, 1.0]:
+			var ls := lerpf(s0 + long * 0.3, s1 - long * 0.12, k / 5.0)
+			Props.box(mb, point(ls, side * (fork_half(ls) + 0.2), water_y(ls) + deck_h + 1.0), Vector3(1.6, 1.3, 5.0), Color(0.95, 0.5, 0.12), null, 0.0, basis_at(ls))
+	_add_mesh(mb.build(), mat_world)
+	# the signs: the way each side leads, over the water ahead of the bow
+	var ways: Array = fork.ways
+	_fork_signs.clear()
+	for k in 2:
+		var label := Label3D.new()
+		label.font = UI.font()
+		label.font_size = 96
+		label.pixel_size = 0.085
+		label.outline_size = 26
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.text = str(Levels.LIST[ways[k]].name)
+		label.modulate = Color(1.0, 0.95, 0.6)
+		label.outline_modulate = Color(0.05, 0.08, 0.2)
+		label.position = point(s0 + 12.0, (-1.0 if k == 0 else 1.0) * width(s0) * 0.25, water_y(s0) + 15.0)
+		add_child(label)
+		_fork_signs.append(label)
+	# the boom: a line of red buoys from the right-hand edge of the water to the bow
+	_boom = Node3D.new()
+	add_child(_boom)
+	var brng := RandomNumberGenerator.new()
+	brng.seed = course_seed + 77
+	var buoy := Props.buoy(brng, Color(0.85, 0.12, 0.1), Color(1.0, 0.3, 0.2))
+	var boom_s: float = fork.boom
+	var count := 34
+	for k in count + 1:
+		var t := float(k) / count
+		var bs := lerpf(boom_s, s0, t)
+		var mi := MeshInstance3D.new()
+		mi.mesh = buoy
+		mi.material_override = mat_world
+		mi.scale = Vector3.ONE * 2.2
+		mi.position = point(bs, lerpf(width(bs) * 0.5, 0.0, t), water_y(bs))
+		_boom.add_child(mi)
+	_fork_set = false
+	set_fork_open(true)
 
 
 # ================================================================== queries
@@ -424,7 +571,8 @@ func _plan_features() -> void:
 	var falls_every: float = cfg.falls_every
 	var last := ""
 	var room := lane_room()
-	while s < length - 320.0:
+	# (nothing is laid where the fork is)
+	while s < length - (450.0 if not fork.is_empty() else 320.0):
 		var kind: String
 		if falls_every > 0.0 and since_fall > falls_every:
 			kind = "bear_falls" if _rng.randf() < 0.5 else "falls"
@@ -1135,6 +1283,8 @@ func _build_features() -> void:
 
 	# (no gate at the start: only the one at the finish)
 	_build_arch(finish_s, _finish_text(), Color(1.0, 0.35, 0.7))
+	if not fork.is_empty():
+		_build_fork()
 
 
 func _place_facing_river(mesh: Mesh, s: float, side: float, dist: float, sc: float) -> void:

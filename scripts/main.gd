@@ -100,6 +100,9 @@ var _next := -1
 var _next_down := false
 ## After a stage on the way up: the ways on that are open to choose between on the globe
 var _ways: Array[int] = []
+## The way taken at the stage's fork (a stage), or -1 where it has none or it has not been
+## reached yet: see Track.fork.
+var _fork_way := -1
 ## ...and the ones that stayed shut because the stage's goal was missed
 var _shut: Array[int] = []
 var _travel_go: Button
@@ -354,6 +357,7 @@ func _start_race(test := false) -> void:
 	hud.visible = true
 	hud.set_best(0 if test else Save.best(_key()))
 	score.reset()
+	_fork_way = -1
 	_forced_goal = 0
 	race_time = 0.0
 	_finish_timer = -1.0
@@ -510,7 +514,8 @@ func _show_results() -> void:
 			_next_down = true
 			next_text = "THE NEXT GENERATION"
 		else:
-			_ways = options
+			# (the way was chosen on the water, at the fork, if the stage has one)
+			_ways = [_fork_way] as Array[int] if options.has(_fork_way) else options
 			for way in Levels.next_of(_level):
 				if not _ways.has(way):
 					_shut.append(way)
@@ -775,6 +780,7 @@ func _process(delta: float) -> void:
 				hud.set_objective("%s   [%s]" % [Levels.objective_text(_level), Hud.fmt(_objective_value())], _objective_met())
 			else:
 				hud.set_objective("", false)
+			_watch_fork()
 			if phase == Phase.RACE and p.s >= world.track.finish_s:
 				if _test_mode:
 					_test_lap()
@@ -798,6 +804,22 @@ func _process(delta: float) -> void:
 
 func _sfx(sound: String, pitch := 1.0, db := 0.0) -> void:
 	Sfx.play(sound, pitch, db - (14.0 if phase in [Phase.TITLE, Phase.CUTSCENE] else 0.0))
+
+
+## The fork near the end of the stage: its advanced way is open for as long as the goal is
+## met, and the side of the divider the salmon passes on is the way it goes.
+func _watch_fork() -> void:
+	var track := world.track
+	if track.fork.is_empty() or _fork_way != -1 or _test_mode:
+		return
+	track.set_fork_open(_objective_met())
+	var p := world.player
+	if p.s < float(track.fork.s0) + 25.0:
+		return
+	var ways: Array = track.fork.ways
+	_fork_way = int(ways[1]) if p.x > 0.0 and track.fork_open else int(ways[0])
+	track.fork_locked = true
+	hud.popup("TO %s" % Levels.LIST[_fork_way].name, UI.GOLD, 1.6)
 
 
 func _on_trick(trick: Dictionary) -> void:
@@ -931,7 +953,7 @@ func _build_menus() -> void:
 		grid.add_child(UI.label(r[0], 24, UI.TEAL, 6))
 		grid.add_child(UI.label(r[1], 24, Color.WHITE, 6))
 	var tips := UI.label("Land upright, and let go of grabs before you hit the water.\n" +
-			"Land on the beat: the closer, the better the grade, up to x2 for PERFECT! Keep landing tricks to build FLOW (up to x5).\n" +
+			"Swipe on the beat: every swipe is graded as you make it (the jump too), and the trick is worth up to x2 for PERFECT! Keep landing tricks to build FLOW (up to x5).\n" +
 			"Land on bamboo to grind. Bears swipe on the beat, so jump over them!\n" +
 			"Gamepad: stick steers / flips, A jump, LT boost, LB RB corkscrew, X Y B RT grabs.\n" +
 			"Touch: drag left or right to steer. Swipe up to jump. In the air, swipe any way to spin or flip.", 21, UI.OCHRE, 6)

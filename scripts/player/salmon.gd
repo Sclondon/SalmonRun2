@@ -969,6 +969,12 @@ func _clamp_banks() -> void:
 				Sfx.play("bank", 1.0, -6.0)
 				speed *= 0.93
 			vx = -vx * 0.3
+	# (and out of the divider of a fork, and off the shut side of it)
+	var kept := track.fork_keep(s, x)
+	if kept != x:
+		if (kept - x) * vx < 0.0:
+			vx = -vx * 0.3
+		x = kept
 
 
 # ================================================================== visuals

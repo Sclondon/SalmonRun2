@@ -54,6 +54,19 @@ Two routes, **North America** and **Japan**. They share the first three steps an
 step 4. Each has a fish farm as a short, easy early ending and a home lake at the end of the
 full run.
 
+**The stages are being joined up into one piece of water** (in hand: only the first step is
+built). The way on is chosen on the water, not on a screen: a stage whose way divides, and
+which has a `"divider"` in `levels.gd` (so far only the Open Ocean, a cruise ship), has a
+fork near its end. The divider lies along the middle of the course for its last 130 m; the
+left of it is the default way on and the right is the advanced. A boom of red buoys runs
+from the right-hand edge of the water to the bow and shuts the right-hand way, with a sign
+over it saying what the goal is, for as long as the goal is not met; it opens the moment it
+is, and shuts again if a goal is lost (few wipeouts). The side the salmon passes the bow on
+is the way it goes, and the results then offer only that way. (`Track.fork`, `fork_keep()`,
+`set_fork_open()`; `main._watch_fork()`.) A stage with no divider still asks on the globe.
+Still to come: the results over the water with the salmon swimming on by itself, the next
+stage made as you go and joined on without a break, and dividers for the other stages.
+
 Each stage names the stages it leads to. The **first is the default** way on. The others are
 **advanced** ways, opened by meeting that stage's goal; otherwise they are shown locked.
 
