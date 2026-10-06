@@ -186,3 +186,11 @@ func _orbit_keys(dt: float) -> void:
 		orbit_move += push.rotated(-orbit_yaw) * maxf(orbit_dist, 6.0) * 1.2 * dt
 		var lim := track.width(_overlook_s) * 0.5 + 30.0
 		orbit_move.x = clampf(orbit_move.x, -lim - _overlook_x, lim - _overlook_x)
+
+
+## Everything is measured from somewhere else from now on (the salmon has swum on to the next
+## stage): the eye and what it looks at are carried over, so that the picture does not move.
+func carry(by: Transform3D) -> void:
+	_pos = by * _pos
+	_look = by * _look
+	_overlook_s = -1.0

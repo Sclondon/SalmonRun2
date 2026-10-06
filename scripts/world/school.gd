@@ -372,3 +372,12 @@ func _fancies(f: Dictionary, s0: float) -> bool:
 		f.asked = s0
 		f.fancy = _rng.randf() < 0.6
 	return f.fancy
+
+
+## The salmon has swum on to the next stage, which begins `ds` metres along the old one:
+## everyone keeps their place round it.
+func carry(ds: float) -> void:
+	for f: Dictionary in _fish:
+		f.s = maxf(float(f.s) - ds, 4.0)
+		f.y = track.surface_y(float(f.s), float(f.x))
+		f.vy = 0.0

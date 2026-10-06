@@ -93,7 +93,7 @@ screens: the salmon never leaves the water between one stage and the next.
   Once the way is chosen the rest of the stage is swum as usual.
 - **The next stage comes up out of the distance.** It is joined on to the run-out some 130 m
   ahead of the salmon, in the haze, and swum up to: nothing appears round the salmon. When
-  the globe has shown the way it goes back up, the sky and the light turn to the next
+  the globe has shown the way it goes back up, the sky, the light and the water (this stage's and the next one's together, so that there is no line where they meet) turn to the next
   stage's, and the salmon is the player's again from there.
 
 Not done yet: the next stage is made in one go (about a third of a second on a desktop,

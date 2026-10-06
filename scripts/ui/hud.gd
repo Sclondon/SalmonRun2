@@ -12,6 +12,7 @@ var _trick_pts: Label
 var _combo: Label
 var _combo_bar: ProgressBar
 var _popup: Label
+var _banner: Label
 var _platinum: ShaderMaterial
 var _count: Label
 var _speed: Label
@@ -87,6 +88,13 @@ func _ready() -> void:
 	_popup.position = Vector2(-500, 30)
 	_popup.custom_minimum_size = Vector2(1000, 80)
 	root.add_child(_popup)
+	# the name of a stage swum on to: it comes down from above the top of the screen
+	_banner = _centered(UI.label("", 54, UI.TEAL, 14))
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_banner.custom_minimum_size = Vector2(1000, 70)
+	_banner.position = Vector2(-500, -120)
+	_banner.modulate.a = 0.0
+	root.add_child(_banner)
 
 	_count = _centered(UI.label("", 150, UI.GOLD, 20))
 	_count.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -262,3 +270,16 @@ static func fmt_time(t: float) -> String:
 	var m := int(t / 60.0)
 	var sec := fmod(t, 60.0)
 	return "%d:%05.2f" % [m, sec]
+
+
+## The name of the stage just swum on to: let down from above the top of the screen, held
+## a while, and drawn back up.
+func banner(text: String) -> void:
+	_banner.text = text
+	_banner.modulate.a = 1.0
+	_banner.position.y = -120.0
+	var drop := create_tween()
+	drop.tween_property(_banner, "position:y", 96.0, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	drop.tween_interval(2.2)
+	drop.tween_property(_banner, "position:y", -120.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	drop.tween_property(_banner, "modulate:a", 0.0, 0.05)

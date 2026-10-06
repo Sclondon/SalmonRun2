@@ -22,6 +22,9 @@ var ahead: Track
 var behind: Track
 var _join := Transform3D.IDENTITY
 var _join_s := 0.0
+var _water_to := {}
+var _water_turning := false
+var _water_blend: Tween
 
 var others: School
 ## The salmon run: a great many more salmon that turn up for a short while and copy the
@@ -428,6 +431,14 @@ func make_next(level: int, down: bool) -> void:
 	var turned := from * ahead.basis_at(0.0).inverse()
 	_join = Transform3D(turned, at - turned * ahead.point(0.0, 0.0, ahead.water_y(0.0)))
 	ahead.transform = _join
+	# The water of the two is one water: the next stage's begins as this one's is (its colours,
+	# its foam, its swell), and both turn to the next stage's own together (see theme_ahead),
+	# so that there is no line across the water where they meet.
+	_water_to = {}
+	for key: String in Track.WATER_KEYS + ["swell"]:
+		_water_to[key] = ahead.mat_water.get_shader_parameter(key)
+		ahead.mat_water.set_shader_parameter(key, track.mat_water.get_shader_parameter(key))
+	_water_turning = false
 
 
 ## Where the stage being swum ends (metres along it): the salmon goes no further.
@@ -448,6 +459,7 @@ func join_s() -> float:
 func theme_ahead() -> void:
 	if ahead != null:
 		_apply_level(2.5, ahead.cfg)
+		_turn_water(2.5)
 
 
 ## The salmon has reached the join: it is on the next stage from here. Everything is
@@ -458,13 +470,18 @@ func take_next() -> void:
 	var was_water := track.water_y(player.s)
 	behind = track
 	behind.live = false
-	behind.transform = _join.affine_inverse()
+	var carried := _join.affine_inverse()
+	behind.transform = carried
 	ahead.transform = Transform3D.IDENTITY
 	ahead.clock = behind.clock
 	ahead.live = true
 	track = ahead
 	ahead = null
 	_dress_player(track.level, track.down)
+	# (if the water has not begun to turn to this stage's yet, it does now)
+	if not _water_turning:
+		_turn_water(1.5)
+	_water_turning = false
 	player.track = track
 	player.rail = {}
 	if player._wake:
@@ -480,7 +497,7 @@ func take_next() -> void:
 	player._prev_surface += lift
 	for flock: School in [school, others, run]:
 		flock.track = track
-		flock.scatter()
+		flock.carry(_join_s)
 	for shoal: Shoals in [shoals, sardines]:
 		shoal.track = track
 		shoal.scatter()
@@ -489,4 +506,27 @@ func take_next() -> void:
 	visitors.scatter()
 	bubbles.track = track
 	camera.track = track
-	camera.snap()
+	camera.carry(carried)
+
+
+# Turns the water of the stage being swum, and of the one joined on ahead (or just swum on
+# to), to the next stage's own, both together, over `seconds`.
+func _turn_water(seconds: float) -> void:
+	_water_turning = true
+	if _water_blend:
+		_water_blend.kill()
+	var mats: Array[ShaderMaterial] = [track.mat_water]
+	if ahead != null:
+		mats.append(ahead.mat_water)
+	if behind != null:
+		mats.append(behind.mat_water)
+	_water_blend = create_tween().set_parallel(true)
+	for key: String in _water_to:
+		var to: Variant = _water_to[key]
+		var was: Variant = mats[0].get_shader_parameter(key)
+		if to == null or was == null or typeof(to) != typeof(was):
+			continue
+		_water_blend.tween_method(func(t: float) -> void:
+			for mat in mats:
+				if is_instance_valid(mat):
+					mat.set_shader_parameter(key, lerp(was, to, t)), 0.0, 1.0, seconds)

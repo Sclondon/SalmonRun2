@@ -924,7 +924,7 @@ func _arrive() -> void:
 	_link.visible = true
 	hud.visible = true
 	hud.set_best(Save.best(_key()))
-	hud.popup(Levels.LIST[_level].name, UI.TEAL, 2.6)
+	hud.banner(Levels.LIST[_level].name)
 	score.reset()
 	_fork_way = -1
 	_streak = 0
