@@ -112,6 +112,26 @@ float vnoise(vec2 p) {
 			mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
+// Smooth noise for anything whose slope is looked at (the shape of the waves): a slope at
+// each corner of a grid, blended so that neither the height nor its slope nor its curve
+// jumps from one square to the next. (vnoise above is only smooth in height: light glancing
+// off waves made from it shows up every square of its grid.) From 0 to 1, like vnoise.
+vec2 slope_at(vec2 corner) {
+	float a = hash(corner) * 6.2831853;
+	return vec2(cos(a), sin(a));
+}
+
+float gnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float a = dot(slope_at(i), f);
+	float b = dot(slope_at(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+	float c = dot(slope_at(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+	float d = dot(slope_at(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+	return 0.5 + 0.7 * mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
 // Distance from the camera (metres) of a depth-buffer value at a point on screen.
 float view_depth(vec2 screen_uv, float depth, mat4 inv_projection) {
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY
@@ -135,11 +155,11 @@ float swell_of(float phase) {
 float wave_h(vec2 p) {
 	float t = TIME * wave_speed;
 	p *= wave_scale;
-	p += (vec2(vnoise(p * 0.3 + 3.0), vnoise(p * 0.3 + 11.0)) - 0.5) * 3.0;
+	p += (vec2(gnoise(p * 0.3 + 3.0), gnoise(p * 0.3 + 11.0)) - 0.5) * 3.0;
 	float h = swell_of(dot(p, vec2(0.8, 0.6)) + t * 1.3) * 0.9;
 	h += swell_of(dot(p, vec2(-0.5, 0.86)) * 1.7 - t * 1.7) * 0.55;
 	h += swell_of(dot(p, vec2(0.95, -0.3)) * 2.9 + t * 2.3) * 0.3;
-	h += vnoise(p * 2.3 + vec2(t * 0.6, 0.0)) * 0.35;
+	h += gnoise(p * 2.3 + vec2(t * 0.6, 0.0)) * 0.35;
 	return h;
 }
 
@@ -206,7 +226,9 @@ void fragment() {
 	vec3 col = mix(shallow.rgb, deep.rgb, tone);
 	// (and a crest is a little paler than a trough)
 	col = mix(col, shallow.rgb, max(crest, 0.0) * 0.18);
-	col = mix(col, shallow.rgb, (n - 0.5) * ripple * (0.4 + 0.6 * depth));
+	// (the colour varies in soft patches: made from the smooth noise, or its grid shows)
+	float tint = gnoise(p * 0.7) * 0.6 + gnoise(p * 1.6 + 7.0) * 0.4;
+	col = mix(col, shallow.rgb, (tint - 0.5) * 2.0 * ripple * (0.4 + 0.6 * depth));
 	col = mix(col, foam_color.rgb, white);
 	// The shape of the surface: the slope of the small waves here, turned into a normal, so
 	// that the light and the sky are reflected off each one as off real water. (The slope is
