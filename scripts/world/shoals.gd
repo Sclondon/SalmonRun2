@@ -33,7 +33,9 @@ func setup(t: Track, p: Salmon, count: int, fish: int) -> void:
 	player = p
 	_rng.seed = 1357 + (11 if sardines else 0)
 	var meshes: Array[Mesh] = []
-	for kind: Array in ([[Color(0.25, 0.4, 0.55), Color(0.86, 0.92, 0.97)]] if sardines else KINDS):
+	if sardines:
+		meshes.append(Props.sardine())
+	for kind: Array in ([] if sardines else KINDS):
 		meshes.append(Props.small_fish(kind[0], kind[1]))
 	for i in count:
 		var mm := MultiMesh.new()

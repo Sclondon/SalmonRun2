@@ -1297,3 +1297,45 @@ static func whale() -> ArrayMesh:
 		var e := Vector3(sx * 1.03, -0.25, -6.0)
 		mb.quad(e + Vector3(0, 0.1, -0.1), e + Vector3(0, 0.1, 0.1), e + Vector3(0, -0.1, 0.1), e + Vector3(0, -0.1, -0.1), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
 	return mb.build()
+
+
+## A sardine: a slim fish with a blue-green back, a bright silver flank with a row of dark
+## spots along it and a darker stripe above them, a pale belly, a forked tail, small fins and
+## an eye. (For the swarms: still only a few dozen faces.) Nose at -Z, about 1 long.
+static func sardine() -> ArrayMesh:
+	var mb := MB.new()
+	var back := Color(0.1, 0.3, 0.42)
+	var stripe := Color(0.2, 0.45, 0.6)
+	var silver := Color(0.88, 0.93, 0.97)
+	var belly := Color(0.97, 0.98, 0.96)
+	var fin := Color(0.4, 0.52, 0.6)
+	_ringed_body(mb, [
+		[-0.5, 0.012, 0.015, 0.0],
+		[-0.36, 0.05, 0.075, 0.0],
+		[-0.12, 0.07, 0.11, 0.005],
+		[0.14, 0.06, 0.095, 0.005],
+		[0.34, 0.03, 0.045, 0.0],
+		[0.42, 0.012, 0.022, 0.0],
+	], 6, back, silver, belly)
+	# the forked tail
+	var root := Vector3(0.0, 0.0, 0.4)
+	mb.tri(root + Vector3(0, 0.02, 0), Vector3(0.0, 0.14, 0.6), Vector3(0.0, 0.0, 0.49), fin, Vector3.RIGHT)
+	mb.tri(root - Vector3(0, 0.02, 0), Vector3(0.0, 0.0, 0.49), Vector3(0.0, -0.14, 0.6), fin, Vector3.RIGHT)
+	# the fin on its back, and the one under it
+	mb.tri(Vector3(0.0, 0.11, -0.08), Vector3(0.0, 0.19, 0.04), Vector3(0.0, 0.1, 0.1), back, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.09, 0.14), Vector3(0.0, -0.14, 0.24), Vector3(0.0, -0.07, 0.26), fin, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		var out := Vector3(sx, 0.0, 0.0)
+		# the stripe along the top of the flank, and the spots under it
+		mb.quad(Vector3(sx * 0.062, 0.06, -0.3), Vector3(sx * 0.062, 0.06, 0.26), Vector3(sx * 0.066, 0.035, 0.26), Vector3(sx * 0.066, 0.035, -0.3), stripe, out)
+		for k in 5:
+			var c := Vector3(sx * 0.072, 0.012, -0.22 + k * 0.1)
+			mb.quad(c + Vector3(0, 0.014, -0.016), c + Vector3(0, 0.014, 0.016), c + Vector3(0, -0.014, 0.016), c + Vector3(0, -0.014, -0.016), Color(0.08, 0.14, 0.22), out)
+		# the gill cover, the eye, and a little fin behind the gill
+		mb.quad(Vector3(sx * 0.064, 0.05, -0.27), Vector3(sx * 0.064, 0.05, -0.255), Vector3(sx * 0.066, -0.06, -0.24), Vector3(sx * 0.066, -0.06, -0.255), stripe, out)
+		var e := Vector3(sx * 0.048, 0.025, -0.38)
+		mb.quad(e + Vector3(0, 0.02, -0.02), e + Vector3(0, 0.02, 0.02), e + Vector3(0, -0.02, 0.02), e + Vector3(0, -0.02, -0.02), Color(0.95, 0.9, 0.6), out)
+		var p := e + Vector3(sx * 0.003, 0.0, 0.0)
+		mb.quad(p + Vector3(0, 0.01, -0.01), p + Vector3(0, 0.01, 0.01), p + Vector3(0, -0.01, 0.01), p + Vector3(0, -0.01, -0.01), Color(0.02, 0.02, 0.03), out)
+		mb.tri(Vector3(sx * 0.066, -0.03, -0.22), Vector3(sx * 0.13, -0.08, -0.1), Vector3(sx * 0.066, -0.05, -0.14), fin, Vector3.UP)
+	return mb.build()

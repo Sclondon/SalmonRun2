@@ -151,8 +151,8 @@ Seasons are part of each entry: the base settings are autumn (the way up), and a
 block replaces whatever changes on the way down.
 
 **A pack of six salmon** swims every course right round you, matching your life stage: each
-keeps a place of its own a little ahead, behind or to one side, leaps when you leap and
-dives when you dive. **In the flow** (from x2, fully at x3) the pack draws in close and falls
+steers as a flock does (boids: keep clear of your neighbours, swim the way they swim, make for the middle of them) and follows you besides; they leap when you leap and
+dive when you dive, and each leaves a small V of foam behind it and a little splash where it leaves the water and lands. **In the flow** (from x2, fully at x3) the pack draws in close and falls
 in step: as high out of the water as you are, and turning every spin, flip and corkscrew you
 turn (`School.in_step`). **Other salmon** swim further off about their own business, and
 there are more of them the higher the stage's score (3 at the start, up to 16 by 120,000).
@@ -212,7 +212,7 @@ on its own along a trail of its own, whatever is on the surface above it
   down and up through every layer there is. Swim into one (each starts a layer or two down, under a row of arrows on the
   surface) and it carries you off at boost speed, filling the boost bar and scoring by how
   long you stay on. An up or down swipe leaves it early; otherwise it lets you go at whatever
-  depth it ends. They come in all widths (about one in three is a great wide one). Each is drawn the way wind is: thin white wisps winding round a tube in a spiral, grainy see-through rings and bubbles carried along it, under the water like
+  depth it ends. They come in all widths (2 to 3 m across the radius, and about one in three a great wide one of 4 to 5 m). Each is a tunnel: a faint wall of glass (a screen of dots, strongest at its edges), with strokes of wind winding round it in a spiral (each a thin tail fattening to a curled head), grainy see-through rings and little ring-shaped bubbles carried along it, under the water like
   everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
   rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you

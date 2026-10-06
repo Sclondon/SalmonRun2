@@ -8,6 +8,7 @@ extends Node3D
 const Track := preload("res://scripts/world/track.gd")
 const Salmon := preload("res://scripts/player/salmon.gd")
 const Props := preload("res://scripts/world/props.gd")
+const Splash := preload("res://scripts/fx/splash.gd")
 
 const AHEAD := 45.0
 const BEHIND := 22.0
@@ -19,6 +20,11 @@ var _fish: Array[Dictionary] = []
 var _look := ""
 var _t := 0.0
 var _was_air := false
+var wakes: Array[MeshInstance3D] = []
+var _wake_mat: StandardMaterial3D
+# a few splashes, used in turn by whichever of them leaps or lands next
+var _splashes: Array[Splash] = []
+var _splash_next := 0
 ## How closely the pack keeps to the player and copies it, from 0 (company: each in its own
 ## place, leaping when it likes) to 1 (in step: drawn in close, leaping when the player leaps,
 ## as high, and turning every trick the player turns). Set from the flow, by main.
@@ -35,6 +41,10 @@ var _rng := RandomNumberGenerator.new()
 func setup(t: Track, p: Salmon, count: int) -> void:
 	track = t
 	player = p
+	_wake_mat = StandardMaterial3D.new()
+	_wake_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_wake_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_wake_mat.albedo_color = Color(0.94, 1.0, 0.98)
 	_rng.seed = 2468 + (99 if loose else 0)
 	var shader := preload("res://shaders/fish.gdshader")
 	for i in count:
@@ -43,8 +53,17 @@ func setup(t: Track, p: Salmon, count: int) -> void:
 		var node := MeshInstance3D.new()
 		node.material_override = mat
 		add_child(node)
+		# its wake: a flat V of foam lying on the water behind it (the player's own wake is
+		# worked out in the water itself, for every pixel near it: far too dear for a pack)
+		var trail := MeshInstance3D.new()
+		trail.mesh = _wake_mesh()
+		trail.material_override = _wake_mat
+		trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		trail.visible = false
+		add_child(trail)
+		wakes.append(trail)
 		_fish.append({"node": node, "mat": mat, "s": 0.0, "x": 0.0, "y": 0.0, "vy": 0.0, "vx": 0.0,
-				"n": i, "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
+				"n": i, "vs": 20.0, "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
 				# its place in the pack: how far ahead of the player and how far to one side
 				"ahead": lerpf(-7.0, 15.0, (i + 0.5) / count) + _rng.randf_range(-1.5, 1.5),
 				"off": (3.0 + _rng.randf_range(0.0, 5.5)) * (1.0 if i % 2 == 0 else -1.0), "deep": 0.0})
@@ -66,6 +85,9 @@ func set_look(look: String) -> void:
 
 ## Spreads everyone out around the player (after a restart or a change of level).
 func scatter() -> void:
+	var foam: Variant = track.mat_water.get_shader_parameter("foam_color") if track.mat_water else null
+	if foam != null and _wake_mat:
+		_wake_mat.albedo_color = foam
 	for f: Dictionary in _fish:
 		_place(f, player.s + (_rng.randf_range(-20.0, 80.0) if loose else float(f.ahead)))
 
@@ -79,6 +101,7 @@ func _place(f: Dictionary, at_s: float) -> void:
 	f.y = track.surface_y(f.s, f.x)
 	f.vy = 0.0
 	f.vx = 0.0
+	f.vs = maxf(player.speed, 10.0)
 	f.pace = _rng.randf_range(0.9, 1.08)
 
 
@@ -101,6 +124,7 @@ func _process(delta: float) -> void:
 		if f.has("n"):
 			(f.node as MeshInstance3D).visible = int(f.n) < active
 			if int(f.n) >= active:
+				wakes[int(f.n)].visible = false
 				continue
 		# out of sight: come back in from the other end
 		var gap: float = float(f.s) - player.s
@@ -110,21 +134,57 @@ func _process(delta: float) -> void:
 		var x: float = f.x
 		var y: float = f.y
 		var vy: float = f.vy
-		# it keeps its place in the pack: as fast as the player, and a little faster or slower
-		# to get back to where it belongs
+		var lim := track.width(s) * 0.5 - 1.8
+		var vx := 0.0
 		if loose:
 			s += Salmon.CRUISE * float(f.pace) * dt
+			# drift about the lane
+			var want := clampf(float(f.lane) + sin(_t * 0.5 + float(f.phase)) * 2.0, -lim, lim)
+			want = _round_rocks(s, want)
+			vx = clampf((want - x) * 1.5, -9.0, 9.0)
 		else:
-			s += clampf(player.speed + (player.s + float(f.ahead) * close - s) * lerpf(1.2, 4.0, _step), 8.0, 48.0) * dt
-			f.lane = player.x + float(f.off) * close
-		# drift about the lane, and steer round any rock coming up
-		var lim := track.width(s) * 0.5 - 1.8
-		var want := clampf(float(f.lane) + sin(_t * 0.5 + float(f.phase)) * 2.0 * (1.0 - _step), -lim, lim)
-		for r: Dictionary in track.rocks:
-			var d: float = float(r.s) - s
-			if d > -2.0 and d < 22.0 and absf(want - float(r.x)) < float(r.r) + 1.6:
-				want = float(r.x) + (float(r.r) + 2.2) * (1.0 if want >= float(r.x) else -1.0)
-		var vx := clampf((want - x) * lerpf(1.5, 5.0, _step), -14.0, 14.0)
+			# The pack is a flock (boids). Each one steers by three rules about its
+			# neighbours, the player among them: keep clear of any that are too close, swim
+			# the way and at the speed the others are swimming, and make for the middle of
+			# them; and one more that makes it a pack: follow the player. In step, they
+			# close up. (Along the course and across it: f.vs and f.vx are its own speed.)
+			var here := Vector2(s, x)
+			var vel := Vector2(float(f.vs), float(f.vx))
+			var apart := lerpf(4.2, 2.4, _step)
+			var away := Vector2.ZERO
+			var middle := Vector2(player.s, player.x)
+			var heading := Vector2(player.speed, player.vx)
+			var near := 1
+			for g: Dictionary in _fish:
+				if g == f or int(g.n) >= active:
+					continue
+				var there := Vector2(float(g.s), float(g.x))
+				var d := here.distance_to(there)
+				if d < apart and d > 0.001:
+					away += (here - there) / d * (apart - d)
+				if d < 14.0:
+					middle += there
+					heading += Vector2(float(g.vs), float(g.vx))
+					near += 1
+			var from_player := here - Vector2(player.s, player.x)
+			if from_player.length() < apart and from_player.length() > 0.001:
+				away += from_player.normalized() * (apart - from_player.length()) * 1.5
+			middle /= near
+			heading /= near
+			# (its own spot to make for is a little off from the player's, so that the pack
+			# is all round the player and not in a line behind)
+			var spot := Vector2(player.s + float(f.ahead) * 0.35 * close, player.x + float(f.off) * 0.5 * close)
+			var push := away * 9.0 + (heading - vel) * 1.4 + (middle - here) * 0.5 + (spot - here) * lerpf(2.0, 4.0, _step)
+			# (and round any rock coming up)
+			var clear := _round_rocks(s, x)
+			if clear != x:
+				push.y += (clear - x) * 12.0
+			vel += push.limit_length(60.0) * dt
+			vel.x = clampf(vel.x, maxf(player.speed - 12.0, 6.0), player.speed + 14.0)
+			vel.y = clampf(vel.y, -14.0, 14.0)
+			f.vs = vel.x
+			s += vel.x * dt
+			vx = vel.y
 		x = track.fork_keep(s, clampf(x + vx * dt, -lim, lim))
 		var surf := track.surface_y(s, x)
 		# (a generous margin: going downhill the surface drops away a little every frame)
@@ -178,6 +238,52 @@ func _process(delta: float) -> void:
 		f.deep = lerpf(float(f.deep), depth * (0.8 + 0.25 * sin(float(f.phase))), 1.0 - exp(-3.0 * dt))
 		var lift := track.swell_y(s, x) * (1.0 - smoothstep(0.0, 2.5, y - track.water_y(s))) * (1.0 - smoothstep(0.0, 1.0, float(f.deep))) - (0.0 if air else float(f.deep))
 		node.transform = Transform3D(b.scaled(Vector3.ONE * float(f.size)), track.point(s, x, y + lift - (0.0 if air else 0.1)))
+		# its wake, on the surface, and a small splash as it leaves the water and as it lands
+		var trail := wakes[int(f.n)]
+		trail.visible = not air and float(f.deep) < 0.3 and absf(s - player.s) < 70.0
+		if trail.visible:
+			trail.transform = Transform3D(track.basis_at(s) * Basis(Vector3.UP, -atan2(vx, Salmon.CRUISE)), track.point(s, x, track.water_y(s) + track.swell_y(s, x) + 0.05))
+		if air != bool(f.get("was_air", false)) and float(f.deep) < 0.3 and absf(s - player.s) < 45.0:
+			_splash(s, x, 0.3 if air else 0.45)
+		f.was_air = air
 		var mat: ShaderMaterial = f.mat
 		mat.set_shader_parameter("wag_phase", _t * (6.0 if air else 18.0) + float(f.phase))
 		mat.set_shader_parameter("wag_amp", 0.08 if air else 0.12)
+
+
+# Where across the water to be at `s`, wanting to be at `want`, so as to miss any rock
+# coming up.
+func _round_rocks(s: float, want: float) -> float:
+	for r: Dictionary in track.rocks:
+		var d: float = float(r.s) - s
+		if d > -2.0 and d < 22.0 and absf(want - float(r.x)) < float(r.r) + 1.6:
+			want = float(r.x) + (float(r.r) + 2.2) * (1.0 if want >= float(r.x) else -1.0)
+	return want
+
+
+# The V of a wake: two thin arms of foam opening out behind the fish (which is at the
+# point of it, heading -Z), each widening and ending in a point.
+static var _wake: ArrayMesh
+func _wake_mesh() -> ArrayMesh:
+	if _wake == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for side: float in [-1.0, 1.0]:
+			var tip := Vector3(0.0, 0.0, -0.3)
+			var mid_in := Vector3(side * 0.42, 0.0, 1.9)
+			var mid_out := Vector3(side * 0.62, 0.0, 1.8)
+			var end := Vector3(side * 1.25, 0.0, 4.6)
+			for v: Vector3 in [tip, mid_out, mid_in, mid_in, mid_out, end]:
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v)
+		_wake = st.commit()
+	return _wake
+
+
+func _splash(s: float, x: float, strength: float) -> void:
+	if _splashes.size() < 3:
+		var made := Splash.new()
+		add_child(made)
+		_splashes.append(made)
+	_splash_next = (_splash_next + 1) % _splashes.size()
+	_splashes[_splash_next].start(track, s, x, strength)

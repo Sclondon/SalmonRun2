@@ -53,7 +53,7 @@ const TRICK_WINDUP := 0.16
 const DIVE_TIME := 0.22
 ## Under the water the salmon can also be swum up and down freely (up and down on the keys or
 ## the stick; on touch, a slow drag up or down with the finger held): this many layers a second.
-const FREE_SWIM := 2.4
+const FREE_SWIM := 2.4  # (no longer used: up and down go at the speed of steering, see _swim)
 ## A swipe to one side on the water dashes this far across (metres), in this long.
 const DASH := 3.0
 const DASH_TIME := 0.13
@@ -97,6 +97,7 @@ var dive_to := 0.0
 var _marks: Array[int] = []
 var _held := [true, true, true, true]
 var _rise := 0.0
+var _rise_v := 0.0
 var _current_wait := 0.0
 var _dash := 0.0
 # the corkscrew it turns as it dashes: which way, and how far through it is (1 is done)
@@ -431,13 +432,15 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	# Under the water it can be swum up and down freely as well, to anywhere between the
 	# layers; held up far enough, it comes back to the surface.
 	_rise = float(inp.get("rise", 0.0)) if layer > 0 and not autopilot else 0.0
-	if _rise != 0.0:
-		dive_to = clampf(dive_to - _rise * FREE_SWIM * dt, 0.0, float(track.layers()))
+	# (up and down at the same speed as from side to side, and eased into in the same way)
+	_rise_v = lerpf(_rise_v, _rise * STEER, 1.0 - exp(-4.5 * dt)) if layer > 0 else 0.0
+	if absf(_rise_v) > 0.05:
+		dive_to = clampf(dive_to - _rise_v / track.layer_depth() * dt, 0.0, float(track.layers()))
 		if dive_to < 0.3:
 			_set_layer(0)
 		else:
 			layer = maxi(roundi(dive_to), 1)
-	dive = move_toward(dive, dive_to, dt / DIVE_TIME)
+	dive = move_toward(dive, dive_to, dt * maxf(1.0 / DIVE_TIME, STEER / track.layer_depth()))
 	y = surf - track.layer_depth() * dive
 	_prev_surface = surf
 	_current_wait = maxf(_current_wait - dt, 0.0)

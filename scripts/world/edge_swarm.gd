@@ -34,7 +34,7 @@ func setup(t: Track, p: Salmon, fish: int) -> void:
 	rng.seed = 9753
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
-	_mm.mesh = Props.small_fish(Color(0.25, 0.4, 0.55), Color(0.86, 0.92, 0.97))
+	_mm.mesh = Props.sardine()
 	_mm.instance_count = fish
 	_node = MultiMeshInstance3D.new()
 	_node.multimesh = _mm
