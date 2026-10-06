@@ -353,6 +353,7 @@ and the music and sound effects are synthesized offline by scripts in the projec
 | Camera | `scripts/world/chase_camera.gd` |
 | Splash and wake | `scripts/fx/splash.gd`, `scripts/fx/wake.gd` (the wake is drawn in `shaders/water.gdshader`) |
 | Water, underwater view, currents | `shaders/water.gdshader`, `shaders/post.gdshader`, `shaders/current.gdshader` |
+| The water every stage starts from, and a scene for setting it up in the editor | `materials/water.tres`, `scenes/water_scene.tscn` (`scripts/tools/water_scene.gd`) |
 | Scoring and timing grades | `scripts/game/score.gd` |
 | Water lab, field guide | `scripts/ui/water_lab.gd`, `scripts/ui/model_viewer.gd` |
 | Touch gestures | `scripts/ui/touch_controls.gd`, `scripts/autoload/game_input.gd` |

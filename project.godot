@@ -48,6 +48,10 @@ beat_pulse={
 "type": "float",
 "value": 0.0
 }
+water_clock={
+"type": "float",
+"value": 0.0
+}
 psx_wobble={
 "type": "float",
 "value": 0.5

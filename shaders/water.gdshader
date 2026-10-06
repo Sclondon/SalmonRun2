@@ -57,9 +57,9 @@ uniform float swell = 1.0;
 uniform float swell_height : hint_range(0.0, 1.0) = 0.18;
 uniform float swell_length : hint_range(2.0, 60.0) = 12.0;
 uniform float swell_speed : hint_range(0.0, 4.0) = 1.0;
-// Seconds since the stage was made (set every frame by track.gd, which keeps the same time
-// for its own copy of the swell).
-uniform float clock = 0.0;
+// (The swell keeps time by water_clock, seconds since the stage was made: a setting of the
+// whole project, sent every frame by track.gd, which keeps the same time for its own copy.)
+global uniform float water_clock;
 
 group_uniforms surface;
 // The surface is lit as real water is: a smooth, shiny skin of small waves that mirrors the
@@ -94,10 +94,9 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_dis
 varying vec3 v_world;
 
 varying float v_steep;
-// where this is on the water in metres (across from the middle, along), the world position
-// before the swell lifted it, and how much of the swell there is here (none far out to sea)
+// where this is on the water in metres (across from the middle, along), and how much of
+// the swell there is here (none far out to sea)
 varying vec2 v_metres;
-varying vec3 v_flat;
 varying float v_swell;
 
 float hash(vec2 p) {
@@ -155,7 +154,9 @@ float swell_of(float phase) {
 float wave_h(vec2 p) {
 	float t = TIME * wave_speed;
 	p *= wave_scale;
-	p += (vec2(gnoise(p * 0.3 + 3.0), gnoise(p * 0.3 + 11.0)) - 0.5) * 3.0;
+	// (bent no further than this: any more and the bend folds the waves back over themselves,
+	// which shows as a crease)
+	p += (vec2(gnoise(p * 0.3 + 3.0), gnoise(p * 0.3 + 11.0)) - 0.5) * 1.1;
 	float h = swell_of(dot(p, vec2(0.8, 0.6)) + t * 1.3) * 0.9;
 	h += swell_of(dot(p, vec2(-0.5, 0.86)) * 1.7 - t * 1.7) * 0.55;
 	h += swell_of(dot(p, vec2(0.95, -0.3)) * 2.9 + t * 2.3) * 0.3;
@@ -177,7 +178,7 @@ vec3 swell_at(vec2 p) {
 	vec3 sum = vec3(0.0);
 	for (int i = 0; i < 4; i++) {
 		float k = 6.2831853 / (long * trains[i].z);
-		float phase = k * dot(trains[i].xy, p) - sqrt(9.8 * k) * swell_speed * clock + float(i) * 1.7;
+		float phase = k * dot(trains[i].xy, p) - sqrt(9.8 * k) * swell_speed * water_clock + float(i) * 1.7;
 		float a = high * trains[i].w;
 		sum.x += a * sin(phase);
 		sum.yz += trains[i].xy * (a * k * cos(phase));
@@ -190,7 +191,6 @@ void vertex() {
 	v_metres = vec2(UV2.x, UV.y);
 	// (none on a waterfall, and none far out to sea, where the mesh is too coarse to bend)
 	v_swell = UV2.y * (1.0 - smoothstep(0.1, 0.4, v_steep));
-	v_flat = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	VERTEX.y += swell_at(v_metres).x * v_swell;
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	POSITION = psx_snap(PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0), VIEWPORT_SIZE);
@@ -232,10 +232,10 @@ void fragment() {
 	col = mix(col, foam_color.rgb, white);
 	// The shape of the surface: the slope of the small waves here, turned into a normal, so
 	// that the light and the sky are reflected off each one as off real water. (The slope is
-	// measured along the water's own two directions, across and along, which are found in
-	// the world from how they change over the screen.)
+	// measured a short step each way; the step is longer the bigger the waves are set, or it
+	// would be too short to measure at all.)
 	vec2 at = vec2(UV.x * across, UV.y - TIME * flow * 2.0);
-	float eps = 0.06 + far * 0.003;
+	float eps = (0.06 + far * 0.003) * 0.55 / max(wave_scale, 0.02);
 	float h0 = wave_h(at);
 	float slope_x = (wave_h(at + vec2(eps, 0.0)) - h0) / eps;
 	float slope_y = (wave_h(at + vec2(0.0, eps)) - h0) / eps;
@@ -297,16 +297,12 @@ void fragment() {
 	float line = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(lp + vec2(0.0, TIME * 0.12)) - 0.5))) * lines * (1.0 - white)
 			* (1.0 - smoothstep(50.0, 160.0, far)) * (1.0 - wake_calm);
 	col = mix(col, mix(col, foam_color.rgb, 0.35), line);
-	// The water's own two directions in the world, across and along, found from how the
-	// (unlifted) surface and its place in metres each change over the screen.
-	vec3 dp1 = dFdx(v_flat);
-	vec3 dp2 = dFdy(v_flat);
-	vec2 d1 = dFdx(v_metres);
-	vec2 d2 = dFdy(v_metres);
-	float det = d1.x * d2.y - d1.y * d2.x;
-	det = abs(det) < 0.0000001 ? 0.0000001 : det;
-	vec3 across_way = normalize((dp1 * d2.y - dp2 * d1.y) / det + vec3(0.00001, 0.0, 0.0));
-	vec3 along_way = normalize((dp2 * d1.x - dp1 * d2.x) / det + vec3(0.0, 0.0, 0.00001));
+	// The water's own two directions in the world, across and along: each corner of the mesh
+	// carries them (its tangent), so that they turn smoothly with the course. (They were once
+	// worked out from how the surface changes over the screen, which gave every triangle of
+	// the mesh directions of its own, and a seam along each of its edges.)
+	vec3 across_way = normalize((INV_VIEW_MATRIX * vec4(TANGENT, 0.0)).xyz);
+	vec3 along_way = normalize((INV_VIEW_MATRIX * vec4(BINORMAL, 0.0)).xyz);
 	vec3 flat_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// (far off the small waves are smaller than a pixel: they are smoothed away, or they would
 	// only be noise; foam is not shiny; and the wake has flattened them. The swell is none

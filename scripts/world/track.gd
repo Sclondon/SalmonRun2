@@ -68,6 +68,10 @@ var mat_water: ShaderMaterial
 ## Settings of the water changed by hand in the water lab (ui/water_lab.gd): uniform -> value.
 static var water_overrides := {}
 ## Every setting the lab can change (cleared before a stage's own are applied).
+## The water every stage starts from: a material that can be opened and changed in the editor
+## (scenes/water_scene.tscn shows a patch of sea with it). A stage's own "water_..." settings
+## and the water lab's go on top of it.
+const WATER := preload("res://materials/water.tres")
 const WATER_KEYS := ["deep", "shallow", "foam_color", "depth_range", "alpha_shallow", "alpha_deep", "ripple",
 		"roughness", "specular", "wave_height", "wave_scale", "wave_choppy", "wave_speed", "lines", "view_clear",
 		"swell_height", "swell_length", "swell_speed", "crest_foam",
@@ -109,16 +113,17 @@ func _make_materials() -> void:
 	mat_foliage = ShaderMaterial.new()
 	mat_foliage.shader = mat_world.shader
 	mat_foliage.set_shader_parameter("wind", 1.0)
-	mat_water = ShaderMaterial.new()
-	mat_water.shader = preload("res://shaders/water.gdshader")
+	# (a copy of the water set up by hand in scenes/water_scene.tscn: see WATER)
+	mat_water = WATER.duplicate()
 	apply_water()
 
 
-## Sets the water to what the stage asks for, and then to anything changed by hand in the
+## Sets the water to the water material's own settings, then to what the stage asks for, and
+## then to anything changed by hand in the
 ## water lab (water_overrides), which is used on every stage.
 func apply_water() -> void:
 	for key: String in WATER_KEYS:
-		mat_water.set_shader_parameter(key, null)
+		mat_water.set_shader_parameter(key, WATER.get_shader_parameter(key))
 	# any "water_<name>" in the stage's settings sets the water shader's <name>
 	for key: String in cfg:
 		if key.begins_with("water_"):
@@ -210,7 +215,8 @@ const SWELLS := [[0.34, -0.94, 1.0, 1.0], [-0.78, -0.62, 0.62, 0.55], [0.97, 0.2
 const SWELL_HEIGHT := 0.18
 const SWELL_LENGTH := 12.0
 
-## Seconds since the stage was made: the swell's clock (the shader is sent it every frame).
+## Seconds since the stage was made: the swell's clock (the shader is sent it every frame,
+## as the project's water_clock).
 var clock := 0.0
 var _swell_high := 0.0
 var _swell_long := 12.0
@@ -337,8 +343,7 @@ func reset_rings() -> void:
 
 func _process(delta: float) -> void:
 	clock += delta
-	if mat_water:
-		mat_water.set_shader_parameter("clock", clock)
+	RenderingServer.global_shader_parameter_set("water_clock", clock)
 	if _ring_root == null:
 		return
 	var pulse := Music.beat_pulse()
@@ -931,6 +936,7 @@ func _water_mesh(i0: int, i1: int) -> ArrayMesh:
 	var colours := PackedColorArray()
 	var uvs := PackedVector2Array()
 	var uv2s := PackedVector2Array()
+	var tangents := PackedFloat32Array()
 	var indices := PackedInt32Array()
 	# A river's water is mapped bank to bank, with foam along its edges. Open water far wider
 	# than a river keeps the same size of ripple (so the mapping repeats) and has no edges.
@@ -970,6 +976,9 @@ func _water_mesh(i0: int, i1: int) -> ArrayMesh:
 				uvs.append(Vector2(float(v[1]), s))
 				uv2s.append(Vector2(float(v[0]), float(v[2])))
 				colours.append(v[3])
+				# (which way is across the course here: the shader needs it for the waves' slope)
+				var over := right(s)
+				tangents.append_array(PackedFloat32Array([over.x, over.y, over.z, 1.0]))
 		# the strip's face: square to its slope (upright on a waterfall)
 		var along := point((i + 1) * STEP, 0.0, water_y((i + 1) * STEP)) - point(i * STEP, 0.0, water_y(i * STEP))
 		var face := along.cross(right(i * STEP)).normalized()
@@ -995,6 +1004,7 @@ func _water_mesh(i0: int, i1: int) -> ArrayMesh:
 	arrays[Mesh.ARRAY_COLOR] = colours
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
