@@ -41,7 +41,7 @@ const ARC_RADIUS := 0.9
 ## How far downstream you are swept when you fail to clear a waterfall (room for a run-up).
 const WASH_BACK := 40.0
 ## How far its back is arched as it rides a rail.
-const RAIL_ARCH := -0.8
+const RAIL_ARCH := 0.8
 ## How far above the water counts as being in the air while wiped out.
 const AIRBORNE := 0.4
 ## Swipe tricks: the two axes, how long one full turn takes on each (seconds), and how much of
@@ -1037,6 +1037,12 @@ func _check_hazards() -> void:
 		var over := above + float(j.d)
 		if absf(ds) < 3.0 and Vector2(ds, x - float(j.x)).length() < 1.7 and over < 1.2 and over > -3.0:
 			_bump(float(j.x), "STUNG!")
+			return
+	# a boat crossing the course runs down whatever is at the surface in its way: go round
+	# it, or dive under it
+	for c: Dictionary in track.crossers:
+		if absf(s - float(c.s)) < 3.4 and absf(x - float(c.node.across)) < 4.2 and above < 2.4 and dive < 0.6:
+			_wipe("RUN DOWN!")
 			return
 	for b: Dictionary in track.bears:
 		var ds: float = s - float(b.s)

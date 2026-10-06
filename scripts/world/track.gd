@@ -8,6 +8,9 @@ extends Node3D
 const MB := preload("res://scripts/util/mesh_builder.gd")
 const Props := preload("res://scripts/world/props.gd")
 const Bear := preload("res://scripts/world/bear.gd")
+const Crosser := preload("res://scripts/world/crosser.gd")
+## How far under the water the hull of the cruise ship goes, for a ship 11 m in the beam.
+const DRAFT := 7.0
 const UI := preload("res://scripts/ui/ui_kit.gd")
 const Levels := preload("res://scripts/world/levels.gd")
 
@@ -70,6 +73,8 @@ var jellies: Array = []      # {s, x, d, node}: d is metres under the surface
 var surge := 0
 var rings: Array = []        # {s, x, h, ref, pos, node, taken}
 var bears: Array = []        # {s, x, node}
+## Boats that cross the course, to and fro (see crosser.gd): {s, node}
+var crossers: Array = []
 
 ## The fork near the end of a stage whose way on divides (and which has a "divider"): a great
 ## obstacle down the middle of the course, with one way on to its left (the default) and one
@@ -430,17 +435,36 @@ func _build_ship(cx: float) -> void:
 	while s <= s1 + 0.01:
 		var half := maxf(fork_half(s), 0.15)
 		var wy := water_y(s)
-		var row := [point(s, cx - half, wy - 2.5 * k), point(s, cx - half, wy + 1.6 * k), point(s, cx - half - 0.9 * k, wy + deck_h),
-				point(s, cx + half + 0.9 * k, wy + deck_h), point(s, cx + half, wy + 1.6 * k), point(s, cx + half, wy - 2.5 * k)]
+		# (a good third of it is under the water: a deep keel, drawn in towards the bottom)
+		var row := [point(s, cx - half * 0.55, wy - DRAFT * k), point(s, cx - half, wy + 1.6 * k), point(s, cx - half - 0.9 * k, wy + deck_h),
+				point(s, cx + half + 0.9 * k, wy + deck_h), point(s, cx + half, wy + 1.6 * k), point(s, cx + half * 0.55, wy - DRAFT * k)]
 		if not prev.is_empty():
 			var mid := (row[2] as Vector3).lerp(prev[3], 0.5) - Vector3.UP * deck_h * 0.5
+			mb.quad(prev[0], row[0], row[5], prev[5], keel, Vector3.DOWN)
 			for j in 5:
 				var col := keel if j == 0 or j == 4 else (Props.shade(hull, 1.08) if j == 2 else hull)
 				mb.quad(prev[j], row[j], row[j + 1], prev[j + 1], col, ((row[j] as Vector3) + (prev[j + 1] as Vector3)) * 0.5 - mid)
 		prev = row
 		s += 5.0
+	# its flat bottom
 	# (closed at the stern)
 	mb.quad(prev[1], prev[2], prev[3], prev[4], hull, center(s1 + 5.0) - center(s1))
+	# (closed at the stern, above the water and below it, and along its flat bottom)
+	mb.quad(prev[0], prev[1], prev[4], prev[5], keel, center(s1 + 5.0) - center(s1))
+	# its propellers: two of them under the stern, each on a shaft, with a rudder behind
+	var stern_b := basis_at(s1)
+	for side: float in [-1.0, 1.0]:
+		var hub := point(s1 + 2.0 * k, cx + side * beam * 0.3, water_y(s1) - DRAFT * k * 0.72)
+		Props.frustum(mb, hub - stern_b * Vector3(0, 0, 1) * -6.0 * k, hub, 0.45 * k, 0.35 * k, 6, keel, true)
+		Props.blob_plain(mb, hub, Vector3(0.7, 0.7, 0.9) * k, Color(0.72, 0.56, 0.2))
+		for blade in 4:
+			var a := TAU * blade / 4.0 + side * 0.4
+			var out := stern_b * Vector3(cos(a), sin(a), 0.0)
+			var skew := stern_b * Vector3(-sin(a), cos(a), 0.0)
+			mb.quad(hub + out * 0.5 * k - skew * 0.3 * k, hub + out * 2.6 * k - skew * 0.9 * k + stern_b * Vector3(0, 0, 0.5 * k),
+					hub + out * 2.9 * k + skew * 0.6 * k - stern_b * Vector3(0, 0, 0.4 * k), hub + out * 0.5 * k + skew * 0.3 * k, Color(0.82, 0.66, 0.26), stern_b * Vector3(0, 0, 1))
+		var post := point(s1 + 6.0 * k, cx + side * beam * 0.3, water_y(s1) - DRAFT * k * 0.3)
+		Props.box(mb, post - Vector3.UP * DRAFT * k * 0.35, Vector3(0.5 * k, DRAFT * k * 0.75, 3.2 * k), keel, null, 0.0, stern_b)
 	# the decks above it: tiers of cabins, each shorter than the one under it, with a dark
 	# band of windows round each, and two funnels
 	var mid_s := lerpf(s0, s1, 0.56)
@@ -846,6 +870,10 @@ func _plan_features() -> void:
 				used = _plan_jellies(s)
 			"currents":
 				used = _plan_current(s, false)
+			"boats":
+				crossers.append({"s": s + 30.0})
+				crossers.append({"s": s + 75.0})
+				used = 110.0
 			"predators":
 				used = _plan_predators(s)
 		if room > 0.0:
@@ -1524,6 +1552,16 @@ func _build_features() -> void:
 		mi.transform = Transform3D(basis_at(r.s), r.pos)
 		r.node = mi
 		r.taken = false
+
+	for c: Dictionary in crossers:
+		var boat := Crosser.new()
+		boat.reach = width(c.s) * 0.5 - 6.0
+		boat.crossing = boat.reach / 3.2
+		boat.size = 1.5
+		add_child(boat)
+		boat.setup(frng, mat_world)
+		boat.transform = Transform3D(basis_at(c.s), point(c.s, 0.0, water_y(c.s)))
+		c.node = boat
 
 	for b: Dictionary in bears:
 		var bear := Bear.new()

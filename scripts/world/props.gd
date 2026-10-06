@@ -1530,3 +1530,52 @@ static func sturgeon() -> ArrayMesh:
 		var e := Vector3(sx * 0.165, 0.03, -1.12)
 		mb.quad(e + Vector3(0, 0.025, -0.025), e + Vector3(0, 0.025, 0.025), e + Vector3(0, -0.025, 0.025), e + Vector3(0, -0.025, -0.025), Color(0.02, 0.02, 0.03), out)
 	return mb.build()
+
+
+## A deep-sea anglerfish: a dark lump of a fish, nearly all head, with a huge mouth of long
+## thin teeth turned up at the front, small pale eyes, ragged little fins, and a rod growing
+## from its forehead with a light on the end that hangs out in front of its mouth and glows.
+## Nose at -Z, about 1.6 long.
+static func angler() -> ArrayMesh:
+	var mb := MB.new()
+	var hide := Color(0.12, 0.07, 0.1)
+	var belly := Color(0.2, 0.11, 0.13)
+	var tooth := Color(0.92, 0.9, 0.8)
+	var light := glow(Color(0.5, 1.0, 0.85), 0.92)
+	_ringed_body(mb, [
+		[-0.62, 0.34, 0.3, 0.02],
+		[-0.4, 0.5, 0.52, 0.0],
+		[0.0, 0.52, 0.56, 0.0],
+		[0.4, 0.34, 0.36, 0.02],
+		[0.72, 0.12, 0.14, 0.04],
+		[0.86, 0.05, 0.06, 0.04],
+	], 8, hide, hide, belly)
+	# the mouth: a wide dark gape across the front, with the lower jaw jutting out under it
+	mb.quad(Vector3(-0.36, 0.14, -0.64), Vector3(0.36, 0.14, -0.64), Vector3(0.4, -0.16, -0.7), Vector3(-0.4, -0.16, -0.7), Color(0.02, 0.01, 0.02), Vector3.FORWARD)
+	blob_plain(mb, Vector3(0.0, -0.26, -0.56), Vector3(0.44, 0.14, 0.28), belly)
+	# the teeth: long needles, up from the lower jaw and down from the upper
+	for k in 9:
+		var x := -0.34 + k * 0.085
+		var long := 0.2 + 0.07 * sin(k * 2.3)
+		mb.tri(Vector3(x - 0.022, -0.17, -0.71), Vector3(x + 0.022, -0.17, -0.71), Vector3(x, -0.17 + long, -0.74), tooth, Vector3.FORWARD)
+		if k % 2 == 0:
+			mb.tri(Vector3(x - 0.02, 0.14, -0.66), Vector3(x + 0.02, 0.14, -0.66), Vector3(x + 0.02, 0.14 - long * 0.7, -0.7), tooth, Vector3.FORWARD)
+	# the rod and its light
+	var foot := Vector3(0.0, 0.5, -0.3)
+	var crook := Vector3(0.0, 0.92, -0.62)
+	var tip := Vector3(0.0, 0.62, -1.02)
+	frustum(mb, foot, crook, 0.03, 0.022, 4, hide, false)
+	frustum(mb, crook, tip, 0.022, 0.016, 4, hide, false)
+	blob_plain(mb, tip, Vector3(0.1, 0.1, 0.1), light)
+	# the tail, and ragged fins on its back and under it
+	mb.tri(Vector3(0.0, 0.05, 0.84), Vector3(0.0, 0.34, 1.12), Vector3(0.0, 0.04, 1.02), hide, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.03, 0.84), Vector3(0.0, 0.04, 1.02), Vector3(0.0, -0.26, 1.1), hide, Vector3.RIGHT)
+	for k in 3:
+		var z := 0.2 + k * 0.17
+		mb.tri(Vector3(0.0, 0.42 - k * 0.07, z), Vector3(0.0, 0.62 - k * 0.08, z + 0.1), Vector3(0.0, 0.38 - k * 0.07, z + 0.15), hide, Vector3.RIGHT)
+		mb.tri(Vector3(0.0, -0.42 + k * 0.07, z), Vector3(0.0, -0.58 + k * 0.08, z + 0.1), Vector3(0.0, -0.38 + k * 0.07, z + 0.15), belly, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		mb.tri(Vector3(sx * 0.5, -0.1, 0.0), Vector3(sx * 0.78, -0.2, 0.26), Vector3(sx * 0.48, -0.16, 0.24), belly, Vector3.UP)
+		var e := Vector3(sx * 0.4, 0.26, -0.44)
+		mb.quad(e + Vector3(sx * 0.02, 0.045, -0.045), e + Vector3(sx * 0.02, 0.045, 0.045), e + Vector3(sx * 0.02, -0.045, 0.045), e + Vector3(sx * 0.02, -0.045, -0.045), glow(Color(0.8, 0.95, 0.9), 0.5), Vector3(sx, 0, 0))
+	return mb.build()

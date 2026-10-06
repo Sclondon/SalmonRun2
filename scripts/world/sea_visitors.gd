@@ -22,6 +22,8 @@ const KINDS := {
 	"trout": {"chance": 0.75, "count": 7, "few": 3, "size": 1.0, "fresh": true},
 	"sturgeon": {"chance": 0.5, "count": 3, "few": 1, "size": 1.0, "fresh": true},
 	"golden": {"chance": 0.22, "count": 1, "few": 1, "size": 1.15, "fresh": true, "rare": true},
+	# (down in the abyss: anglerfish, each hanging in the dark behind its light)
+	"angler": {"chance": 1.0, "count": 7, "few": 4, "size": 1.6, "deep": true},
 }
 
 var track: Track
@@ -46,7 +48,7 @@ func setup(t: Track, p: Salmon) -> void:
 	track = t
 	player = p
 	_rng.randomize()
-	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna(), "trout": Props.trout(), "sturgeon": Props.sturgeon(), "golden": Props.trout(true)}
+	var meshes := {"turtle": Props.turtle(), "whale": Props.whale(), "tuna": Props.tuna(), "trout": Props.trout(), "sturgeon": Props.sturgeon(), "golden": Props.trout(true), "angler": Props.angler()}
 	for kind: String in KINDS:
 		for i in int(KINDS[kind].count):
 			var node := MeshInstance3D.new()
@@ -66,6 +68,9 @@ func scatter() -> void:
 	for kind: String in KINDS:
 		# (each in its own water: those of the sea in salt, trout and sturgeon in fresh)
 		var at_home: bool = salt != bool(KINDS[kind].get("fresh", false))
+		# (and those of the deep only on a stage swum all under the water)
+		if KINDS[kind].get("deep", false):
+			at_home = bool(track.cfg.get("submerged", false))
 		_about[kind] = at_home and _rng.randf() < float(KINDS[kind].chance)
 		# (on the open ocean there is always the one whale: it leads the way to the abyss)
 		if kind == "whale" and _guiding():
@@ -88,6 +93,12 @@ func _place(a: Dictionary, first: bool) -> void:
 			a.x = _rng.randf_range(-0.8, 0.8) * maxf(lim - 2.5, 1.0)
 			a.depth = _rng.randf_range(0.35, minf(1.2, track.layer_depth()))
 			a.pace = _rng.randf_range(4.0, 14.0)
+		"angler":
+			# down near the floor, off to one side or the other, drifting hardly at all
+			a.s = player.s + _rng.randf_range(70.0, 260.0) + (0.0 if first else 150.0)
+			a.x = _rng.randf_range(-0.85, 0.85) * maxf(lim - 4.0, 1.0)
+			a.depth = _rng.randf_range(0.45, 0.95) * track.layers() * track.layer_depth()
+			a.pace = _rng.randf_range(0.5, 2.0)
 		"sturgeon":
 			# a great slow fish, down on the bed
 			a.s = player.s + _rng.randf_range(150.0, 400.0) + (0.0 if first else 250.0) + int(a.i) * 180.0
@@ -167,6 +178,10 @@ func _process(delta: float) -> void:
 					node.visible = false
 					befriended.emit()
 					continue
+			"angler":
+				# (it turns to watch the salmon go by, and bobs a little)
+				sway = clampf((player.x - float(a.x)) * 0.04, -0.7, 0.7) + PI
+				depth += sin(_t * 0.9 + phase) * 0.3
 			"sturgeon":
 				sway = sin(_t * 1.6 + phase) * 0.1
 			"turtle":

@@ -92,7 +92,7 @@ const LIST: Array[Dictionary] = [
 		"water_deep": Color(0.02, 0.14, 0.4), "water_shallow": Color(0.08, 0.4, 0.68),
 		"swell": 3.0,
 		# deep blue water, and no bottom to be seen (a floor this deep is not drawn)
-		"floor": 160.0, "water_depth_range": 26.0, "water_alpha_deep": 1.0, "water_foam_amount": 0.14,
+		"floor": 320.0, "water_depth_range": 26.0, "water_alpha_deep": 1.0, "water_foam_amount": 0.14,
 		"murk": 0.035, "water_whitecaps": 0.45,
 		"motes": Color(0.9, 0.97, 1.0),
 	},
@@ -391,8 +391,10 @@ const LIST: Array[Dictionary] = [
 		"tagline": "QUAYS, CRANES AND SODIUM LIGHT",
 		"fact": "WHERE RIVER MEETS SEA, A SALMON'S BODY READJUSTS FROM SALT WATER TO FRESH.",
 		"seed": 6910, "length": 3000.0,
-		"width": 22.0, "slope": 0.004, "curve": 0.5, "uphill": true,
-		"kinds": ["rails", "rocks", "ramps", "rails", "rings", "predators"],
+		"width": 72.0, "slope": 0.004, "curve": 0.5, "uphill": true,
+		# wide water between the quays, and work boats crossing it to and fro: go round them or under
+		"kinds": ["rails", "boats", "rocks", "ramps", "boats", "rails", "rings", "predators"],
+		"layers": 2, "layer_depth": 2.4,
 		"falls_every": 0.0, "predator": "shark", "predator_word": "CHOMPED!",
 		"profile": [[-0.5, -1.2, 0, 0], [0.4, 2.4, 0, 0], [8.0, 2.5, 0, 0.2], [24.0, 2.7, 0, 0.5],
 				[45.0, 3.0, 0, 1.0], [75.0, 6.0, 0, 3.0]],

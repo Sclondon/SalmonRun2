@@ -166,6 +166,13 @@ Notes:
 - **A humpback leads the way on the Open Ocean:** it keeps ahead of the salmon, makes for
   the giant current beside the ship and goes down it (`sea_visitors.gd`).
 - **Mountain River** has a waterfall about every 170 m.
+- **The Harbor** is 72 m of water between the quays, two layers deep, with work boats that
+  cross the course to and fro (`world/crosser.gd`, the `"boats"` kind): run into one at the
+  surface and it is a wipeout; go round, or dive under.
+- **The cruise ship** has a deep hull under the water (`Track.DRAFT`), two propellers and
+  rudders at the stern.
+- **Anglerfish** hang in the dark of the Ocean Trench, each behind its light.
+- **On a log** the salmon arches its back upward.
 
 ## 4. Stages
 
