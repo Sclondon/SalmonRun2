@@ -778,6 +778,8 @@ func _process(delta: float) -> void:
 			hud.set_flow(score.flow, score.timer / Score.FLOW_WINDOW)
 			# (in the flow, the pack falls in close and copies the salmon, tricks and all)
 			world.school.in_step = clampf((score.flow - 1) / 2.0, 0.0, 1.0)
+			# (and the higher the score, the more life there is in the water)
+			world.set_abundance(score.score / 120000.0)
 			if _has_objective():
 				hud.set_objective("%s   [%s]" % [Levels.objective_text(_level), Hud.fmt(_objective_value())], _objective_met())
 			else:

@@ -1152,3 +1152,148 @@ static func small_fish(back: Color, flank: Color) -> ArrayMesh:
 		# the tail fin, seen from both sides
 		mb.tri(tail, Vector3(0.0, 0.17, 0.56), Vector3(0.0, -0.17, 0.56), back, out)
 	return mb.build()
+
+
+# ------------------------------------------------------------------ other animals of the sea
+
+# A body made of rings from nose to tail: [z, half-width, half-height, y-centre] each, with
+# `sides` faces round it. Faces looking up are `top`, looking down `under`, the rest `flank`.
+static func _ringed_body(mb: MB, rings: Array, sides: int, top: Color, flank: Color, under: Color) -> void:
+	for k in rings.size() - 1:
+		var ra: Array = rings[k]
+		var rb: Array = rings[k + 1]
+		var axis := Vector3(0.0, (ra[3] + rb[3]) * 0.5, (ra[0] + rb[0]) * 0.5)
+		for i in sides:
+			var a0 := TAU * i / sides + PI / sides
+			var a1 := TAU * (i + 1) / sides + PI / sides
+			var pa0 := Vector3(cos(a0) * ra[1], ra[3] + sin(a0) * ra[2], ra[0])
+			var pa1 := Vector3(cos(a1) * ra[1], ra[3] + sin(a1) * ra[2], ra[0])
+			var pb0 := Vector3(cos(a0) * rb[1], rb[3] + sin(a0) * rb[2], rb[0])
+			var pb1 := Vector3(cos(a1) * rb[1], rb[3] + sin(a1) * rb[2], rb[0])
+			var sn := sin((a0 + a1) * 0.5)
+			var col := under if sn < -0.35 else (top if sn > 0.45 else flank)
+			mb.tri_out(pa0, pa1, pb1, col, axis)
+			mb.tri_out(pa0, pb1, pb0, col, axis)
+
+
+## A Pacific bluefin tuna: a fat, stiff torpedo, dark blue above and silver below, with a
+## tall sickle of a fin on its back and another under it, a row of small yellow finlets
+## towards the tail, and a thin crescent tail. Nose at -Z, about 2.6 long.
+static func tuna() -> ArrayMesh:
+	var mb := MB.new()
+	var blue := Color(0.07, 0.14, 0.3)
+	var steel := Color(0.36, 0.46, 0.6)
+	var silver := Color(0.86, 0.89, 0.92)
+	var yellow := Color(0.95, 0.8, 0.2)
+	_ringed_body(mb, [
+		[-1.3, 0.03, 0.03, 0.0],
+		[-1.0, 0.2, 0.24, 0.0],
+		[-0.45, 0.34, 0.42, 0.02],
+		[0.1, 0.33, 0.4, 0.02],
+		[0.6, 0.2, 0.24, 0.01],
+		[1.0, 0.07, 0.08, 0.0],
+		[1.18, 0.04, 0.04, 0.0],
+	], 8, blue, steel, silver)
+	# the crescent tail: two thin blades swept right back
+	var root := Vector3(0.0, 0.0, 1.14)
+	mb.tri(root + Vector3(0, 0.05, 0), Vector3(0.0, 0.62, 1.5), root + Vector3(0, 0, 0.12), blue, Vector3.RIGHT)
+	mb.tri(root - Vector3(0, 0.05, 0), root + Vector3(0, 0, 0.12), Vector3(0.0, -0.62, 1.5), blue, Vector3.RIGHT)
+	# the two dorsal fins and the anal fin, each a sickle
+	mb.tri(Vector3(0.0, 0.4, -0.5), Vector3(0.0, 0.72, -0.28), Vector3(0.0, 0.4, -0.05), blue, Vector3.RIGHT)
+	mb.tri(Vector3(0.0, 0.36, 0.1), Vector3(0.0, 0.8, 0.44), Vector3(0.0, 0.3, 0.32), yellow.darkened(0.25), Vector3.RIGHT)
+	mb.tri(Vector3(0.0, -0.34, 0.14), Vector3(0.0, -0.74, 0.46), Vector3(0.0, -0.28, 0.34), silver.darkened(0.15), Vector3.RIGHT)
+	# the finlets
+	for k in 5:
+		var z := 0.48 + k * 0.12
+		var h := lerpf(0.24, 0.08, k / 4.0)
+		mb.tri(Vector3(0.0, h, z), Vector3(0.0, h + 0.08, z + 0.07), Vector3(0.0, h - 0.01, z + 0.09), yellow, Vector3.RIGHT)
+		mb.tri(Vector3(0.0, -h, z), Vector3(0.0, -h - 0.08, z + 0.07), Vector3(0.0, -h + 0.01, z + 0.09), yellow, Vector3.RIGHT)
+	for sx: float in [-1.0, 1.0]:
+		mb.tri(Vector3(sx * 0.3, -0.06, -0.62), Vector3(sx * 0.62, -0.2, -0.05), Vector3(sx * 0.32, -0.1, -0.36), blue, Vector3.UP)
+		var e := Vector3(sx * 0.19, 0.06, -1.0)
+		mb.quad(e + Vector3(0, 0.05, -0.05), e + Vector3(0, 0.05, 0.05), e + Vector3(0, -0.05, 0.05), e + Vector3(0, -0.05, -0.05), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+	return mb.build()
+
+
+## A leatherback sea turtle: a long dark shell with pale ridges running down it and no
+## plates, tapering to a point behind; a blunt head; and front flippers as long as the shell
+## is. Nose at -Z, about 2.2 long.
+static func turtle() -> ArrayMesh:
+	var mb := MB.new()
+	var slate := Color(0.13, 0.17, 0.22)
+	var ridge := Color(0.42, 0.5, 0.56)
+	var skin := Color(0.2, 0.25, 0.3)
+	var pale := Color(0.72, 0.7, 0.68)
+	# the shell
+	_ringed_body(mb, [
+		[-0.75, 0.2, 0.1, 0.0],
+		[-0.5, 0.52, 0.22, 0.02],
+		[0.0, 0.62, 0.27, 0.03],
+		[0.5, 0.46, 0.2, 0.02],
+		[0.95, 0.16, 0.08, 0.0],
+		[1.15, 0.02, 0.02, 0.0],
+	], 10, slate, slate, pale)
+	# the ridges along it: thin pale strips standing a little proud of the shell
+	for r in 5:
+		var across := (r - 2) * 0.24
+		var prev := Vector3.ZERO
+		for k in 7:
+			var z := lerpf(-0.62, 1.0, k / 6.0)
+			var wide := 0.62 * sin(clampf((z + 0.8) / 2.0, 0.0, 1.0) * PI)
+			var x := across * wide / 0.62
+			var y := 0.03 + 0.29 * sqrt(maxf(1.0 - pow(x / maxf(wide, 0.01), 2.0), 0.0)) * sin(clampf((z + 0.8) / 2.0, 0.0, 1.0) * PI)
+			var p := Vector3(x, y, z)
+			if k > 0:
+				mb.quad(prev + Vector3(-0.025, 0, 0), prev + Vector3(0.025, 0, 0), p + Vector3(0.025, 0, 0), p + Vector3(-0.025, 0, 0), ridge, Vector3.UP)
+			prev = p
+	# the head and neck
+	_ringed_body(mb, [
+		[-1.12, 0.05, 0.06, 0.0],
+		[-1.0, 0.15, 0.14, 0.01],
+		[-0.82, 0.17, 0.15, 0.01],
+		[-0.62, 0.14, 0.11, 0.0],
+	], 6, skin, skin, pale)
+	for sx: float in [-1.0, 1.0]:
+		# front flippers, long and swept back; hind ones short and broad
+		mb.quad(Vector3(sx * 0.42, 0.0, -0.5), Vector3(sx * 1.5, -0.05, -0.1), Vector3(sx * 1.62, -0.06, 0.25), Vector3(sx * 0.5, 0.0, -0.2), skin, Vector3.UP)
+		mb.quad(Vector3(sx * 0.3, 0.0, 0.62), Vector3(sx * 0.62, -0.03, 0.9), Vector3(sx * 0.5, -0.03, 1.12), Vector3(sx * 0.16, 0.0, 0.9), skin, Vector3.UP)
+		var e := Vector3(sx * 0.165, 0.04, -0.98)
+		mb.quad(e + Vector3(0, 0.03, -0.03), e + Vector3(0, 0.03, 0.03), e + Vector3(0, -0.03, 0.03), e + Vector3(0, -0.03, -0.03), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+	return mb.build()
+
+
+## A humpback whale: a great dark body, pale and grooved under the throat, a small hump of a
+## fin well back, flippers a third as long as the whale is, white underneath, and broad
+## flukes. Nose at -Z, about 14 long.
+static func whale() -> ArrayMesh:
+	var mb := MB.new()
+	var dark := Color(0.12, 0.15, 0.2)
+	var grey := Color(0.2, 0.24, 0.3)
+	var white := Color(0.88, 0.9, 0.9)
+	_ringed_body(mb, [
+		[-7.0, 0.3, 0.25, -0.2],
+		[-6.2, 1.0, 0.8, -0.1],
+		[-4.5, 1.5, 1.45, 0.0],
+		[-2.0, 1.75, 1.7, 0.05],
+		[0.5, 1.5, 1.45, 0.1],
+		[3.0, 0.95, 0.95, 0.15],
+		[5.0, 0.45, 0.5, 0.2],
+		[6.2, 0.2, 0.25, 0.2],
+	], 10, dark, grey, white)
+	# the grooves of the throat: dark lines along the pale underside
+	for g in 5:
+		var x := (g - 2) * 0.42
+		mb.quad(Vector3(x - 0.04, -1.47, -5.6), Vector3(x + 0.04, -1.47, -5.6), Vector3(x + 0.04, -1.62, -1.6), Vector3(x - 0.04, -1.62, -1.6), grey, Vector3.DOWN)
+	# the hump of a dorsal fin
+	mb.tri(Vector3(0.0, 1.35, 2.0), Vector3(0.0, 1.85, 2.9), Vector3(0.0, 1.15, 3.4), dark, Vector3.RIGHT)
+	# the flukes, lying flat
+	var stock := Vector3(0.0, 0.2, 6.1)
+	for sx: float in [-1.0, 1.0]:
+		mb.quad(stock, stock + Vector3(sx * 2.6, 0.0, 0.5), stock + Vector3(sx * 2.9, 0.0, 1.5), stock + Vector3(0.0, 0.0, 0.9), dark, Vector3.UP)
+		# the long flippers, dark above and white below, knobbly along the front
+		var sh := Vector3(sx * 1.45, -0.7, -3.6)
+		mb.quad(sh, sh + Vector3(sx * 2.2, -0.5, 0.4), sh + Vector3(sx * 4.3, -1.0, 2.2), sh + Vector3(sx * 0.3, -0.1, 1.3), white, Vector3.UP)
+		mb.tri(sh + Vector3(sx * 2.2, -0.5, 0.4), sh + Vector3(sx * 4.3, -1.0, 2.2), sh + Vector3(sx * 4.6, -1.05, 1.7), white, Vector3.UP)
+		var e := Vector3(sx * 1.03, -0.25, -6.0)
+		mb.quad(e + Vector3(0, 0.1, -0.1), e + Vector3(0, 0.1, 0.1), e + Vector3(0, -0.1, 0.1), e + Vector3(0, -0.1, -0.1), Color(0.02, 0.02, 0.03), Vector3(sx, 0, 0))
+	return mb.build()

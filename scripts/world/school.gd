@@ -26,6 +26,8 @@ var in_step := 0.0
 ## Loose: not a pack at all but salmon about their own business, spread far out ahead and to
 ## either side, each at its own pace, taking no notice of the player. (Set before setup.)
 var loose := false
+## How many of them are about (the rest wait out of sight): all of them, unless set lower.
+var active := 999
 var _step := 0.0
 var _rng := RandomNumberGenerator.new()
 
@@ -42,7 +44,7 @@ func setup(t: Track, p: Salmon, count: int) -> void:
 		node.material_override = mat
 		add_child(node)
 		_fish.append({"node": node, "mat": mat, "s": 0.0, "x": 0.0, "y": 0.0, "vy": 0.0, "vx": 0.0,
-				"lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
+				"n": i, "lane": 0.0, "pace": 1.0, "size": 1.0, "phase": _rng.randf() * TAU, "hop": _rng.randf_range(1.0, 5.0),
 				# its place in the pack: how far ahead of the player and how far to one side
 				"ahead": lerpf(-7.0, 15.0, (i + 0.5) / count) + _rng.randf_range(-1.5, 1.5),
 				"off": (3.0 + _rng.randf_range(0.0, 5.5)) * (1.0 if i % 2 == 0 else -1.0), "deep": 0.0})
@@ -96,6 +98,10 @@ func _process(delta: float) -> void:
 	# (dived, the player takes the pack down too)
 	var depth := 0.0 if loose else track.layer_depth() * player.dive
 	for f: Dictionary in _fish:
+		if f.has("n"):
+			(f.node as MeshInstance3D).visible = int(f.n) < active
+			if int(f.n) >= active:
+				continue
 		# out of sight: come back in from the other end
 		var gap: float = float(f.s) - player.s
 		if gap > (95.0 if loose else AHEAD) or gap < -(30.0 if loose else BEHIND):

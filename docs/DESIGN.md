@@ -114,7 +114,7 @@ width, slope, how much it bends, what it is made of, how often waterfalls come),
 | Rails | Bamboo, logs or pipes to grind along; land on one or swim onto its end. |
 | Rocks | Rapids full of rocks (ice, coral heads, containers). Clip one swimming and you are bumped; hit one in the air and you wipe out. |
 | Rings | Trails to collect: points and boost. |
-| Predators | Sharks at sea, bears in rivers. They strike on every other beat; jump them or steer wide. |
+| Predators | Bears in rivers strike on every other beat: jump them or steer wide. Sharks at sea keep no beat: each swims to and fro across your way, one at the surface and one under it, and touching it at its own depth is a wipeout, so go round, over or under. |
 | Waterfalls | Going up: a wall 2.6 to 4 m high to leap, or be washed back 40 m. Going down: a drop of 9 to 20 m to launch off. |
 | Currents, boost rings, sea nettles | Under the sea stages only: see "The layers under the water". |
 
@@ -150,8 +150,22 @@ are 16 to 21 m between their banks.
 Seasons are part of each entry: the base settings are autumn (the way up), and a `spring`
 block replaces whatever changes on the way down.
 
-Other salmon (five to eight) swim every course alongside you, matching your life stage. They
-avoid rocks, ride ramps and leap falls. They are company only.
+**A pack of six salmon** swims every course right round you, matching your life stage: each
+keeps a place of its own a little ahead, behind or to one side, leaps when you leap and
+dives when you dive. **In the flow** (from x2, fully at x3) the pack draws in close and falls
+in step: as high out of the water as you are, and turning every spin, flip and corkscrew you
+turn (`School.in_step`). **Other salmon** swim further off about their own business, and
+there are more of them the higher the stage's score (3 at the start, up to 16 by 120,000).
+All of them avoid rocks, ride ramps and leap falls. They are company only.
+
+**On the salt water** there is more: swarms of sardines under the surface, each a ball
+turning on itself; a wall of sardines that gathers at the edge of the course as you near it,
+in place of a line of buoys (`edge_swarm.gd`); and a chance on every stage of a leatherback
+turtle, a humpback whale off to one side (it rolls up to breathe and now and then throws
+itself out of the water) and Pacific bluefin tuna that come by from behind
+(`sea_visitors.gd`). Which of those a stage has is rolled when it is begun; more of each
+turn up as the score climbs, and a kind the stage did not have turns up anyway once the
+score is high enough. They are scenery: nothing touches them.
 
 ## 5. Controls
 
@@ -198,7 +212,7 @@ on its own along a trail of its own, whatever is on the surface above it
   down and up through every layer there is. Swim into one (each starts a layer or two down, under a row of arrows on the
   surface) and it carries you off at boost speed, filling the boost bar and scoring by how
   long you stay on. An up or down swipe leaves it early; otherwise it lets you go at whatever
-  depth it ends. It is drawn as thin white lines winding round a tube in a spiral, with thin rings, under the water like
+  depth it ends. They come in all widths (about one in three is a great wide one). Each is drawn the way wind is: thin white wisps winding round a tube in a spiral, grainy see-through rings and bubbles carried along it, under the water like
   everything else there (so the surface tints it from above), and the murk does not hide it.
 - **Launch currents** end by rising to the surface and throw you into the air, through three
   rings. About one current in three is a launch. The Open Ocean has no jump ramps: this is its way up, and its rails are ones you

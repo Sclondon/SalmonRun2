@@ -8,6 +8,7 @@ const Levels := preload("res://scripts/world/levels.gd")
 const School := preload("res://scripts/world/school.gd")
 const Shoals := preload("res://scripts/world/shoals.gd")
 const EdgeSwarm := preload("res://scripts/world/edge_swarm.gd")
+const SeaVisitors := preload("res://scripts/world/sea_visitors.gd")
 
 var track: Track
 var player: Salmon
@@ -17,6 +18,7 @@ var others: School
 var shoals: Shoals
 var sardines: Shoals
 var edge_swarm: EdgeSwarm
+var visitors: SeaVisitors
 var env: Environment
 var sun: DirectionalLight3D
 var _fireflies: CPUParticles3D
@@ -42,7 +44,8 @@ func _ready() -> void:
 	others = School.new()
 	others.loose = true
 	add_child(others)
-	others.setup(track, player, 4 if Save.is_mobile() else 7)
+	others.setup(track, player, 8 if Save.is_mobile() else 16)
+	others.active = 3
 	shoals = Shoals.new()
 	add_child(shoals)
 	shoals.setup(track, player, 5 if Save.is_mobile() else 9, 9 if Save.is_mobile() else 14)
@@ -54,6 +57,10 @@ func _ready() -> void:
 	edge_swarm = EdgeSwarm.new()
 	add_child(edge_swarm)
 	edge_swarm.setup(track, player, 110 if Save.is_mobile() else 260)
+	# turtles, a whale, tuna: each with a chance of being about on a stage of the sea
+	visitors = SeaVisitors.new()
+	add_child(visitors)
+	visitors.setup(track, player)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
@@ -102,6 +109,8 @@ func set_course(level: int, test: bool, down := false) -> void:
 	sardines.track = track
 	sardines.scatter()
 	edge_swarm.track = track
+	visitors.track = track
+	visitors.scatter()
 	shoals.scatter()
 	camera.snap()
 
@@ -291,3 +300,11 @@ func _process(_delta: float) -> void:
 		env.fog_density = lerpf(track.cfg.fog_density, track.cfg.get("murk", 0.016), under)
 		env.fog_sky_affect = lerpf(0.25, 1.0, under)
 		_sky.set_shader_parameter("sun_color", (track.cfg.sun as Color).lerp(murk, under))
+
+
+## How well the stage is going, from 0 to 1 (from the score): the better, the more life there
+## is in the water: more salmon about, and more of the other animals of the sea.
+func set_abundance(amount: float) -> void:
+	amount = clampf(amount, 0.0, 1.0)
+	others.active = 3 + int(roundf((others.get_child_count() - 3) * amount))
+	visitors.abundance = amount
