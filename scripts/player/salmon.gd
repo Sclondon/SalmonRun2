@@ -22,7 +22,7 @@ const Wake := preload("res://scripts/fx/wake.gd")
 const Score := preload("res://scripts/game/score.gd")
 
 const GRAVITY := Track.GRAVITY
-const CRUISE := 25.0
+const CRUISE := 22.0
 const BOOST_SPEED := 12.0
 const STEER := 12.0
 const SPIN_RATE := 620.0
@@ -48,6 +48,9 @@ const TRICK_WINDUP := 0.16
 ## Diving: how long it takes to get down a layer or back up one. (How many layers there are and
 ## how far apart is the stage's business: see Track.layers.)
 const DIVE_TIME := 0.22
+## Under the water the salmon can also be swum up and down freely (up and down on the keys or
+## the stick; on touch, a slow drag up or down with the finger held): this many layers a second.
+const FREE_SWIM := 2.4
 ## A swipe to one side on the water dashes this far across (metres), in this long.
 const DASH := 3.0
 const DASH_TIME := 0.13
@@ -83,6 +86,10 @@ var autopilot := false
 var under := false
 var layer := 0
 var dive := 0.0
+## How far down it is making for, in layers: the layer it was last sent to, or wherever it
+## has been swum to freely since.
+var dive_to := 0.0
+var _rise := 0.0
 var _current_wait := 0.0
 var _dash := 0.0
 
@@ -260,6 +267,7 @@ func reset(at_s: float) -> void:
 	under = false
 	layer = 0
 	dive = 0.0
+	dive_to = 0.0
 	state = State.IDLE
 	Sfx.set_loop("grind", false)
 
@@ -341,6 +349,8 @@ func _read_input(delta: float) -> Dictionary:
 		# (keys and pads: one button goes down a layer, or back up)
 		"steer": steer,
 		"pitch": Input.get_axis("swim_down", "swim_up"),
+		# (under the water: up and down. A finger held and dragged slowly does it on touch.)
+		"rise": -GameInput.follow_dy if GameInput.follow else Input.get_axis("swim_down", "swim_up"),
 		"roll": GameInput.roll if GameInput.roll != 0.0 else Input.get_axis("roll_left", "roll_right"),
 		"jump": Input.is_action_pressed("jump"),
 		# (touch: a wiggle or a circle; in the air the circle is the corkscrew instead)
@@ -350,7 +360,8 @@ func _read_input(delta: float) -> Dictionary:
 
 
 func _swim(dt: float, inp: Dictionary, released: bool) -> void:
-	var pitch_in: float = inp.pitch
+	# (on the surface up and down are faster and slower; under it they are up and down)
+	var pitch_in: float = 0.0 if layer > 0 else float(inp.pitch)
 	var target := CRUISE + (pitch_in * 8.0 if pitch_in > 0.0 else pitch_in * 14.0)
 	var was_boosting := boosting
 	boosting = inp.boost and boost > 0.0
@@ -395,9 +406,9 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		y = _prev_surface
 		vy = maxf(_ramp_vy, 2.5)
 		if released or inp.jump:
-			vy += 6.0 + 7.0 * charge
+			vy += 6.6 + 7.7 * charge
 		elif _swiped_up(inp):
-			vy += 6.0 + 7.0 * SWIPE_JUMP
+			vy += 6.6 + 7.7 * SWIPE_JUMP
 		_take_off()
 		return
 	var climb := (surf - _prev_surface) / dt if dt > 0.0 else 0.0
@@ -405,7 +416,16 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 	# The layers: the surface, and one or more dived under it (a river has one, the open
 	# ocean several). Swiping down goes down one; swiping up comes up one (and from the
 	# surface, jumps).
-	dive = move_toward(dive, float(layer), dt / DIVE_TIME)
+	# Under the water it can be swum up and down freely as well, to anywhere between the
+	# layers; held up far enough, it comes back to the surface.
+	_rise = float(inp.get("rise", 0.0)) if layer > 0 and not autopilot else 0.0
+	if _rise != 0.0:
+		dive_to = clampf(dive_to - _rise * FREE_SWIM * dt, 0.0, float(track.layers()))
+		if dive_to < 0.3:
+			_set_layer(0)
+		else:
+			layer = maxi(roundi(dive_to), 1)
+	dive = move_toward(dive, dive_to, dt / DIVE_TIME)
 	y = surf - track.layer_depth() * dive
 	_prev_surface = surf
 	_current_wait = maxf(_current_wait - dt, 0.0)
@@ -419,10 +439,10 @@ func _swim(dt: float, inp: Dictionary, released: bool) -> void:
 		elif _current_wait <= 0.0:
 			_try_current()
 	elif released:
-		vy = 7.0 + 8.0 * charge + _ramp_vy
+		vy = 7.7 + 8.8 * charge + _ramp_vy
 		_take_off()
 	elif up:
-		vy = 7.0 + 8.0 * SWIPE_JUMP + _ramp_vy
+		vy = 7.7 + 8.8 * SWIPE_JUMP + _ramp_vy
 		_take_off()
 	elif down:
 		_set_layer(1)
@@ -434,6 +454,7 @@ func _set_layer(to: int) -> void:
 	if to == layer:
 		return
 	var deeper := to > layer
+	dive_to = float(to)
 	layer = to
 	under = layer > 0
 	charge = 0.0
@@ -479,6 +500,7 @@ func _ride(dt: float, inp: Dictionary, released: bool) -> void:
 	var depth := lerpf(track.layer_depth() * dive, track.current_depth(rail, s), 1.0 - exp(-14.0 * dt))
 	dive = depth / track.layer_depth()
 	layer = clampi(roundi(dive), 1, track.layers())
+	dive_to = dive
 	under = true
 	_prev_surface = track.surface_y(s, x)
 	y = track.water_y(s) - depth
@@ -521,6 +543,7 @@ func _take_off() -> void:
 	under = false
 	layer = 0
 	dive = 0.0
+	dive_to = 0.0
 	_trick_wait = [0.0, 0.0]
 	grabs.clear()
 	grab = -1
@@ -736,6 +759,7 @@ func _start_grind(r: Dictionary) -> void:
 	under = false
 	layer = 0
 	dive = 0.0
+	dive_to = 0.0
 	rail = r
 	rail_time = 0.0
 	vy = 0.0
@@ -776,6 +800,7 @@ func _wipe(reason: String) -> void:
 	under = false
 	layer = 0
 	dive = 0.0
+	dive_to = 0.0
 	wipe_time = 0.0
 	grab = -1
 	charge = 0.0
@@ -807,6 +832,7 @@ func _wash_back(base: float) -> void:
 	under = false
 	layer = 0
 	dive = 0.0
+	dive_to = 0.0
 	charge = 0.0
 	grab = -1
 	yaw = 0.0
@@ -928,7 +954,7 @@ func _update_visual(dt: float) -> void:
 		State.IDLE, State.SWIM, State.CURRENT:
 			pos.y -= 0.1 - sin(_t * 5.0) * 0.05
 			# nose down on the way under, nose up on the way back
-			var tip := clampf(float(layer) - dive, -1.0, 1.0) * 0.7
+			var tip := clampf(dive_to - dive - _rise * 0.45, -1.0, 1.0) * 0.7
 			_land_twist = lerpf(_land_twist, 0.0, 1.0 - exp(-8.0 * dt))
 			if _stumble > 0.0:
 				_stumble = maxf(_stumble - dt, 0.0)

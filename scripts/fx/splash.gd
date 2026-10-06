@@ -103,9 +103,17 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 	x = at_x
 	strength = how_big
 	_t = 0.0
+	# It is made of the water it is thrown up from: the stage's own shallow colour, paler
+	# towards its foam.
+	var water: Color = track.mat_water.get_shader_parameter("shallow")
+	var foam: Color = track.mat_water.get_shader_parameter("foam_color")
+	water = water.lerp(foam, 0.15)
 	for node in _tubes:
 		node.visible = false
 		(node.material_override as ShaderMaterial).set_shader_parameter("phase", randf() * TAU)
+		(node.material_override as ShaderMaterial).set_shader_parameter("white", foam)
+		(node.material_override as ShaderMaterial).set_shader_parameter("pale", water.lerp(foam, 0.55))
+		(node.material_override as ShaderMaterial).set_shader_parameter("blue", water)
 	for node in _ripples:
 		node.visible = false
 	for i in _bursts.size():
@@ -114,6 +122,8 @@ func start(on: Track, at_s: float, at_x: float, how_big: float) -> void:
 		# means making the whole burst again, which is what this is here to avoid)
 		p.initial_velocity_min = float(BURSTS[i][3]) * sqrt(strength)
 		p.initial_velocity_max = float(BURSTS[i][4]) * sqrt(strength)
+		# (the drops are white and blue in themselves: they are tinted by the water)
+		p.color = water.lerp(Color.WHITE, 0.6)
 		p.restart()
 		p.emitting = true
 	transform = Transform3D(track.basis_at(s), track.point(s, x, track.water_y(s) + track.swell_y(s, x) + 0.03))

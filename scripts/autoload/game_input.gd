@@ -79,6 +79,9 @@ var follow := false
 ## How far the salmon is from where the finger has dragged it to, in metres across the river
 ## (+ is river-right).
 var follow_dx := 0.0
+## How far up or down the held finger has been dragged from where it came down (or from its
+## last swipe), from -1 (up) to 1 (down): under the water, the salmon swims up or down.
+var follow_dy := 0.0
 ## The finger is wiggling back and forth: boost.
 var wiggling := false
 ## The finger is drawing circles: corkscrew that way (-1 anticlockwise, 1 clockwise, 0 not).
@@ -102,6 +105,7 @@ func take_swipes() -> Array[Vector2]:
 func clear_touch() -> void:
 	follow = false
 	follow_dx = 0.0
+	follow_dy = 0.0
 	wiggling = false
 	roll = 0.0
 	_swipes = []

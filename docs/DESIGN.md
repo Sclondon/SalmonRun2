@@ -162,7 +162,10 @@ jump (charge), boost, corkscrew, four grabs. See the README for the bindings.
 ### The layers under the water
 
 The salmon swims on the surface or **dived** under it. Swiping down goes down a layer;
-swiping up comes up one (and from the surface, jumps). Steering and speed are the same at
+swiping up comes up one (and from the surface, jumps). Once under, it can also be swum up
+and down freely, to anywhere between the layers and back to the surface: up and down on the
+keys or the stick, or a slow drag up or down with the finger held (a quick stroke is still a
+swipe). Steering and speed are the same at
 every depth. A river has one layer under the surface (1.7 m down). The **Open Ocean** has
 six and the Ocean Trench three, 3.6 m apart; the Shallow Sea has two, 2.6 m apart.
 
@@ -248,7 +251,8 @@ on its own along a trail of its own, whatever is on the surface above it
   between them, small white dots of spray tossed up off the shoulders (they stay round the
   fish, and are not left strung out behind),
   and a string of bubbles when dived.
-- **Landing** throws up a splash that stays where the salmon went in: three tubes of water
+- **Landing** throws up a splash that stays where the salmon went in, in the colours of the
+  stage's own water (its shallow colour and its foam): three tubes of water
   one inside the other, like the tiers of a cake (the outer wide and low, the inner narrow
   and tall), with ragged crests and water streaming down them. They shoot up and drop back,
   with ripples across the surface, splattery drops and a spray of small dots. Its size follows how hard the landing

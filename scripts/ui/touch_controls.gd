@@ -62,6 +62,7 @@ var _steady_x := 0.0           # the finger's position with the wiggle smoothed 
 # Steering is a stick whose middle is where the finger came down. (Where on the screen that
 # is makes no difference.)
 var _drag_from := 0.0
+var _drag_from_y := 0.0
 var _flash := 0.0
 var _flash_dir := Vector2.ZERO
 var _flash_pos := Vector2.ZERO
@@ -110,6 +111,7 @@ func _touch_down(index: int, p: Vector2) -> void:
 	_trail = [[_now(), p]]
 	_steady_x = p.x
 	_drag_from = p.x
+	_drag_from_y = p.y
 	_turns.clear()
 	_flips.clear()
 	_head_pos = p
@@ -126,6 +128,7 @@ func _release() -> void:
 	GameInput.wiggling = false
 	GameInput.follow = false
 	GameInput.follow_dx = 0.0
+	GameInput.follow_dy = 0.0
 	queue_redraw()
 
 
@@ -196,6 +199,9 @@ func _track_swipe() -> void:
 	_flash_dir = dir.normalized()
 	_flash_pos = _pos
 	GameInput.swipe(dir)
+	# (up and down are measured afresh from where a swipe ends, or the swipe would be taken
+	# for a drag that way as well)
+	_drag_from_y = _pos.y
 
 
 func _process(delta: float) -> void:
@@ -228,6 +234,11 @@ func _process(delta: float) -> void:
 		push = 0.0
 	GameInput.follow = true
 	GameInput.follow_dx = push / Salmon.FOLLOW_GAIN
+	# Up and down the same stick swims the salmon up and down under the water, freely. It
+	# takes a longer, slower drag than steering does, so that a turn does not change the depth
+	# (a quick stroke is still a swipe: up a layer, or down one).
+	var lift := clampf((_pos.y - _drag_from_y) / (STICK_REACH * 1.3 * _k()), -1.0, 1.0)
+	GameInput.follow_dy = 0.0 if absf(lift) < 0.35 or wiggling or roll != 0.0 else lift
 
 
 func _draw() -> void:
