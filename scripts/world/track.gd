@@ -1320,8 +1320,8 @@ func _build_current(c: Dictionary) -> void:
 	var sides := 20
 	var rows := int((float(c.s1) - float(c.s0)) / 2.0)
 	var wide := float(c.get("r", 1.25))
-	# (a wide one has more wisps round it, no thicker than a narrow one has)
-	mat.set_shader_parameter("strands", maxf(roundf(TAU * wide / 4.5), 3.0))
+	# (few strands, well spread out: a wide one has a few more, no thicker than a narrow one has)
+	mat.set_shader_parameter("strands", maxf(roundf(TAU * wide / 11.0), 2.0))
 	mat.set_shader_parameter("girth", TAU * wide)
 	for k in rows + 1:
 		var s: float = float(c.s0) + 2.0 * k

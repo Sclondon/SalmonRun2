@@ -26,10 +26,11 @@ uniform float thickness = 0.09;
 // and bubbles are the same size as a narrow one's.
 uniform float girth = 7.85;
 // How much of each ring is there (0 is none, 1 is a solid band), and how wide it is (m).
-uniform float ring_cover = 0.35;
-uniform float ring_width = 0.7;
-// The wall of the tunnel: how much of it is there (0 is none), and its colour.
-uniform float wall = 0.75;
+uniform float ring_cover = 0.62;
+uniform float ring_width = 0.4;
+// A wall for the tunnel, as a screen of dots strongest at its edges: how much of it is there
+// (0 is none, and none is what it has: it was tried, and it looked boxed in), and its colour.
+uniform float wall = 0.0;
 uniform vec4 wall_colour : source_color = vec4(0.6, 0.85, 1.0, 1.0);
 // How near the eye it is cut away (metres): more while the salmon is riding inside it, so
 // that the tube is not in the way of the view.
@@ -69,11 +70,11 @@ void fragment() {
 	float strand = mod(floor(helix), strands);
 	float lane = girth / strands;
 	float side_m = (fract(helix) - 0.5) * lane;
-	float rate = 0.22 + hash(vec2(strand, 3.0)) * 0.2;
+	float rate = 0.14 + hash(vec2(strand, 3.0)) * 0.12;
 	float along = UV.x * rate - TIME * speed * (0.2 + hash(vec2(strand, 7.0)) * 0.2) + hash(vec2(strand, 1.0));
-	float stroke = fract(along) / 0.55;
+	float stroke = fract(along) / 0.4;
 	// (how many metres back from the tip of its head this is, along the stroke)
-	float long_m = 0.55 * 6.0 / rate;
+	float long_m = 0.4 * 6.0 / rate;
 	float back_m = (1.0 - stroke) * long_m;
 	float curl_r = min(0.42, lane * 0.22);
 	float wide = thickness * swell;
@@ -106,7 +107,7 @@ void fragment() {
 		discard;
 	}
 	// (the murk does not hide it, as it is there to be found: it only dims with distance)
-	float bright = max(wisp, max(ring * 0.6, shell * 0.45));
+	float bright = max(wisp, max(ring * 0.85, shell * 0.45));
 	vec3 tint = mix(wall_colour.rgb, colour.rgb, wisp);
 	ALBEDO = tint * strength * bright * mix(1.0, 0.45, smoothstep(20.0, 130.0, far));
 }

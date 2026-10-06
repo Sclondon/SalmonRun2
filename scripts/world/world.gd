@@ -66,7 +66,7 @@ func _ready() -> void:
 	# bubbles swept along inside whichever current is near
 	bubbles = CurrentBubbles.new()
 	add_child(bubbles)
-	bubbles.setup(track, player, 70 if Save.is_mobile() else 160)
+	bubbles.setup(track, player, 30 if Save.is_mobile() else 60)
 	camera = ChaseCam.new()
 	camera.near = 0.2
 	camera.far = 450.0 if Save.is_mobile() else 900.0
@@ -210,7 +210,7 @@ func _make_sea_life() -> void:
 	bubble.rings = 3
 	bubble.material = white
 	_rising = CPUParticles3D.new()
-	_rising.amount = 70 if Save.is_mobile() else 170
+	_rising.amount = 22 if Save.is_mobile() else 45
 	_rising.lifetime = 2.0
 	_rising.local_coords = false
 	_rising.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -237,7 +237,7 @@ func _make_sea_life() -> void:
 	dim.albedo_color = Color(0.75, 0.88, 0.92)
 	speck.material = dim
 	_specks = CPUParticles3D.new()
-	_specks.amount = 80 if Save.is_mobile() else 220
+	_specks.amount = 40 if Save.is_mobile() else 90
 	_specks.lifetime = 2.4
 	_specks.local_coords = false
 	_specks.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
