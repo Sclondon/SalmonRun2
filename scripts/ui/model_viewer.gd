@@ -266,7 +266,9 @@ func _build_stage() -> void:
 					_part(node, arm, mat, Vector3(sx * 0.45, 0.95 - 1.4, -0.8))
 			_:
 				# a salmon, side on to begin with
-				_part(node, Props.salmon(str(entry.model)), mat, Vector3.ZERO)
+				# (the sockeye model for that stage of its life: see SalmonModel)
+				_part(node, SalmonModel.mesh(str(entry.model)), SalmonModel.material(str(entry.model)), Vector3.ZERO)
+				(node.get_child(0) as Node3D).scale = Vector3.ONE * SalmonModel.SCALE
 
 
 func _part(parent: Node3D, mesh: Mesh, mat: Material, at: Vector3) -> void:

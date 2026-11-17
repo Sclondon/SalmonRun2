@@ -179,3 +179,13 @@ godot --path . -- --autotest=C:/some/folder
 ```
 Plays a full race on autopilot (add `--level=N` to pick the stage and `--down` for the downstream leg, or `--practice` for a minute on the practice level), saves screenshots to that folder, prints the result and quits
 (autotest runs never touch your high score).
+
+## The salmon model (2026-11-17)
+
+The salmon is no longer built in code. The user: "We need to update salmon run with this new model, and make new models for all the other life stages in salmon run just as good" and, of the spawning pair, "Yes make a female".
+
+- The models are GameCommon's `godot/sockeye-salmon`, installed in `creatures/sockeye_salmon/` (`sh kit.sh install godot/sockeye-salmon <here> --force`, then `godot --headless --import` before running): a Blender-built shape for fry, parr, smolt, ocean, migrating, spawner (the male) and the spawning female, each with a low model, and one shader that swims them and draws their markings. Its README has the sources and what differs from real fish. The editable `.blend` files (36 MB) are in GameCommon and on disk here under `creatures/sockeye_salmon/tools/`, but are not recorded in this project's history.
+- `scripts/world/salmon_model.gd` (`SalmonModel`) is the go-between: `mesh(look, low)`, `dress(material, look, plain)`, `SCALE` (the model is 0.6 m, the game's fish 2.62) and `pose(...)`, which turns the old fish shader's `wag_phase`, `wag_amp`, `curl`, `bend` and `flash` into the model's settings, with the PS1 wobble from the options.
+- Where: the player (full model), the three packs (low model, plain skin: about 20 fish at once), the spawning scene (she is the female, he the male, the young are fry) and the model viewer. Guests in a pack (the golden trout) and every other animal still use `shaders/fish.gdshader` and `Props`.
+- Kept, unused for the salmon: `Props.salmon` and `SALMON_LOOKS` (the play sizes still come from `salmon_size`). The little pixel salmon of the HUD are drawings and were not changed.
+- Not yet checked: a web build, and a phone. The new shader draws its markings per pixel and each full model is 45,000 triangles (the low ones 3,700); two autopilot races ran at the desktop's full 165 frames a second with no errors.

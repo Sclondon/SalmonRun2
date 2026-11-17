@@ -27,6 +27,8 @@ var _cover: MeshInstance3D
 var _eggs: MultiMesh
 var _egg_at: Array[Vector3] = []
 var _young: Array[MeshInstance3D] = []
+# How hard each of them is swimming (the fish shader's `wag_amp`), in step with `_mats`.
+var _amps: Array[float] = []
 var _grit: CPUParticles3D
 var _milt: CPUParticles3D
 var _t := 0.0
@@ -80,14 +82,15 @@ func begin(on: Track, s: float, x: float) -> void:
 		_egg_at.append(Vector3(cos(a) * r, 0.02 + rng.randf() * 0.14, sin(a) * r))
 		_eggs.set_instance_transform(k, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 0.001), Vector3.ZERO))
 	# the pair
-	var shader := preload("res://shaders/fish.gdshader")
-	var adult := Props.salmon("spawner")
+	# (the sockeye model: she is the spawning female, with no hump or hooked jaw; he the male)
 	for k in 2:
-		var mat := ShaderMaterial.new()
-		mat.shader = shader
+		var who := "female" if k == 0 else "spawner"
+		var mat := SalmonModel.material(who)
 		_mats.append(mat)
+		_amps.append(0.12)
 		var fish := MeshInstance3D.new()
-		fish.mesh = adult
+		fish.mesh = SalmonModel.mesh(who)
+		fish.extra_cull_margin = 2.0
 		fish.material_override = mat
 		add_child(fish)
 		if k == 0:
@@ -95,12 +98,11 @@ func begin(on: Track, s: float, x: float) -> void:
 		else:
 			_he = fish
 	# the young, when they hatch: fry, very small
-	var fry := Props.salmon("fry")
+	var fry := SalmonModel.mesh("fry", true)
 	for k in YOUNG:
-		var mat := ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("wag_amp", 0.2)
+		var mat := SalmonModel.material("fry", true)
 		_mats.append(mat)
+		_amps.append(0.2)
 		var small := MeshInstance3D.new()
 		small.mesh = fry
 		small.material_override = mat
@@ -154,8 +156,6 @@ func _cloud(colour: Color, amount: int, size: float, speed: float, pull: Vector3
 ## third), `delta` the time since the last call.
 func advance(u: float, delta: float) -> void:
 	_t += delta
-	for k in _mats.size():
-		_mats[k].set_shader_parameter("wag_phase", _t * (7.0 if k < 2 else 16.0) + k * 1.3)
 	# --- the pair. (Upstream is -Z here: they face into the stream.)
 	var dig := smoothstep(1.0, 1.25, u) * (1.0 - smoothstep(1.85, 2.05, u))
 	var lay := smoothstep(2.0, 2.3, u) * (1.0 - smoothstep(3.0, 3.3, u))
@@ -163,19 +163,20 @@ func advance(u: float, delta: float) -> void:
 	# she comes down to the gravel; digging, she rolls on her side and beats her tail
 	var beat := sin(_t * 16.0) * dig
 	var her := Vector3(0.0, 1.0 - 0.45 * smoothstep(0.3, 1.0, u) - 0.25 * lay + beat * 0.08, 0.2 - 0.5 * dig)
-	_she.transform = Transform3D(Basis(Vector3.BACK, 1.35 * dig + beat * 0.25) * Basis(Vector3.RIGHT, -0.25 * lay), her)
-	_mats[0].set_shader_parameter("wag_amp", 0.1 + 0.3 * dig)
+	_she.transform = Transform3D((Basis(Vector3.BACK, 1.35 * dig + beat * 0.25) * Basis(Vector3.RIGHT, -0.25 * lay)).scaled(Vector3.ONE * SalmonModel.SCALE), her)
 	# he keeps beside her, and comes in close over the nest as the eggs are laid
 	var him := Vector3(1.5 - 1.0 * lay, 1.25 - 0.5 * lay, 1.0 - 0.9 * lay)
-	_he.transform = Transform3D(Basis(Vector3.UP, 0.15 * lay) * Basis(Vector3.RIGHT, -0.2 * lay), him)
+	_he.transform = Transform3D((Basis(Vector3.UP, 0.15 * lay) * Basis(Vector3.RIGHT, -0.2 * lay)).scaled(Vector3.ONE * SalmonModel.SCALE), him)
 	# afterwards they are spent: they drift off down the stream, turning on their sides
 	for fish: MeshInstance3D in [_she, _he]:
 		var side := 1.0 if fish == _she else -1.0
 		fish.position += Vector3(side * 1.5, -0.2, 9.0) * gone
 		fish.basis = fish.basis * Basis(Vector3.BACK, side * 1.4 * gone)
 		fish.visible = u < 4.2
-	_mats[0].set_shader_parameter("wag_amp", lerpf(0.1 + 0.3 * dig, 0.02, gone))
-	_mats[1].set_shader_parameter("wag_amp", lerpf(0.12, 0.02, gone))
+	_amps[0] = lerpf(0.1 + 0.3 * dig, 0.02, gone)
+	_amps[1] = lerpf(0.12, 0.02, gone)
+	for k in _mats.size():
+		SalmonModel.pose(_mats[k], _t * (7.0 if k < 2 else 16.0) + k * 1.3, _amps[k])
 	# --- the gravel thrown up as she digs, and again as she covers the eggs
 	_grit.position = Vector3(0.0, 0.1, 0.9)
 	_grit.emitting = dig > 0.5 or (u > 3.0 and u < 3.5)
@@ -209,7 +210,7 @@ func advance(u: float, delta: float) -> void:
 		# (down the stream is +Z here: they turn tail to the current and go)
 		var place := (home + roam * out).lerp(home + Vector3(sin(k * 1.9) * 2.0, 0.8 + 0.1 * k, 4.0 + 14.0 * away), away)
 		var turn := Basis(Vector3.UP, lerpf(sin(_t * 1.1 + k) * 0.8, PI, away))
-		small.transform = Transform3D(turn.scaled(Vector3.ONE * 0.34 * out), place)
+		small.transform = Transform3D(turn.scaled(Vector3.ONE * 0.34 * out * SalmonModel.SCALE), place)
 
 
 ## Where to film it from, and what to look at: beside the nest, under the water.

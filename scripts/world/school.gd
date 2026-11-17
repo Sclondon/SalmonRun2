@@ -77,12 +77,15 @@ func set_look(look: String) -> void:
 	if look == _look:
 		return
 	_look = look
-	var mesh := Props.salmon(look)
+	# (the packs wear the sockeye model's low shape and its plain skin: see SalmonModel)
+	var mesh := SalmonModel.mesh(look, true)
 	for f: Dictionary in _fish:
 		if f.get("guest", false):
 			continue
-		f.size = 1.35 * maxf(Props.salmon_size(look), 0.62) * _rng.randf_range(0.75, 1.05)
+		f.size = 1.35 * maxf(Props.salmon_size(look), 0.62) * SalmonModel.SCALE * _rng.randf_range(0.75, 1.05)
 		(f.node as MeshInstance3D).mesh = mesh
+		SalmonModel.dress(f.mat, look, true)
+		(f.node as MeshInstance3D).extra_cull_margin = 2.0
 		(f.node as MeshInstance3D).scale = Vector3.ONE * float(f.size)
 
 
@@ -282,8 +285,11 @@ func _process(delta: float) -> void:
 			_splash(s, x, 0.3 if air else 0.45)
 		f.was_air = air
 		var mat: ShaderMaterial = f.mat
-		mat.set_shader_parameter("wag_phase", _t * (6.0 if air else 18.0) + float(f.phase))
-		mat.set_shader_parameter("wag_amp", 0.08 if air else 0.12)
+		if f.get("guest", false):
+			mat.set_shader_parameter("wag_phase", _t * (6.0 if air else 18.0) + float(f.phase))
+			mat.set_shader_parameter("wag_amp", 0.08 if air else 0.12)
+		else:
+			SalmonModel.pose(mat, _t * (6.0 if air else 18.0) + float(f.phase), 0.08 if air else 0.12)
 
 
 # Where across the water to be at `s`, wanting to be at `want`, so as to miss any rock

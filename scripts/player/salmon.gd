@@ -175,11 +175,13 @@ var _ai := {"hold": 0.0, "next_hop": 2.0, "plan": [0.0, 0.0, 0.0, -1]}
 func setup(t: Track) -> void:
 	track = t
 	_mat = ShaderMaterial.new()
-	_mat.shader = preload("res://shaders/fish.gdshader")
+	# (the sockeye model, a shape for each stage of its life: see SalmonModel)
+	SalmonModel.dress(_mat, _look)
 	_fish = MeshInstance3D.new()
-	_fish.mesh = Props.salmon()
+	_fish.mesh = SalmonModel.mesh(_look)
 	_fish.material_override = _mat
-	_fish.scale = Vector3.ONE * 1.35
+	_fish.extra_cull_margin = 2.0
+	_fish.scale = Vector3.ONE * 1.35 * SalmonModel.SCALE
 	add_child(_fish)
 	_base_scale = _fish.scale
 	# The wake: two bands of foam that open out behind into a V (see fx/wake.gd)
@@ -274,10 +276,11 @@ func set_look(look: String) -> void:
 	if look == _look:
 		return
 	_look = look
-	_fish.mesh = Props.salmon(look)
+	_fish.mesh = SalmonModel.mesh(look)
+	SalmonModel.dress(_mat, look)
 	# (the young are smaller, though not as small as they really are, or they would be lost
 	# on the screen)
-	_base_scale = Vector3.ONE * 1.35 * maxf(Props.salmon_size(look), 0.62)
+	_base_scale = Vector3.ONE * 1.35 * maxf(Props.salmon_size(look), 0.62) * SalmonModel.SCALE
 	_fish.scale = _base_scale
 
 
@@ -1211,12 +1214,8 @@ func _update_visual(dt: float) -> void:
 	_bend_v += (210.0 * (target_bend - _bend) - 13.0 * _bend_v) * dt
 	_bend += _bend_v * dt
 	_wag_phase += dt * wag_speed
-	_mat.set_shader_parameter("wag_phase", _wag_phase)
-	_mat.set_shader_parameter("wag_amp", wag_amp)
-	_mat.set_shader_parameter("curl", _curl)
-	_mat.set_shader_parameter("bend", _bend)
 	var blink := invuln > 0.0 and fmod(_t, 0.2) < 0.1
-	_mat.set_shader_parameter("flash", 0.6 if blink else (0.35 if boosting else 0.0))
+	SalmonModel.pose(_mat, _wag_phase, wag_amp, _curl, _bend, 0.6 if blink else (0.35 if boosting else 0.0))
 	# the wake is cut only while swimming at the surface, and is stronger the faster it goes
 	_wake.track = track
 	_wake.lay(s, x, clampf(speed / CRUISE, 0.4, 1.4) if state == State.SWIM and speed > 5.0 and dive < 0.3 else 0.0, dt)
